@@ -1,0 +1,1136 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:http/http.dart' as http;
+
+import '../sync/offline_sync_queue.dart';
+
+String _dateOnly(DateTime date) {
+  final normalized = date.toUtc();
+  final month = normalized.month.toString().padLeft(2, '0');
+  final day = normalized.day.toString().padLeft(2, '0');
+  return '${normalized.year}-$month-$day';
+}
+
+class AccountingApiConfig {
+  const AccountingApiConfig({
+    required this.baseUrl,
+    required this.accessToken,
+    required this.organizationId,
+  });
+
+  final String baseUrl;
+  final String accessToken;
+  final String organizationId;
+}
+
+class AccountingApiException implements Exception {
+  const AccountingApiException(this.statusCode, this.message);
+
+  final int statusCode;
+  final String message;
+
+  @override
+  String toString() => 'AccountingApiException($statusCode): $message';
+}
+
+class AccountingApiClient {
+  AccountingApiClient({required this.config, http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
+
+  final AccountingApiConfig config;
+  final http.Client _httpClient;
+
+  Future<List<AccountSummary>> listAccounts() async {
+    final response = await _send('GET', '/accounts');
+    return _decodeList(response, AccountSummary.fromJson);
+  }
+
+  Future<List<InvoiceSummary>> listInvoices() async {
+    final response = await _send('GET', '/invoices');
+    return _decodeList(response, InvoiceSummary.fromJson);
+  }
+
+  Future<List<ExpenseSummary>> listExpenses() async {
+    final response = await _send('GET', '/expenses');
+    return _decodeList(response, ExpenseSummary.fromJson);
+  }
+
+  Future<List<AttachmentSummary>> listAttachments() async {
+    final response = await _send('GET', '/attachments');
+    return _decodeList(response, AttachmentSummary.fromJson);
+  }
+
+  Future<AttachmentSummary> createAttachment(
+    CreateAttachmentMetadata metadata,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/attachments',
+      body: metadata.toJson(),
+    );
+    return AttachmentSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<AttachmentSummary> uploadAttachmentBytes({
+    required String fileName,
+    required List<int> bytes,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _organizationUri('/attachments/upload'),
+    );
+    request.headers.addAll(_requestHeaders());
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+    );
+
+    final streamed = await _httpClient.send(request);
+    final response = await http.Response.fromStream(streamed);
+    return AttachmentSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<AttachmentDownload> downloadAttachment(String attachmentId) async {
+    final response = await _send('GET', '/attachments/$attachmentId/download');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decodeJson(response);
+    }
+    return AttachmentDownload(
+      bytes: response.bodyBytes,
+      contentType:
+          response.headers['content-type'] ?? 'application/octet-stream',
+      fileName: _extractFileName(response.headers['content-disposition']),
+    );
+  }
+
+  Future<List<TaxRateSummary>> listTaxRates() async {
+    final response = await _send('GET', '/tax/rates');
+    return _decodeList(response, TaxRateSummary.fromJson);
+  }
+
+  Future<List<TaxGroupSummary>> listTaxGroups() async {
+    final response = await _send('GET', '/tax/groups');
+    return _decodeList(response, TaxGroupSummary.fromJson);
+  }
+
+  Future<TaxCalculationResult> calculateTax(CalculateTaxRequest request) async {
+    final response = await _send(
+      'POST',
+      '/tax/calculate',
+      body: request.toJson(),
+    );
+    return TaxCalculationResult.fromJson(_decodeObject(response));
+  }
+
+  Future<ExpenseSummary> createExpense(CreateExpenseDraft draft) async {
+    final response = await _send('POST', '/expenses', body: draft.toJson());
+    return ExpenseSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<ExpenseSummary> syncExpenseDraft(SyncOperation operation) {
+    return createExpense(CreateExpenseDraft.fromSyncOperation(operation));
+  }
+
+  Future<List<InvestmentLotSummary>> listInvestmentLots() async {
+    final response = await _send('GET', '/investments/lots');
+    return _decodeList(response, InvestmentLotSummary.fromJson);
+  }
+
+  Future<RealizedGainsReport> getRealizedGains({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final params = Uri(
+      queryParameters: {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    ).query;
+    final response = await _send('GET', '/reports/realized-gains?$params');
+    return RealizedGainsReport.fromJson(_decodeObject(response));
+  }
+
+  Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
+    final response = await _send('GET', '/investments/prices');
+    return _decodeList(response, InvestmentPriceSummary.fromJson);
+  }
+
+  Future<InvestmentPriceSummary> createInvestmentPrice(
+    CreateInvestmentPriceRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices',
+      body: request.toJson(),
+    );
+    return InvestmentPriceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentValuationReport> getInvestmentValuation({
+    required DateTime asOf,
+  }) async {
+    final params = Uri(queryParameters: {'as_of': _dateOnly(asOf)}).query;
+    final response = await _send(
+      'GET',
+      '/reports/investment-valuation?$params',
+    );
+    return InvestmentValuationReport.fromJson(_decodeObject(response));
+  }
+
+  Future<AverageCostSaleResult> sellAverageCost(
+    SellAverageCostRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/average-cost-sales',
+      body: request.toJson(),
+    );
+    return AverageCostSaleResult.fromJson(_decodeObject(response));
+  }
+
+  Future<http.Response> _send(
+    String method,
+    String path, {
+    Map<String, Object?>? body,
+  }) {
+    final uri = _organizationUri(path);
+    final headers = _requestHeaders(jsonBody: body != null);
+
+    if (method == 'GET') {
+      return _httpClient.get(uri, headers: headers);
+    }
+    if (method == 'POST') {
+      return _httpClient.post(uri, headers: headers, body: jsonEncode(body));
+    }
+    throw UnsupportedError('Unsupported API method: $method');
+  }
+
+  Uri _organizationUri(String path) {
+    return Uri.parse(
+      '${config.baseUrl}/organizations/${config.organizationId}$path',
+    );
+  }
+
+  Map<String, String> _requestHeaders({bool jsonBody = false}) {
+    return {
+      'Authorization': 'Bearer ${config.accessToken}',
+      'Accept': 'application/json',
+      if (jsonBody) 'Content-Type': 'application/json',
+    };
+  }
+
+  List<T> _decodeList<T>(
+    http.Response response,
+    T Function(Map<String, Object?> json) decoder,
+  ) {
+    final value = _decodeJson(response);
+    if (value is! List) {
+      throw const FormatException('Expected a JSON array response');
+    }
+    return value
+        .cast<Map<String, Object?>>()
+        .map(decoder)
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> _decodeObject(http.Response response) {
+    final value = _decodeJson(response);
+    if (value is! Map<String, Object?>) {
+      throw const FormatException('Expected a JSON object response');
+    }
+    return value;
+  }
+
+  Object? _decodeJson(http.Response response) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AccountingApiException(
+        response.statusCode,
+        _extractErrorMessage(response.body),
+      );
+    }
+    if (response.body.isEmpty) {
+      return null;
+    }
+    return jsonDecode(response.body) as Object?;
+  }
+
+  String _extractErrorMessage(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, Object?>) {
+        final error = decoded['error'];
+        if (error is Map<String, Object?> && error['message'] is String) {
+          return error['message']! as String;
+        }
+      }
+    } on FormatException {
+      return body;
+    }
+    return body.isEmpty ? 'API request failed' : body;
+  }
+
+  String? _extractFileName(String? contentDisposition) {
+    if (contentDisposition == null) {
+      return null;
+    }
+    final match = RegExp(
+      r'filename="?([^";]+)"?',
+    ).firstMatch(contentDisposition);
+    return match?.group(1);
+  }
+}
+
+class AccountSummary {
+  const AccountSummary({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.type,
+    required this.currency,
+    required this.isActive,
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final String type;
+  final String currency;
+  final bool isActive;
+
+  factory AccountSummary.fromJson(Map<String, Object?> json) {
+    return AccountSummary(
+      id: json['id']! as String,
+      code: json['code']! as String,
+      name: json['name']! as String,
+      type: json['type']! as String,
+      currency: json['currency'] as String? ?? 'INR',
+      isActive: json['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'code': code,
+      'name': name,
+      'type': type,
+      'currency': currency,
+      'is_active': isActive,
+    };
+  }
+}
+
+class InvoiceSummary {
+  const InvoiceSummary({
+    required this.id,
+    required this.invoiceNumber,
+    required this.status,
+    required this.subtotalMinor,
+    required this.taxTotalMinor,
+    required this.totalMinor,
+    required this.currency,
+    this.pdfAttachmentId,
+    this.lines = const [],
+  });
+
+  final String id;
+  final String invoiceNumber;
+  final String status;
+  final int subtotalMinor;
+  final int taxTotalMinor;
+  final int totalMinor;
+  final String currency;
+  final String? pdfAttachmentId;
+  final List<InvoiceLineSummary> lines;
+
+  factory InvoiceSummary.fromJson(Map<String, Object?> json) {
+    return InvoiceSummary(
+      id: json['id']! as String,
+      invoiceNumber: json['invoice_number']! as String,
+      status: json['status']! as String,
+      subtotalMinor: json['subtotal_minor'] as int? ?? 0,
+      taxTotalMinor: json['tax_total_minor'] as int? ?? 0,
+      totalMinor: json['total_minor']! as int,
+      currency: json['currency'] as String? ?? 'INR',
+      pdfAttachmentId: json['pdf_attachment_id'] as String?,
+      lines: (json['lines'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(InvoiceLineSummary.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'invoice_number': invoiceNumber,
+      'status': status,
+      'subtotal_minor': subtotalMinor,
+      'tax_total_minor': taxTotalMinor,
+      'total_minor': totalMinor,
+      'currency': currency,
+      if (pdfAttachmentId != null) 'pdf_attachment_id': pdfAttachmentId,
+      'lines': lines.map((line) => line.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class InvoiceLineSummary {
+  const InvoiceLineSummary({
+    required this.id,
+    required this.description,
+    required this.quantityMillis,
+    required this.unitPriceMinor,
+    required this.lineSubtotalMinor,
+    required this.taxAmountMinor,
+    required this.lineTotalMinor,
+    required this.incomeAccountId,
+    this.taxRateId,
+    this.taxGroupId,
+  });
+
+  final String id;
+  final String description;
+  final int quantityMillis;
+  final int unitPriceMinor;
+  final int lineSubtotalMinor;
+  final int taxAmountMinor;
+  final int lineTotalMinor;
+  final String incomeAccountId;
+  final String? taxRateId;
+  final String? taxGroupId;
+
+  factory InvoiceLineSummary.fromJson(Map<String, Object?> json) {
+    return InvoiceLineSummary(
+      id: json['id'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      quantityMillis: json['quantity_millis'] as int? ?? 1000,
+      unitPriceMinor: json['unit_price_minor'] as int? ?? 0,
+      lineSubtotalMinor: json['line_subtotal_minor'] as int? ?? 0,
+      taxAmountMinor: json['tax_amount_minor'] as int? ?? 0,
+      lineTotalMinor: json['line_total_minor'] as int? ?? 0,
+      incomeAccountId: json['income_account_id'] as String? ?? '',
+      taxRateId: json['tax_rate_id'] as String?,
+      taxGroupId: json['tax_group_id'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'description': description,
+      'quantity_millis': quantityMillis,
+      'unit_price_minor': unitPriceMinor,
+      'line_subtotal_minor': lineSubtotalMinor,
+      'tax_amount_minor': taxAmountMinor,
+      'line_total_minor': lineTotalMinor,
+      'income_account_id': incomeAccountId,
+      if (taxRateId != null) 'tax_rate_id': taxRateId,
+      if (taxGroupId != null) 'tax_group_id': taxGroupId,
+    };
+  }
+}
+
+class ExpenseSummary {
+  const ExpenseSummary({
+    required this.id,
+    required this.expenseNumber,
+    required this.status,
+    required this.totalMinor,
+    required this.currency,
+  });
+
+  final String id;
+  final String expenseNumber;
+  final String status;
+  final int totalMinor;
+  final String currency;
+
+  factory ExpenseSummary.fromJson(Map<String, Object?> json) {
+    return ExpenseSummary(
+      id: json['id']! as String,
+      expenseNumber: json['expense_number']! as String,
+      status: json['status']! as String,
+      totalMinor: json['total_minor']! as int,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class InvestmentLotSummary {
+  const InvestmentLotSummary({
+    required this.id,
+    required this.accountId,
+    required this.symbol,
+    required this.acquisitionDate,
+    required this.quantityMillis,
+    required this.remainingQuantityMillis,
+    required this.costBasisMinor,
+    required this.currency,
+    required this.costMethod,
+    this.securityName = '',
+    this.notes = '',
+  });
+
+  final String id;
+  final String accountId;
+  final String symbol;
+  final String securityName;
+  final DateTime acquisitionDate;
+  final int quantityMillis;
+  final int remainingQuantityMillis;
+  final int costBasisMinor;
+  final String currency;
+  final String costMethod;
+  final String notes;
+
+  factory InvestmentLotSummary.fromJson(Map<String, Object?> json) {
+    return InvestmentLotSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      symbol: json['symbol']! as String,
+      securityName: json['security_name'] as String? ?? '',
+      acquisitionDate: DateTime.parse(json['acquisition_date']! as String),
+      quantityMillis: json['quantity_millis'] as int? ?? 0,
+      remainingQuantityMillis: json['remaining_quantity_millis'] as int? ?? 0,
+      costBasisMinor: json['cost_basis_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+      costMethod: json['cost_method'] as String? ?? 'specific_lot',
+      notes: json['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'account_id': accountId,
+      'symbol': symbol,
+      'security_name': securityName,
+      'acquisition_date': _dateOnly(acquisitionDate),
+      'quantity_millis': quantityMillis,
+      'remaining_quantity_millis': remainingQuantityMillis,
+      'cost_basis_minor': costBasisMinor,
+      'currency': currency,
+      'cost_method': costMethod,
+      'notes': notes,
+    };
+  }
+}
+
+class InvestmentDispositionSummary {
+  const InvestmentDispositionSummary({
+    required this.id,
+    required this.investmentLotId,
+    required this.saleDate,
+    required this.quantityMillis,
+    required this.proceedsMinor,
+    required this.allocatedCostBasisMinor,
+    required this.realizedGainLossMinor,
+    required this.currency,
+    this.notes = '',
+  });
+
+  final String id;
+  final String investmentLotId;
+  final DateTime saleDate;
+  final int quantityMillis;
+  final int proceedsMinor;
+  final int allocatedCostBasisMinor;
+  final int realizedGainLossMinor;
+  final String currency;
+  final String notes;
+
+  factory InvestmentDispositionSummary.fromJson(Map<String, Object?> json) {
+    return InvestmentDispositionSummary(
+      id: json['id']! as String,
+      investmentLotId: json['investment_lot_id']! as String,
+      saleDate: DateTime.parse(json['sale_date']! as String),
+      quantityMillis: json['quantity_millis'] as int? ?? 0,
+      proceedsMinor: json['proceeds_minor'] as int? ?? 0,
+      allocatedCostBasisMinor: json['allocated_cost_basis_minor'] as int? ?? 0,
+      realizedGainLossMinor: json['realized_gain_loss_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+      notes: json['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'investment_lot_id': investmentLotId,
+      'sale_date': _dateOnly(saleDate),
+      'quantity_millis': quantityMillis,
+      'proceeds_minor': proceedsMinor,
+      'allocated_cost_basis_minor': allocatedCostBasisMinor,
+      'realized_gain_loss_minor': realizedGainLossMinor,
+      'currency': currency,
+      'notes': notes,
+    };
+  }
+}
+
+class RealizedGainsReport {
+  const RealizedGainsReport({
+    required this.fromDate,
+    required this.toDate,
+    required this.rows,
+    required this.totalProceedsMinor,
+    required this.totalCostBasisMinor,
+    required this.totalGainLossMinor,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final List<InvestmentDispositionSummary> rows;
+  final int totalProceedsMinor;
+  final int totalCostBasisMinor;
+  final int totalGainLossMinor;
+
+  factory RealizedGainsReport.fromJson(Map<String, Object?> json) {
+    return RealizedGainsReport(
+      fromDate: DateTime.parse(json['from_date']! as String),
+      toDate: DateTime.parse(json['to_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(InvestmentDispositionSummary.fromJson)
+          .toList(growable: false),
+      totalProceedsMinor: json['total_proceeds_minor'] as int? ?? 0,
+      totalCostBasisMinor: json['total_cost_basis_minor'] as int? ?? 0,
+      totalGainLossMinor: json['total_gain_loss_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'from_date': _dateOnly(fromDate),
+      'to_date': _dateOnly(toDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_proceeds_minor': totalProceedsMinor,
+      'total_cost_basis_minor': totalCostBasisMinor,
+      'total_gain_loss_minor': totalGainLossMinor,
+    };
+  }
+}
+
+class InvestmentPriceSummary {
+  const InvestmentPriceSummary({
+    required this.id,
+    required this.symbol,
+    required this.priceDate,
+    required this.priceMinor,
+    required this.currency,
+    this.source = '',
+  });
+
+  final String id;
+  final String symbol;
+  final DateTime priceDate;
+  final int priceMinor;
+  final String currency;
+  final String source;
+
+  factory InvestmentPriceSummary.fromJson(Map<String, Object?> json) {
+    return InvestmentPriceSummary(
+      id: json['id']! as String,
+      symbol: json['symbol']! as String,
+      priceDate: DateTime.parse(json['price_date']! as String),
+      priceMinor: json['price_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+      source: json['source'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'symbol': symbol,
+      'price_date': _dateOnly(priceDate),
+      'price_minor': priceMinor,
+      'currency': currency,
+      'source': source,
+    };
+  }
+}
+
+class CreateInvestmentPriceRequest {
+  const CreateInvestmentPriceRequest({
+    required this.symbol,
+    required this.priceDate,
+    required this.priceMinor,
+    this.currency = 'INR',
+    this.source = 'manual',
+  });
+
+  final String symbol;
+  final DateTime priceDate;
+  final int priceMinor;
+  final String currency;
+  final String source;
+
+  Map<String, Object?> toJson() {
+    return {
+      'symbol': symbol,
+      'price_date': _dateOnly(priceDate),
+      'price_minor': priceMinor,
+      'currency': currency,
+      'source': source,
+    };
+  }
+}
+
+class InvestmentValuationReport {
+  const InvestmentValuationReport({
+    required this.asOfDate,
+    required this.rows,
+    required this.totalCostBasisMinor,
+    required this.totalMarketValueMinor,
+    required this.totalUnrealizedGainLossMinor,
+  });
+
+  final DateTime asOfDate;
+  final List<InvestmentValuationRow> rows;
+  final int totalCostBasisMinor;
+  final int totalMarketValueMinor;
+  final int totalUnrealizedGainLossMinor;
+
+  factory InvestmentValuationReport.fromJson(Map<String, Object?> json) {
+    return InvestmentValuationReport(
+      asOfDate: DateTime.parse(json['as_of_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(InvestmentValuationRow.fromJson)
+          .toList(growable: false),
+      totalCostBasisMinor: json['total_cost_basis_minor'] as int? ?? 0,
+      totalMarketValueMinor: json['total_market_value_minor'] as int? ?? 0,
+      totalUnrealizedGainLossMinor:
+          json['total_unrealized_gain_loss_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'as_of_date': _dateOnly(asOfDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_cost_basis_minor': totalCostBasisMinor,
+      'total_market_value_minor': totalMarketValueMinor,
+      'total_unrealized_gain_loss_minor': totalUnrealizedGainLossMinor,
+    };
+  }
+}
+
+class InvestmentValuationRow {
+  const InvestmentValuationRow({
+    required this.lotId,
+    required this.accountId,
+    required this.symbol,
+    required this.acquisitionDate,
+    required this.remainingQuantityMillis,
+    required this.remainingCostBasisMinor,
+    required this.marketPriceMinor,
+    required this.marketValueMinor,
+    required this.unrealizedGainLossMinor,
+    required this.currency,
+    required this.priceDate,
+    this.securityName = '',
+  });
+
+  final String lotId;
+  final String accountId;
+  final String symbol;
+  final String securityName;
+  final DateTime acquisitionDate;
+  final int remainingQuantityMillis;
+  final int remainingCostBasisMinor;
+  final int marketPriceMinor;
+  final int marketValueMinor;
+  final int unrealizedGainLossMinor;
+  final String currency;
+  final DateTime priceDate;
+
+  factory InvestmentValuationRow.fromJson(Map<String, Object?> json) {
+    return InvestmentValuationRow(
+      lotId: json['lot_id']! as String,
+      accountId: json['account_id']! as String,
+      symbol: json['symbol']! as String,
+      securityName: json['security_name'] as String? ?? '',
+      acquisitionDate: DateTime.parse(json['acquisition_date']! as String),
+      remainingQuantityMillis: json['remaining_quantity_millis'] as int? ?? 0,
+      remainingCostBasisMinor: json['remaining_cost_basis_minor'] as int? ?? 0,
+      marketPriceMinor: json['market_price_minor'] as int? ?? 0,
+      marketValueMinor: json['market_value_minor'] as int? ?? 0,
+      unrealizedGainLossMinor: json['unrealized_gain_loss_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+      priceDate: DateTime.parse(json['price_date']! as String),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'lot_id': lotId,
+      'account_id': accountId,
+      'symbol': symbol,
+      'security_name': securityName,
+      'acquisition_date': _dateOnly(acquisitionDate),
+      'remaining_quantity_millis': remainingQuantityMillis,
+      'remaining_cost_basis_minor': remainingCostBasisMinor,
+      'market_price_minor': marketPriceMinor,
+      'market_value_minor': marketValueMinor,
+      'unrealized_gain_loss_minor': unrealizedGainLossMinor,
+      'currency': currency,
+      'price_date': _dateOnly(priceDate),
+    };
+  }
+}
+
+class SellAverageCostRequest {
+  const SellAverageCostRequest({
+    required this.accountId,
+    required this.symbol,
+    required this.saleDate,
+    required this.quantityMillis,
+    required this.proceedsMinor,
+    this.currency = 'INR',
+    this.proceedsAccountId,
+    this.gainLossAccountId,
+    this.notes = '',
+  });
+
+  final String accountId;
+  final String symbol;
+  final String currency;
+  final DateTime saleDate;
+  final int quantityMillis;
+  final int proceedsMinor;
+  final String? proceedsAccountId;
+  final String? gainLossAccountId;
+  final String notes;
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'symbol': symbol,
+      'currency': currency,
+      'sale_date': _dateOnly(saleDate),
+      'quantity_millis': quantityMillis,
+      'proceeds_minor': proceedsMinor,
+      if (proceedsAccountId != null) 'proceeds_account_id': proceedsAccountId,
+      if (gainLossAccountId != null) 'gain_loss_account_id': gainLossAccountId,
+      if (notes.isNotEmpty) 'notes': notes,
+    };
+  }
+}
+
+class AverageCostSaleResult {
+  const AverageCostSaleResult({
+    required this.dispositions,
+    required this.quantityMillis,
+    required this.proceedsMinor,
+    required this.allocatedCostBasisMinor,
+    required this.realizedGainLossMinor,
+    this.journalTransactionId,
+  });
+
+  final List<InvestmentDispositionSummary> dispositions;
+  final int quantityMillis;
+  final int proceedsMinor;
+  final int allocatedCostBasisMinor;
+  final int realizedGainLossMinor;
+  final String? journalTransactionId;
+
+  factory AverageCostSaleResult.fromJson(Map<String, Object?> json) {
+    return AverageCostSaleResult(
+      dispositions: (json['dispositions'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(InvestmentDispositionSummary.fromJson)
+          .toList(growable: false),
+      quantityMillis: json['quantity_millis'] as int? ?? 0,
+      proceedsMinor: json['proceeds_minor'] as int? ?? 0,
+      allocatedCostBasisMinor: json['allocated_cost_basis_minor'] as int? ?? 0,
+      realizedGainLossMinor: json['realized_gain_loss_minor'] as int? ?? 0,
+      journalTransactionId: json['journal_transaction_id'] as String?,
+    );
+  }
+}
+
+class AttachmentSummary {
+  const AttachmentSummary({
+    required this.id,
+    required this.fileName,
+    required this.contentType,
+    required this.storageDriver,
+    required this.storageKey,
+    required this.sizeBytes,
+  });
+
+  final String id;
+  final String fileName;
+  final String contentType;
+  final String storageDriver;
+  final String storageKey;
+  final int sizeBytes;
+
+  factory AttachmentSummary.fromJson(Map<String, Object?> json) {
+    return AttachmentSummary(
+      id: json['id']! as String,
+      fileName: json['file_name']! as String,
+      contentType: json['content_type'] as String? ?? '',
+      storageDriver: json['storage_driver'] as String? ?? 'local',
+      storageKey: json['storage_key']! as String,
+      sizeBytes: json['size_bytes'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'file_name': fileName,
+      'content_type': contentType,
+      'storage_driver': storageDriver,
+      'storage_key': storageKey,
+      'size_bytes': sizeBytes,
+    };
+  }
+}
+
+class CreateAttachmentMetadata {
+  const CreateAttachmentMetadata({
+    required this.fileName,
+    required this.storageKey,
+    this.contentType = '',
+    this.storageDriver = 'local',
+    this.sizeBytes = 0,
+  });
+
+  final String fileName;
+  final String storageKey;
+  final String contentType;
+  final String storageDriver;
+  final int sizeBytes;
+
+  Map<String, Object?> toJson() {
+    return {
+      'file_name': fileName,
+      'content_type': contentType,
+      'storage_driver': storageDriver,
+      'storage_key': storageKey,
+      'size_bytes': sizeBytes,
+    };
+  }
+}
+
+class AttachmentDownload {
+  const AttachmentDownload({
+    required this.bytes,
+    required this.contentType,
+    this.fileName,
+  });
+
+  final Uint8List bytes;
+  final String contentType;
+  final String? fileName;
+}
+
+class TaxRateSummary {
+  const TaxRateSummary({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.percentageBasis,
+    required this.isActive,
+  });
+
+  final String id;
+  final String name;
+  final String type;
+  final int percentageBasis;
+  final bool isActive;
+
+  factory TaxRateSummary.fromJson(Map<String, Object?> json) {
+    return TaxRateSummary(
+      id: json['id']! as String,
+      name: json['name']! as String,
+      type: json['type'] as String? ?? 'GST',
+      percentageBasis: json['percentage_basis'] as int? ?? 0,
+      isActive: json['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'type': type,
+      'percentage_basis': percentageBasis,
+      'is_active': isActive,
+    };
+  }
+}
+
+class TaxGroupSummary {
+  const TaxGroupSummary({
+    required this.id,
+    required this.name,
+    required this.isActive,
+    this.description = '',
+  });
+
+  final String id;
+  final String name;
+  final bool isActive;
+  final String description;
+
+  factory TaxGroupSummary.fromJson(Map<String, Object?> json) {
+    return TaxGroupSummary(
+      id: json['id']! as String,
+      name: json['name']! as String,
+      isActive: json['is_active'] as bool? ?? true,
+      description: json['description'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'is_active': isActive,
+      'description': description,
+    };
+  }
+}
+
+class CalculateTaxRequest {
+  const CalculateTaxRequest({
+    required this.baseAmountMinor,
+    required this.taxInclusive,
+    this.taxRateId,
+    this.taxGroupId,
+  });
+
+  final int baseAmountMinor;
+  final bool taxInclusive;
+  final String? taxRateId;
+  final String? taxGroupId;
+
+  Map<String, Object?> toJson() {
+    return {
+      'base_amount_minor': baseAmountMinor,
+      'tax_inclusive': taxInclusive,
+      'tax_rate_id': taxRateId,
+      'tax_group_id': taxGroupId,
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class TaxCalculationResult {
+  const TaxCalculationResult({
+    required this.baseAmountMinor,
+    required this.taxAmountMinor,
+    required this.totalAmountMinor,
+    required this.components,
+  });
+
+  final int baseAmountMinor;
+  final int taxAmountMinor;
+  final int totalAmountMinor;
+  final List<TaxCalculationComponent> components;
+
+  factory TaxCalculationResult.fromJson(Map<String, Object?> json) {
+    final components = json['components'];
+    return TaxCalculationResult(
+      baseAmountMinor: json['base_amount_minor']! as int,
+      taxAmountMinor: json['tax_amount_minor']! as int,
+      totalAmountMinor: json['total_amount_minor']! as int,
+      components: components is List
+          ? components
+                .cast<Map<String, Object?>>()
+                .map(TaxCalculationComponent.fromJson)
+                .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+class TaxCalculationComponent {
+  const TaxCalculationComponent({
+    required this.taxRateId,
+    required this.name,
+    required this.percentageBasis,
+    required this.taxAmountMinor,
+  });
+
+  final String taxRateId;
+  final String name;
+  final int percentageBasis;
+  final int taxAmountMinor;
+
+  factory TaxCalculationComponent.fromJson(Map<String, Object?> json) {
+    return TaxCalculationComponent(
+      taxRateId: json['tax_rate_id']! as String,
+      name: json['name']! as String,
+      percentageBasis: json['percentage_basis'] as int? ?? 0,
+      taxAmountMinor: json['tax_amount_minor'] as int? ?? 0,
+    );
+  }
+}
+
+class CreateExpenseDraft {
+  const CreateExpenseDraft({
+    required this.expenseNumber,
+    required this.expenseDate,
+    required this.amountMinor,
+    required this.expenseAccountId,
+    required this.paymentAccountId,
+    this.currency = 'INR',
+    this.vendorId,
+    this.taxInclusive = false,
+    this.taxRateId,
+    this.taxGroupId,
+    this.receiptAttachmentId,
+    this.reimbursable = false,
+  });
+
+  final String expenseNumber;
+  final DateTime expenseDate;
+  final int amountMinor;
+  final String expenseAccountId;
+  final String paymentAccountId;
+  final String currency;
+  final String? vendorId;
+  final bool taxInclusive;
+  final String? taxRateId;
+  final String? taxGroupId;
+  final String? receiptAttachmentId;
+  final bool reimbursable;
+
+  factory CreateExpenseDraft.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    return CreateExpenseDraft(
+      expenseNumber: payload['expense_number'] as String? ?? operation.id,
+      expenseDate: operation.createdAt,
+      amountMinor: payload['amount_minor'] as int? ?? 0,
+      expenseAccountId: payload['expense_account_id']! as String,
+      paymentAccountId: payload['payment_account_id']! as String,
+      currency: payload['currency'] as String? ?? 'INR',
+      vendorId: payload['vendor_id'] as String?,
+      taxInclusive: payload['tax_inclusive'] as bool? ?? false,
+      taxRateId: payload['tax_rate_id'] as String?,
+      taxGroupId: payload['tax_group_id'] as String?,
+      receiptAttachmentId: payload['receipt_attachment_id'] as String?,
+      reimbursable: payload['reimbursable'] as bool? ?? false,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'vendor_id': vendorId,
+      'expense_number': expenseNumber,
+      'expense_date': _dateOnly(expenseDate),
+      'currency': currency,
+      'tax_inclusive': taxInclusive,
+      'amount_minor': amountMinor,
+      'expense_account_id': expenseAccountId,
+      'payment_account_id': paymentAccountId,
+      'receipt_attachment_id': receiptAttachmentId,
+      'tax_rate_id': taxRateId,
+      'tax_group_id': taxGroupId,
+      'reimbursable': reimbursable,
+    }..removeWhere((_, value) => value == null);
+  }
+}

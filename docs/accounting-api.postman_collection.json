@@ -1,0 +1,1319 @@
+{
+  "info": {
+    "name": "AbhashTech Accounting Platform API",
+    "description": "Postman collection aligned with docs/openapi.yaml and docs/API_DOCUMENTATION.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api/v1"
+    },
+    {
+      "key": "root_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "organization_id",
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "key": "account_id",
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "key": "investment_lot_id",
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "payroll_run_id",
+      "value": "00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "key": "payroll_item_id",
+      "value": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Bootstrap",
+      "item": [
+        {
+          "name": "Create First Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/bootstrap/first-admin",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organization_name\": \"Acme India\",\n  \"admin_name\": \"Admin User\",\n  \"admin_email\": \"admin@example.com\",\n  \"admin_password\": \"change-me-securely\",\n  \"base_currency\": \"INR\",\n  \"country_code\": \"IN\",\n  \"seed_india_defaults\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"change-me\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/password-reset/request",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Confirm Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/password-reset/confirm",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reset_token\": \"{{reset_token}}\",\n  \"new_password\": \"new-secure-password\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "List Accounts",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/accounts"
+          }
+        },
+        {
+          "name": "Create Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/accounts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"1000\",\n  \"name\": \"Checking Account\",\n  \"type\": \"asset\",\n  \"subtype\": \"bank\",\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organization Admin",
+      "item": [
+        {
+          "name": "List Organization Users",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/users"
+          }
+        },
+        {
+          "name": "Create Organization User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bookkeeper User\",\n  \"email\": \"bookkeeper@example.com\",\n  \"password\": \"secure-password\",\n  \"role\": \"bookkeeper\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Export Organization Data",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/data/export"
+          }
+        },
+        {
+          "name": "List Backup Snapshots",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/data/backups"
+          }
+        },
+        {
+          "name": "Create Backup Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/data/backups",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storage_path\": \"./storage/backups\",\n  \"retention_count\": 7\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ledger",
+      "item": [
+        {
+          "name": "Post Journal Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/ledger/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_date\": \"2026-07-11\",\n  \"memo\": \"Owner contribution\",\n  \"source_module\": \"manual\",\n  \"splits\": [\n    { \"account_id\": \"{{account_id}}\", \"debit_minor\": 10000, \"credit_minor\": 0, \"currency\": \"INR\" },\n    { \"account_id\": \"{{account_id}}\", \"debit_minor\": 0, \"credit_minor\": 10000, \"currency\": \"INR\" }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Account Register",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/ledger/accounts/{{account_id}}/register"
+          }
+        },
+        {
+          "name": "List Exchange Rates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/exchange-rates"
+          }
+        },
+        {
+          "name": "Create Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/exchange-rates",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_currency\": \"USD\",\n  \"to_currency\": \"INR\",\n  \"rate_date\": \"2026-07-11\",\n  \"numerator\": 8350,\n  \"denominator\": 100,\n  \"source\": \"manual\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Preview FX Revaluation",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/revaluations/preview?as_of=2026-07-31"
+          }
+        },
+        {
+          "name": "Post FX Revaluation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/revaluations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"as_of_date\": \"2026-07-31\",\n  \"gain_loss_account_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Fiscal Closes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/closing/fiscal-years"
+          }
+        },
+        {
+          "name": "Close Fiscal Year",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/closing/fiscal-years",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fiscal_year_start\": \"2026-04-01\",\n  \"fiscal_year_end\": \"2027-03-31\",\n  \"retained_earnings_account_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Audit Logs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/audit-logs"
+          }
+        },
+        {
+          "name": "List Journal Transactions",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/ledger/transactions"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Investments",
+      "item": [
+        {
+          "name": "List Investment Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/lots"
+          }
+        },
+        {
+          "name": "Create Investment Lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/lots",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"symbol\": \"NIFTYBEES\",\n  \"security_name\": \"Nippon India ETF Nifty BeES\",\n  \"acquisition_date\": \"2026-04-01\",\n  \"quantity_millis\": 100000,\n  \"cost_basis_minor\": 1000000,\n  \"currency\": \"INR\",\n  \"cost_method\": \"specific_lot\",\n  \"notes\": \"Opening investment lot\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sell Investment Lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/lots/{{investment_lot_id}}/sell",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sale_date\": \"2026-07-12\",\n  \"quantity_millis\": 40000,\n  \"proceeds_minor\": 520000,\n  \"proceeds_account_id\": \"{{account_id}}\",\n  \"gain_loss_account_id\": \"{{account_id}}\",\n  \"notes\": \"Partial sale\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sell Average-Cost Investment Pool",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/average-cost-sales",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"symbol\": \"LIQUIDFUND\",\n  \"currency\": \"INR\",\n  \"sale_date\": \"2026-07-31\",\n  \"quantity_millis\": 150000,\n  \"proceeds_minor\": 2400000,\n  \"proceeds_account_id\": \"{{account_id}}\",\n  \"gain_loss_account_id\": \"{{account_id}}\",\n  \"notes\": \"Average-cost pooled redemption\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Investment Prices",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices"
+          }
+        },
+        {
+          "name": "Create Investment Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"NIFTYBEES\",\n  \"price_date\": \"2026-07-31\",\n  \"price_minor\": 14000,\n  \"currency\": \"INR\",\n  \"source\": \"manual\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Realized Gains",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/realized-gains?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Investment Valuation",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-valuation?as_of=2026-07-31"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/customers"
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/customers",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Example Customer\",\n  \"email\": \"billing@example.com\",\n  \"gstin\": \"27ABCDE1234F1Z5\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices"
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"invoice_number\": \"INV-001\",\n  \"issue_date\": \"2026-07-11\",\n  \"due_date\": \"2026-08-10\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"accounts_receivable_id\": \"{{account_id}}\",\n  \"pdf_attachment_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"lines\": [\n    {\n      \"description\": \"Consulting\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 10000,\n      \"income_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Post Invoice",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices/00000000-0000-0000-0000-000000000000/post"
+          }
+        },
+        {
+          "name": "Create Recurring Invoice Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/recurring-invoices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"name\": \"Monthly retainer\",\n  \"invoice_number_prefix\": \"RET\",\n  \"start_date\": \"2026-07-01\",\n  \"frequency\": \"monthly\",\n  \"due_days\": 15,\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"accounts_receivable_id\": \"{{account_id}}\",\n  \"lines\": [\n    {\n      \"description\": \"Monthly retainer\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 10000,\n      \"income_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Generate Due Recurring Invoices",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/recurring-invoices/generate-due?as_of=2026-07-31"
+          }
+        },
+        {
+          "name": "List Customer Payments",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices/00000000-0000-0000-0000-000000000000/payments"
+          }
+        },
+        {
+          "name": "Record Customer Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices/00000000-0000-0000-0000-000000000000/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_number\": \"RCPT-001\",\n  \"payment_date\": \"2026-07-15\",\n  \"payment_method\": \"bank_transfer\",\n  \"reference\": \"UTR123456\",\n  \"currency\": \"INR\",\n  \"amount_minor\": 11800,\n  \"payment_account_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Estimate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/estimates",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"estimate_number\": \"EST-001\",\n  \"issue_date\": \"2026-07-13\",\n  \"expiry_date\": \"2026-08-12\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"lines\": [\n    {\n      \"description\": \"Implementation estimate\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 10000,\n      \"income_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Convert Estimate to Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/estimates/00000000-0000-0000-0000-000000000000/convert-to-invoice",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"INV-EST-001\",\n  \"issue_date\": \"2026-07-14\",\n  \"due_date\": \"2026-08-13\",\n  \"accounts_receivable_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Estimate Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/estimates/00000000-0000-0000-0000-000000000000/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Credit Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/credit-notes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"invoice_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"credit_note_number\": \"CN-001\",\n  \"issue_date\": \"2026-07-20\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"accounts_receivable_id\": \"{{account_id}}\",\n  \"lines\": [\n    {\n      \"description\": \"Service credit\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 10000,\n      \"income_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Post Credit Note",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/credit-notes/00000000-0000-0000-0000-000000000000/post"
+          }
+        },
+        {
+          "name": "List Recurring Invoice Templates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/recurring-invoices"
+          }
+        },
+        {
+          "name": "List Estimates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/estimates"
+          }
+        },
+        {
+          "name": "List Credit Notes",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/credit-notes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attachments",
+      "item": [
+        {
+          "name": "List Attachments",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/attachments"
+          }
+        },
+        {
+          "name": "Create Attachment Metadata",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/attachments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"receipt.jpg\",\n  \"content_type\": \"image/jpeg\",\n  \"storage_driver\": \"local\",\n  \"storage_key\": \"receipts/receipt.jpg\",\n  \"size_bytes\": 2048\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Attachment File",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/attachments/upload",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Download Attachment File",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/attachments/00000000-0000-0000-0000-000000000000/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "List Vendors",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/vendors"
+          }
+        },
+        {
+          "name": "Create Vendor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/vendors",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Example Vendor\",\n  \"email\": \"vendor@example.com\",\n  \"gstin\": \"27ABCDE1234F1Z5\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Expenses",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/expenses"
+          }
+        },
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/expenses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expense_number\": \"EXP-001\",\n  \"expense_date\": \"2026-07-11\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"amount_minor\": 10000,\n  \"expense_account_id\": \"{{account_id}}\",\n  \"payment_account_id\": \"{{account_id}}\",\n  \"receipt_attachment_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Post Expense",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/expenses/00000000-0000-0000-0000-000000000000/post"
+          }
+        },
+        {
+          "name": "List Bills",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/bills"
+          }
+        },
+        {
+          "name": "Create Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bills",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"bill_number\": \"BILL-001\",\n  \"issue_date\": \"2026-07-11\",\n  \"due_date\": \"2026-08-10\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"accounts_payable_id\": \"{{account_id}}\",\n  \"lines\": [\n    {\n      \"description\": \"Office supplies\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 10000,\n      \"expense_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Post Bill",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/bills/00000000-0000-0000-0000-000000000000/post"
+          }
+        },
+        {
+          "name": "List Vendor Payments",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/bills/00000000-0000-0000-0000-000000000000/payments"
+          }
+        },
+        {
+          "name": "Record Vendor Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bills/00000000-0000-0000-0000-000000000000/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_number\": \"VPAY-001\",\n  \"payment_date\": \"2026-07-20\",\n  \"payment_method\": \"bank_transfer\",\n  \"reference\": \"UTR987654\",\n  \"currency\": \"INR\",\n  \"amount_minor\": 11800,\n  \"payment_account_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Purchase Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/purchase-orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendor_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"purchase_order_number\": \"PO-001\",\n  \"issue_date\": \"2026-07-13\",\n  \"expected_date\": \"2026-07-31\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"lines\": [\n    {\n      \"description\": \"Hardware\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 20000,\n      \"expense_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Convert Purchase Order to Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/purchase-orders/00000000-0000-0000-0000-000000000000/convert-to-bill",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bill_number\": \"BILL-PO-001\",\n  \"issue_date\": \"2026-07-14\",\n  \"due_date\": \"2026-08-13\",\n  \"accounts_payable_id\": \"{{account_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Purchase Order Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/purchase-orders/00000000-0000-0000-0000-000000000000/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Purchase Orders",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/purchase-orders"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/employees"
+          }
+        },
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/employees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Employee One\",\n  \"email\": \"employee@example.com\",\n  \"employee_code\": \"E001\",\n  \"pan\": \"ABCDE1234F\",\n  \"uan\": \"100000000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Payroll Runs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs"
+          }
+        },
+        {
+          "name": "Create Payroll Run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"run_number\": \"PAY-2026-07\",\n  \"period_start\": \"2026-07-01\",\n  \"period_end\": \"2026-07-31\",\n  \"pay_date\": \"2026-07-31\",\n  \"currency\": \"INR\",\n  \"payroll_expense_account_id\": \"{{account_id}}\",\n  \"payroll_liability_account_id\": \"{{account_id}}\",\n  \"deduction_liability_account_id\": \"{{account_id}}\",\n  \"items\": [\n    {\n      \"employee_id\": \"00000000-0000-0000-0000-000000000000\",\n      \"gross_pay_minor\": 100000,\n      \"deductions_minor\": 10000,\n      \"components\": [\n        { \"code\": \"BASIC\", \"name\": \"Basic Pay\", \"type\": \"earning\", \"amount_minor\": 70000 },\n        { \"code\": \"HRA\", \"name\": \"House Rent Allowance\", \"type\": \"earning\", \"amount_minor\": 30000 },\n        { \"code\": \"PF\", \"name\": \"Provident Fund\", \"type\": \"deduction\", \"amount_minor\": 10000, \"is_statutory\": true }\n      ]\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Post Payroll Run",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs/00000000-0000-0000-0000-000000000000/post"
+          }
+        },
+        {
+          "name": "Preview India Payroll Components",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/india-preview",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"basic_minor\": 2000000,\n  \"hra_minor\": 500000,\n  \"special_minor\": 250000,\n  \"bonus_minor\": 0,\n  \"reimbursement_minor\": 0,\n  \"employee_pf_enabled\": true,\n  \"employee_pf_rate_bps\": 1200,\n  \"pf_wage_ceiling_minor\": 1500000,\n  \"employee_esi_enabled\": true,\n  \"employee_esi_rate_bps\": 75,\n  \"esi_gross_limit_minor\": 2100000,\n  \"professional_tax_minor\": 20000,\n  \"tds_minor\": 150000\n}"
+            }
+          }
+        },
+        {
+          "name": "Preview Payslip",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs/{{payroll_run_id}}/items/{{payroll_item_id}}/payslip"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tax",
+      "item": [
+        {
+          "name": "Seed India Defaults",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/seed/india-defaults"
+          }
+        },
+        {
+          "name": "List Tax Authorities",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/authorities"
+          }
+        },
+        {
+          "name": "Create Tax Authority",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/authorities",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Goods and Services Tax Network\",\n  \"country_code\": \"IN\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Tax Rates",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/rates"
+          }
+        },
+        {
+          "name": "Create Tax Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/rates",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tax_authority_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"name\": \"CGST 9%\",\n  \"percentage_basis\": 90000,\n  \"type\": \"GST\",\n  \"effective_from\": \"2017-07-01\",\n  \"is_compound\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "List Tax Groups",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/groups"
+          }
+        },
+        {
+          "name": "Create Tax Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/groups",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"GST 18%\",\n  \"description\": \"CGST 9% + SGST 9%\",\n  \"tax_rate_ids\": [\n    \"00000000-0000-0000-0000-000000000000\",\n    \"00000000-0000-0000-0000-000000000000\"\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate Tax",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/tax/calculate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"base_amount_minor\": 10000,\n  \"tax_inclusive\": false,\n  \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reconciliation",
+      "item": [
+        {
+          "name": "Import Bank Statement Lines",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bank-statements/import",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"file_name\": \"bank.csv\",\n  \"format\": \"csv\",\n  \"lines\": [\n    {\n      \"posted_date\": \"2026-07-11\",\n      \"description\": \"Owner contribution\",\n      \"amount_minor\": 10000,\n      \"reference\": \"REF-001\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Import QIF Bank Statement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bank-statements/import/qif",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"file_name\": \"bank.qif\",\n  \"qif_content\": \"!Type:Bank\\nD13/07/2026\\nT1250.00\\nPClient receipt\\nNUPI-123\\n^\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Import OFX Bank Statement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bank-statements/import/ofx",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"file_name\": \"bank.ofx\",\n  \"ofx_content\": \"<OFX>\\n<STMTTRN>\\n<DTPOSTED>20260713\\n<TRNAMT>1250.00\\n<FITID>OFX-123\\n<NAME>Client receipt\\n</STMTTRN>\\n</OFX>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Bank Statement Lines",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/bank-statement-lines?account_id={{account_id}}"
+          }
+        },
+        {
+          "name": "Match Statement Line",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/bank-statement-lines/00000000-0000-0000-0000-000000000000/match",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ledger_split_id\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reconcile Ledger Split",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/ledger/splits/00000000-0000-0000-0000-000000000000/reconcile"
+          }
+        },
+        {
+          "name": "Import Bank Statement Lines Legacy Alias",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations/{{organization_id}}/imports/bank-statements",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"file_name\": \"bank-statement.csv\",\n  \"format\": \"csv\",\n  \"lines\": [\n    {\n      \"posted_date\": \"2026-07-31\",\n      \"description\": \"Bank deposit\",\n      \"amount_minor\": 125000,\n      \"reference\": \"DEP-001\"\n    }\n  ]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Trial Balance",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/trial-balance?as_of=2026-07-11"
+          }
+        },
+        {
+          "name": "Profit And Loss",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/profit-and-loss?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Balance Sheet",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/balance-sheet?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "Cash Flow",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/cash-flow?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "AR Aging",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ar-aging?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "AP Aging",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ap-aging?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "Tax Liability",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-liability?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Tax Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-summary?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Realized Gains",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/realized-gains?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "List Budgets",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/budgets"
+          }
+        },
+        {
+          "name": "Create Budget",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/budgets",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"FY 2026 Budget\",\n  \"start_date\": \"2026-07-01\",\n  \"end_date\": \"2026-07-31\",\n  \"status\": \"active\",\n  \"lines\": [\n    {\n      \"account_id\": \"{{account_id}}\",\n      \"period_start\": \"2026-07-01\",\n      \"period_end\": \"2026-07-31\",\n      \"amount_minor\": 50000\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Budget Vs Actual",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/budgets/00000000-0000-0000-0000-000000000000/vs-actual"
+          }
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Root Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{root_url}}/health"
+          }
+        },
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "item": [
+        {
+          "name": "List Organizations",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations"
+          }
+        },
+        {
+          "name": "Create Organization",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/organizations",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme India Branch\",\n  \"base_currency\": \"INR\",\n  \"country_code\": \"IN\",\n  \"fiscal_year_start_month\": 4\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

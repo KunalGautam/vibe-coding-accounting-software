@@ -1,0 +1,46 @@
+# OS/editor noise
+.DS_Store
+*.log
+*.tmp
+.idea/
+.vscode/
+.gitrepo/
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Go
+backend/accounting.db
+backend/*.db
+backend/storage/
+backend/tmp/
+
+# Node / React
+web/node_modules/
+web/dist/
+web/.vite/
+web/coverage/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+
+# Flutter / Dart
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/build/
+flutter_app/coverage/
+flutter_app/**/Flutter/.last_build_id
+flutter_app/android/app/debug/
+flutter_app/android/app/profile/
+flutter_app/android/app/release/
+
+# Generated local outputs
+*.sqlite
+*.sqlite3
+*.db
+storage/
+tmp/

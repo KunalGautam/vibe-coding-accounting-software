@@ -1,0 +1,264 @@
+# Accounting Platform Project Context
+
+## Project Summary
+This project is a production-grade, multi-platform accounting and bookkeeping platform with a double-entry ledger as the immutable source of truth. The target architecture is a Go API using Gin, GORM, JWT auth, RBAC, MySQL in production, SQLite for local/offline desktop mode, a React TypeScript web app, and a Flutter app for desktop and mobile. The product aims for GnuCash-level accounting depth with modern invoicing, expense, tax, payroll, reporting, and import/export workflows.
+
+## First-Read Questions Before Business Logic
+Confirmed initial decisions:
+
+- Tax jurisdiction: India-first GST presets and reporting support.
+- Payroll jurisdiction: India-first payroll configuration and statutory deduction support.
+- Expected scale: small to medium-sized businesses.
+- Offline mode: required for React web and Flutter clients.
+
+Implementation must still keep tax and payroll behavior configuration-driven and avoid hardcoded country-specific logic. India-specific support should be expressed as editable seed data and configurable rules wherever possible.
+
+## Repository Structure
+Planned structure:
+
+```text
+.
+├── backend/              # Go API, Gin routes, GORM models, services, workers
+├── web/                  # React + TypeScript frontend
+├── flutter_app/          # Flutter desktop/mobile app
+├── docs/                 # OpenAPI, Postman, architecture docs
+│   ├── openapi.yaml
+│   ├── API_DOCUMENTATION.md
+│   ├── PROJECT_STATUS.md
+│   └── accounting-api.postman_collection.json
+├── .github/workflows/    # CI validation for backend, web, Flutter, and API docs
+├── scripts/              # Dev, migration, import/export, and CI helper scripts
+├── deployments/          # Docker, compose, Kubernetes, or hosting config
+└── PROJECT_CONTEXT.md    # Agent/developer onboarding source of truth
+```
+
+Current status: Go backend core modules are scaffolded and tested through ledger, auth/RBAC, password reset token flow, attachment metadata and local binary storage, invoicing, recurring invoice draft generation plus a cron-style worker command, estimates/quotes with lifecycle statuses and invoice conversion, credit notes, AR customer payments, tax, expenses, purchase orders with lifecycle statuses and bill conversion, vendor bills/AP payments, payroll runs with componentized earning/deduction breakdowns plus configurable India PF/ESI/PT/TDS preview calculation and payslip-preview data contracts, reports, reconciliation, budgeting, multi-currency exchange-rate storage plus unrealized FX revaluation posting, fiscal close, investment lots, realized capital-gain tracking with optional GL sale posting, average-cost pooled disposal automation, market price capture, and unrealized investment valuation reporting, audit logging, organization JSON data export/manual backup snapshot endpoints/local scheduled backups with retention, and Swagger/OpenAPI serving. The React web shell is scaffolded and verified for dashboard/offline-readiness views with first-admin bootstrap, login, token refresh, typed password reset and backup API support, organization create/list/select, one-click sync-all, chart of accounts, manual ledger entry workflows, account register loading with running balances, customer master-data create/list plus single-line recurring invoice/estimate/invoice/credit-note create/review/status/conversion/posting/payment recording, vendor master-data create/list plus single-line purchase-order/draft expense/vendor bill create/review/status/conversion/posting/payment recording, document metadata/create/upload/download catalog, bank statement structured/QIF/OFX import/list/match reconciliation, budget create/list/review plus budget-vs-actual reporting, investment lot create/list/sell with optional GL sale posting plus realized-gains reporting/export, typed API support for average-cost sales, investment prices, and valuation reports, admin operations for exchange rates/unrealized FX revaluation preview and posting/fiscal closes/org users/audit logs, payroll employee master-data create/list plus single-employee payroll run create/review/posting with India Basic/HRA/Special/Bonus/Reimbursement inputs, configurable PF/ESI/PT/TDS preview, stale-preview clearing, previewed component attachment to draft runs, payslip preview loading/display from payroll run items, browser-persistent last payslip preview caching, and payslip CSV export, core financial statement reporting (trial balance, P&L, balance sheet, cash flow, payment-aware AR/AP aging) with CSV export and cached/clearable last-run outputs, GST liability/summary reporting with CSV export and cached/clearable last-run outputs, budget-vs-actual reporting with CSV export and cached/clearable last-run outputs, GST tax catalog authority/rate/group creation, browsing, calculation preview, and India-default seeding, browser-persistent offline chart-of-account and manual journal draft queueing with local edit-before-sync/delete/clear controls, shared reconnect sync flow, partial-sync notices, per-draft last-error visibility, and row-level error clearing, defensive localStorage loading for malformed browser data, and cached last-known-good account/ledger/register/tax/payroll/customer/invoice/recurring-invoice/estimate/credit-note/vendor/expense/bill/purchase-order/document/budget/investment/bank-statement/admin snapshots for read-only offline views. The Flutter app is scaffolded for mobile and desktop with an offline-ready expense/invoice/investment shell, draft expense form with receipt/tax metadata, cached receipt attachment selection, and tax preview, pending draft list with local edit/delete, offline account/invoice/investment/attachment metadata and binary/tax catalog caches, cached invoice line/subtotal/tax/total/PDF-metadata review, cached investment lot/realized-gains/market-price/valuation review, resolved default account/tax labels, shared Dart draft sync queue, file-backed queue/settings/cache repositories, typed API client including attachment metadata/binary plus investment lot/realized-gains/average-cost sale/price/valuation transport, attachment lookup/sample upload/local-file upload/download/inspect UI with offline availability status, account and tax lookup with one-tap default selection, sync coordinator, credential-gated live expense sync, and sync status UI for first mobile workflows. GitHub Actions CI is configured for backend tests, web production build, Flutter analyze/tests, and OpenAPI/Postman parse checks.
+
+Project identity: the Go module path is `accounting.abhashtech.com`; Flutter native app identifiers are `com.abhashtech.accounting` for Android namespace/application ID, iOS/macOS bundle IDs, and Linux application ID. The Dart package name remains `accounting_app`.
+
+For the concise current-state checklist, completed areas, remaining work, and recommended next build order, read `docs/PROJECT_STATUS.md`.
+
+## Core Domain Glossary
+- Account: A node in the chart of accounts. Accounts are hierarchical and belong to one organization.
+- Account Type: One of Asset, Liability, Equity, Income, or Expense.
+- Account Subtype: A more specific classification such as Bank, Cash, Receivable, Payable, Stock, Mutual Fund, or Credit Card.
+- Chart of Accounts: The full account hierarchy for an organization.
+- Double-Entry Bookkeeping: Every posted transaction has balanced debit and credit entries.
+- Journal Transaction: A ledger transaction header containing date, memo, source module, status, and audit metadata.
+- Split: One debit or credit line in a journal transaction. A transaction may have many splits.
+- Posted Entry: An immutable ledger entry that affects balances.
+- Reversing Entry: A transaction that corrects a posted transaction without deleting historical records.
+- Reconciliation: Matching ledger activity to external statements and marking splits cleared or reconciled.
+- Tax Rate: A configurable percentage belonging to a tax authority and effective date range.
+- Tax Group: A configurable bundle of tax rates, such as CGST plus SGST.
+- Input Tax: Tax paid on purchases and tracked as recoverable where applicable.
+- Output Tax: Tax collected on sales and tracked as payable.
+- Aging Report: A receivables or payables report grouped by overdue age buckets.
+- Fiscal Year Close: Year-end closing entries that move income and expense balances into equity.
+
+## Architectural Decisions
+- Double-entry ledger is the source of truth for financial balances.
+- Posted ledger entries are immutable; corrections use reversing entries.
+- All organization data must be tenant-scoped.
+- Business services must validate balanced journal transactions before posting.
+- Ledger amounts are stored as integer minor units, such as paise for INR, to avoid floating-point rounding errors.
+- GORM query patterns should remain portable across MySQL and SQLite.
+- Raw SQL should be avoided unless isolated behind dialect-aware adapters.
+- Tax behavior is config-driven through tax authority, rate, group, and category tables.
+- Expense drafts must use either a tax rate ID or tax group ID; clients should not send both.
+- Flutter draft forms clear the opposite tax field while typing to keep that invariant obvious to users.
+- India GST support starts as editable seed data for GSTN authority, CGST/SGST/IGST rates, and intra-state GST groups.
+- Payroll rules are configuration-driven until initial jurisdictions are confirmed.
+- Shared business rules belong in the Go API; frontend clients consume API behavior rather than duplicating ledger logic.
+- Swagger/OpenAPI documentation should be maintained alongside handlers from the start.
+
+## Backend Conventions
+- Language: Go.
+- Framework: Gin.
+- ORM: GORM.
+- Module path: `accounting.abhashtech.com`.
+- API style: REST with JSON request and response bodies.
+- Auth: JWT access tokens plus refresh tokens.
+- Authorization: RBAC enforced at middleware and service boundaries.
+- Testing: table-driven unit tests and integration tests against a test database.
+- Suggested package layout:
+
+```text
+backend/
+├── cmd/api/              # API entrypoint
+├── cmd/worker/           # Background worker entrypoint
+├── internal/auth/        # JWT, refresh tokens, password hashing, RBAC
+├── internal/http/        # Gin router, middleware, handlers
+├── internal/domain/      # Domain models and invariants
+├── internal/services/    # Business use cases
+├── internal/repositories/# GORM persistence
+├── internal/jobs/        # Recurring jobs and worker tasks
+├── internal/reports/     # Report builders
+├── internal/imports/     # CSV, OFX, QIF, GnuCash importers
+├── migrations/           # Database migrations
+└── docs/                 # Generated Swagger docs if using swaggo
+```
+
+## React Conventions
+- Language: TypeScript.
+- State management: choose Redux Toolkit or Zustand before implementation.
+- Forms: React Hook Form plus Zod validation.
+- Charts: Recharts or D3.
+- UI: shadcn/ui or MUI, with a clean financial-dashboard visual language.
+- Keep API client code generated or typed from OpenAPI where practical.
+- Organize by feature modules: accounts, ledger, invoices, expenses, payroll, tax, reports, settings.
+
+## Flutter Conventions
+- Single codebase for desktop and mobile.
+- Native package/application identifier: `com.abhashtech.accounting`.
+- Dart package name: `accounting_app`.
+- Shared Dart API client and business-facing view models.
+- Offline support for web and Flutter clients, with conflict-aware sync for supported workflows.
+- Local SQLite cache for Flutter; web offline storage strategy is still to be selected.
+- Initial offline workflows should prioritize expense capture, receipt attachments, invoice viewing, and draft invoice/expense entry.
+- Platform features:
+- Mobile: camera receipt capture and attachment upload.
+- Desktop: file import/export workflows.
+
+## Local Development Commands
+These commands are placeholders until scaffolding is added:
+
+```bash
+# Backend API
+cd backend
+go run ./cmd/api
+
+# Backend worker
+cd backend
+go run ./cmd/worker
+
+# React web
+cd web
+npm install
+npm run dev
+
+# Flutter
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+## Environment Variables
+Planned variables:
+
+```text
+APP_ENV=development
+API_ADDR=:8080
+DATABASE_DRIVER=sqlite
+DATABASE_DSN=file:accounting.db?cache=shared
+MYSQL_DSN=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+ACCESS_TOKEN_TTL_MINUTES=15
+REFRESH_TOKEN_TTL_HOURS=720
+REDIS_ADDR=localhost:6379
+SWAGGER_ENABLED=true
+ATTACHMENT_STORAGE_DRIVER=local
+ATTACHMENT_STORAGE_PATH=./storage
+DEFAULT_COUNTRY=IN
+DEFAULT_CURRENCY=INR
+CORS_ALLOWED_ORIGINS=*
+WORKER_RUN_ONCE=false
+WORKER_INTERVAL_SECONDS=3600
+```
+
+## Testing Commands
+Local commands:
+
+```bash
+# Go
+cd backend
+go test ./...
+
+# React
+cd web
+npm run build
+
+# Flutter
+cd flutter_app
+flutter analyze
+flutter test
+
+# API docs
+ruby -e 'require "yaml"; YAML.load_file("docs/openapi.yaml")'
+node -e 'JSON.parse(require("fs").readFileSync("docs/accounting-api.postman_collection.json", "utf8"))'
+ruby scripts/validate_openapi_routes.rb
+ruby scripts/validate_postman_collection.rb
+```
+
+CI runs these checks from `.github/workflows/ci.yml` on pull requests and pushes to `main` or `develop`.
+
+## Build Order And Status
+- Data model and GORM schema for organizations, users, chart of accounts, and double-entry ledger: Initial scaffold complete.
+- Core ledger API for posting transactions and querying the general ledger: Initial scaffold complete.
+- Auth and RBAC: Initial scaffold complete.
+- `PROJECT_CONTEXT.md`, OpenAPI skeleton, and Postman skeleton: Complete.
+- React admin UI for chart of accounts and GL entry: Initial Vite/React shell with manageable browser-persistent offline account/manual journal draft queues plus cached account register review complete and production build verified.
+- Invoicing and AR module: Initial customer, invoice creation, PDF attachment metadata, tax totals, and GL posting scaffold complete.
+- Config-driven VAT/GST tax module: Initial API, calculation service, data model, India GST seed scaffold, and React authority/rate/group maintenance surface complete.
+- Expense tracking and AP module: Initial vendor, expense creation, vendor bill creation, tax totals, receipt/document attachment metadata references, GL posting scaffold, and React vendor/expense/bill review surface complete.
+- Reporting engine for Balance Sheet, P&L, Trial Balance, Cash Flow, AR/AP Aging, Tax Liability, and Tax Summary: Initial reports complete.
+- Payroll module: Initial employee, payroll run, payslip metadata/preview, GL posting, and configurable India PF/ESI/PT/TDS preview scaffold complete.
+- Flutter mobile app for expense capture and invoice viewing: Initial multi-platform shell, draft expense form with receipt attachment selection and config-driven tax metadata plus tax preview, pending draft list with local edit/delete, offline account/invoice/investment/attachment metadata and binary/tax catalog caches, cached invoice line/subtotal/tax/total/PDF-metadata review, cached investment lot/realized-gains/price/valuation review, draft sync queue, file-backed queue/settings/cache repositories, typed API client including attachment metadata/binary and investment transport, attachment lookup/sample upload/local-file upload/download/inspect UI with offline availability status, account/tax lookup with one-tap default selection, sync coordinator, credential-gated live expense sync, and sync status UI complete.
+- Flutter desktop app: Initial multi-platform shell, draft expense form with receipt attachment selection and config-driven tax metadata plus tax preview, pending draft list with local edit/delete, offline account/invoice/investment/attachment metadata and binary/tax catalog caches, cached invoice line/subtotal/tax/total/PDF-metadata review, cached investment lot/realized-gains/price/valuation review, draft sync queue, file-backed queue/settings/cache repositories, typed API client including attachment metadata/binary and investment transport, attachment lookup/sample upload/local-file upload/download/inspect UI with offline availability status, account/tax lookup with one-tap default selection, sync coordinator, credential-gated live expense sync, and sync status UI complete.
+- Bank import and reconciliation: Initial structured statement import, matching, split reconciliation scaffold, and React reconciliation surface complete.
+- CI/CD pipeline setup: Initial GitHub Actions CI workflow complete for backend, web, Flutter, and API docs validation.
+- Data export/backups: Admin/Accountant tenant-scoped JSON export, manual local backup snapshots, scheduled worker backups, checksum metadata, and retention pruning are implemented; external/cloud backup targets are still pending.
+- Budgeting: Initial budget and budget-vs-actual scaffold plus React budget create/list/review surface complete.
+- Multi-currency: Initial exchange-rate storage, base-currency ledger split groundwork, unrealized FX revaluation preview/posting API, and React admin surfaces for exchange rates plus revaluation preview/posting complete.
+- Fiscal year closing: Initial income/expense close to retained earnings scaffold and React fiscal-close admin surface complete.
+- Lots and capital gains: Initial backend investment-lot, specific-lot disposition, realized-gains report scaffold, and React management/reporting surface complete.
+
+## Documentation Requirements
+- `docs/openapi.yaml` is the canonical API contract until generated Swagger docs are wired.
+- `docs/API_DOCUMENTATION.md` documents REST usage, Swagger routes, auth, tags, validation, and project identity.
+- `docs/PROJECT_STATUS.md` tracks current completion status, remaining work, and recommended next build order.
+- `docs/accounting-api.postman_collection.json` mirrors the OpenAPI module groups.
+- `scripts/validate_openapi_routes.rb` checks registered Gin route/method pairs against OpenAPI and runs in CI.
+- `scripts/validate_postman_collection.rb` checks Postman route/method coverage against OpenAPI and runs in CI.
+- Swagger UI is served at `/swagger/index.html`, with `/swagger` and `/swagger/` redirecting there.
+- OpenAPI is served at `/openapi.yaml` and `/swagger/openapi.yaml`.
+- Swagger UI must be disabled or auth-gated in production through `SWAGGER_ENABLED`.
+
+## Current Backend Caveats
+- Auth login, refresh, password reset token endpoints, and admin-managed organization user creation are implemented; email delivery/invitations are not yet implemented.
+- First-admin bootstrap is implemented and only succeeds while no users exist.
+- India default chart of accounts and GST preset seeding is implemented and idempotent.
+- Tax authority, tax rate, tax group, and tax calculation endpoints are implemented.
+- Attachment metadata endpoints and local binary upload/download are implemented for tenant-scoped file references; cloud/object-storage drivers are still pending.
+- Customer and invoice endpoints are implemented; invoice PDF attachment metadata is tenant-scoped; posting an invoice creates AR, revenue, and output-tax ledger splits; customer payment endpoints create cash/AR ledger entries and mark invoices paid when applied payments reach the invoice total.
+- Recurring invoice templates are implemented; generate-due creates draft invoices and advances each template's next run date, and `cmd/worker` can run this job once or on a configurable interval.
+- Estimate/quote and credit-note endpoints are implemented; estimates are non-posting, support draft/sent/accepted/void lifecycle transitions, and can convert to draft invoices; posted credit notes reduce revenue/output GST and accounts receivable.
+- Vendor, expense, and bill endpoints are implemented; posting an expense creates expense, input-tax, and payment-account ledger splits; posting a bill creates AP ledger entries, and vendor payment endpoints create AP/cash ledger entries.
+- Purchase order endpoints are implemented as non-posting procurement documents, support draft/sent/approved/void lifecycle transitions, and can convert to draft vendor bills.
+- Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, and AR Aging reports are implemented; AR Aging subtracts customer payments applied through the report date.
+- AP Aging is implemented from posted vendor bills and subtracts vendor payments applied through the report date; current expenses remain paid/spent records.
+- Tax Liability and Tax Summary reports are implemented from posted invoices and expenses.
+- Employee and payroll run endpoints are implemented; posting payroll creates payroll expense, net-pay liability, and deduction liability ledger splits. India payroll preview can calculate configurable Basic/HRA/Special/Bonus/Reimbursement earnings plus PF/ESI/PT/TDS deductions before those components are attached to a draft run. Payslip preview returns printable employee/run/component data; React caches the last preview for offline viewing and can export it to CSV. PDF rendering is still pending.
+- Structured bank statement import, QIF/OFX parsing/import, and reconciliation matching are implemented.
+- Budget creation/listing and Budget vs Actual reporting are implemented from posted ledger actuals.
+- Exchange-rate storage is implemented; ledger splits can carry transaction-currency and base-currency amounts; unrealized FX revaluation can preview and post GL adjustments for non-base-currency balances.
+- Fiscal year closing creates posted closing entries that zero income/expense accounts into retained earnings.
+- Investment lots, specific-lot sale dispositions, average-cost pooled sale automation, optional GL posting, realized gain/loss reporting, market price capture, and valuation reporting are implemented.
+- Admin/Accountant organization JSON data export is implemented at `/data/export`; local manual/scheduled backup snapshots are implemented at `/data/backups`; external backup storage targets are still pending.
+- Audit logs are recorded for key posting/reconciliation workflows and can be listed by Admin/Accountant roles.
+- Admins can create organization users and assign RBAC roles.
+- Request IDs, configurable CORS, `/openapi.yaml`, and Swagger UI are implemented.
+- React web shell is scaffolded with first-admin bootstrap/login/token-refresh/organization selection, dashboard/offline-readiness views including sync-all, chart of accounts, manual ledger entry/account register screens, tax authority/rate/group maintenance screens, customer/invoice and vendor/expense review/posting screens, document metadata/create/upload/download catalog screens, budget create/list/review screens, investment lot create/list/sell and realized-gains export screens, bank statement import/list/match reconciliation screens, admin exchange-rate/fiscal-close/user/audit screens, localStorage-backed account and manual journal draft queue/delete/clear/sync with defensive cache parsing, and last-known-good account/ledger/register/tax/customer/invoice/vendor/expense/document/budget/investment/bank-statement/admin/payroll/report snapshot hydration; `npm run build` and `npm audit` pass on Vite 8.
+- Flutter app is scaffolded for Android, iOS, Linux, macOS, and Windows with offline-ready expense capture, draft expense form including cached receipt attachment ID selection, tax rate/group metadata, and tax preview, pending draft list with local edit/delete, cached account lookup, cached invoice line/subtotal/tax/total/PDF-metadata viewing, cached investment lot/realized-gains/price/valuation viewing, cached attachment metadata and downloaded binary lookup, cached tax config lookup, file-backed sync settings, a shared Dart draft sync queue, file-backed queue/cache repositories, typed API client for accounts/invoices/expenses/attachments/tax config/investments plus attachment binary upload/download and valuation refresh, attachment lookup/sample upload/local-file upload/download/inspect UI with offline availability status, account lookup with one-tap posting account selection, tax lookup with one-tap default rate/group selection, sync coordinator for expense draft retries, credential-gated live expense sync, and sync status UI; polished Flutter file picker/camera UI for binary attachments is still pending; `flutter analyze` and `flutter test` pass.
+- Organization-scoped account and ledger routes require JWT membership roles.
+- Viewer can read organization-scoped accounting data but cannot create accounts or post journal transactions.
+- Development JWT defaults must be overridden before any production deployment.
+
+## Known Constraints
+- Do not hardcode tax logic by country.
+- Do not delete posted ledger entries.
+- Do not bypass tenant scoping.
+- Do not allow unbalanced ledger posting.
+- Do not duplicate core accounting logic in clients.
+- Prefer database-agnostic GORM operations for MySQL and SQLite compatibility.

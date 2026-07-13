@@ -1,0 +1,6906 @@
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ApiClient, type Account, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportBankStatementInput, type IndiaPayrollPreview, type IndiaSeedResult, type InvestmentLot, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type Organization, type OrganizationUser, type PayrollRun, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type ReportRow, type RevaluationPreview, type Role, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
+import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
+
+type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
+
+export function App() {
+  const cachedSnapshot = useMemo(() => loadAccountingSnapshot(), []);
+  const [config, setConfig] = useState<ApiConfig>(() => loadConfig());
+  const [view, setView] = useState<View>("dashboard");
+  const [accounts, setAccounts] = useState<Account[]>(() => cachedSnapshot?.accounts ?? []);
+  const [transactions, setTransactions] = useState<JournalTransaction[]>(() => cachedSnapshot?.transactions ?? []);
+  const [accountRegisterAccountId, setAccountRegisterAccountId] = useState(() => cachedSnapshot?.accountRegisterAccountId ?? "");
+  const [accountRegisterSplits, setAccountRegisterSplits] = useState<LedgerSplit[]>(() => cachedSnapshot?.accountRegisterSplits ?? []);
+  const [taxAuthorities, setTaxAuthorities] = useState<TaxAuthority[]>(() => cachedSnapshot?.taxAuthorities ?? []);
+  const [taxRates, setTaxRates] = useState<TaxRate[]>(() => cachedSnapshot?.taxRates ?? []);
+  const [taxGroups, setTaxGroups] = useState<TaxGroup[]>(() => cachedSnapshot?.taxGroups ?? []);
+  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>(() => cachedSnapshot?.payrollRuns ?? []);
+  const [employees, setEmployees] = useState<Employee[]>(() => cachedSnapshot?.employees ?? []);
+  const [lastPayslipPreview, setLastPayslipPreview] = useState<PayslipPreview | null>(() => cachedSnapshot?.lastPayslipPreview ?? null);
+  const [customers, setCustomers] = useState<Customer[]>(() => cachedSnapshot?.customers ?? []);
+  const [invoices, setInvoices] = useState<Invoice[]>(() => cachedSnapshot?.invoices ?? []);
+  const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoiceTemplate[]>(() => cachedSnapshot?.recurringInvoices ?? []);
+  const [estimates, setEstimates] = useState<Estimate[]>(() => cachedSnapshot?.estimates ?? []);
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>(() => cachedSnapshot?.creditNotes ?? []);
+  const [vendors, setVendors] = useState<Vendor[]>(() => cachedSnapshot?.vendors ?? []);
+  const [expenses, setExpenses] = useState<Expense[]>(() => cachedSnapshot?.expenses ?? []);
+  const [bills, setBills] = useState<Bill[]>(() => cachedSnapshot?.bills ?? []);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => cachedSnapshot?.purchaseOrders ?? []);
+  const [bankStatementLines, setBankStatementLines] = useState<BankStatementLine[]>(() => cachedSnapshot?.bankStatementLines ?? []);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRate[]>(() => cachedSnapshot?.exchangeRates ?? []);
+  const [fiscalCloses, setFiscalCloses] = useState<FiscalClose[]>(() => cachedSnapshot?.fiscalCloses ?? []);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => cachedSnapshot?.auditLogs ?? []);
+  const [organizationUsers, setOrganizationUsers] = useState<OrganizationUser[]>(() => cachedSnapshot?.organizationUsers ?? []);
+  const [attachments, setAttachments] = useState<Attachment[]>(() => cachedSnapshot?.attachments ?? []);
+  const [budgets, setBudgets] = useState<Budget[]>(() => cachedSnapshot?.budgets ?? []);
+  const [investmentLots, setInvestmentLots] = useState<InvestmentLot[]>(() => cachedSnapshot?.investmentLots ?? []);
+  const [queuedAccountDrafts, setQueuedAccountDrafts] = useState<QueuedAccountDraft[]>(() => loadAccountDrafts());
+  const [queuedJournalDrafts, setQueuedJournalDrafts] = useState<QueuedJournalDraft[]>(() => loadJournalDrafts());
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState(cachedSnapshot ? `Loaded cached accounting snapshot from ${new Date(cachedSnapshot.savedAt).toLocaleString()}.` : "");
+
+  const api = useMemo(() => new ApiClient(config), [config]);
+
+  async function refresh() {
+    if (!config.accessToken || !config.organizationId) {
+      return;
+    }
+    setError("");
+    try {
+      const [nextAccounts, nextTransactions, nextTaxAuthorities, nextTaxRates, nextTaxGroups, nextPayrollRuns, nextEmployees, nextCustomers, nextInvoices, nextRecurringInvoices, nextEstimates, nextCreditNotes, nextVendors, nextExpenses, nextBills, nextPurchaseOrders, nextExchangeRates, nextFiscalCloses, nextAuditLogs, nextOrganizationUsers, nextAttachments, nextBudgets, nextInvestmentLots] = await Promise.all([
+        api.listAccounts(),
+        api.listJournalTransactions(),
+        api.listTaxAuthorities(),
+        api.listTaxRates(),
+        api.listTaxGroups(),
+        api.listPayrollRuns(),
+        api.listEmployees(),
+        api.listCustomers(),
+        api.listInvoices(),
+        api.listRecurringInvoices(),
+        api.listEstimates(),
+        api.listCreditNotes(),
+        api.listVendors(),
+        api.listExpenses(),
+        api.listBills(),
+        api.listPurchaseOrders(),
+        api.listExchangeRates(),
+        api.listFiscalCloses(),
+        api.listAuditLogs(),
+        api.listOrganizationUsers(),
+        api.listAttachments(),
+        api.listBudgets(),
+        api.listInvestmentLots()
+      ]);
+      setAccounts(nextAccounts);
+      setTransactions(nextTransactions);
+      setTaxAuthorities(nextTaxAuthorities);
+      setTaxRates(nextTaxRates);
+      setTaxGroups(nextTaxGroups);
+      setPayrollRuns(nextPayrollRuns);
+      setEmployees(nextEmployees);
+      setCustomers(nextCustomers);
+      setInvoices(nextInvoices);
+      setRecurringInvoices(nextRecurringInvoices);
+      setEstimates(nextEstimates);
+      setCreditNotes(nextCreditNotes);
+      setVendors(nextVendors);
+      setExpenses(nextExpenses);
+      setBills(nextBills);
+      setPurchaseOrders(nextPurchaseOrders);
+      setExchangeRates(nextExchangeRates);
+      setFiscalCloses(nextFiscalCloses);
+      setAuditLogs(nextAuditLogs);
+      setOrganizationUsers(nextOrganizationUsers);
+      setAttachments(nextAttachments);
+      setBudgets(nextBudgets);
+      setInvestmentLots(nextInvestmentLots);
+      saveAccountingSnapshot({
+        savedAt: new Date().toISOString(),
+        accounts: nextAccounts,
+        transactions: nextTransactions,
+        accountRegisterAccountId,
+        accountRegisterSplits,
+        taxAuthorities: nextTaxAuthorities,
+        taxRates: nextTaxRates,
+        taxGroups: nextTaxGroups,
+        payrollRuns: nextPayrollRuns,
+        employees: nextEmployees,
+        lastPayslipPreview: lastPayslipPreview ?? undefined,
+        customers: nextCustomers,
+        invoices: nextInvoices,
+        recurringInvoices: nextRecurringInvoices,
+        estimates: nextEstimates,
+        creditNotes: nextCreditNotes,
+        vendors: nextVendors,
+        expenses: nextExpenses,
+        bills: nextBills,
+        purchaseOrders: nextPurchaseOrders,
+        bankStatementLines,
+        exchangeRates: nextExchangeRates,
+        fiscalCloses: nextFiscalCloses,
+        auditLogs: nextAuditLogs,
+        organizationUsers: nextOrganizationUsers,
+        attachments: nextAttachments,
+        budgets: nextBudgets,
+        investmentLots: nextInvestmentLots
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, [config.accessToken, config.organizationId]);
+
+  function updateConfig(next: ApiConfig) {
+    setConfig(next);
+    saveConfig(next);
+    setNotice("Connection settings saved locally.");
+  }
+
+  function queueAccountDraft(input: AccountInput) {
+    const draft = {
+      id: createDraftId("account-draft"),
+      createdAt: new Date().toISOString(),
+      input
+    };
+    const next = [draft, ...queuedAccountDrafts];
+    setQueuedAccountDrafts(next);
+    saveAccountDrafts(next);
+    setNotice("Account draft queued locally for offline sync.");
+  }
+
+  function deleteQueuedAccountDraft(draftId: string) {
+    const next = queuedAccountDrafts.filter((draft) => draft.id !== draftId);
+    setQueuedAccountDrafts(next);
+    saveAccountDrafts(next);
+    setNotice("Queued account draft removed locally.");
+  }
+
+  function updateQueuedAccountDraft(draftId: string, input: AccountInput) {
+    const next = queuedAccountDrafts.map((draft) => (
+      draft.id === draftId ? { ...draft, input, lastError: undefined } : draft
+    ));
+    persistAccountDrafts(next);
+    setNotice("Queued account draft updated locally.");
+  }
+
+  function clearQueuedAccountDraftError(draftId: string) {
+    const next = queuedAccountDrafts.map((draft) => (
+      draft.id === draftId ? { ...draft, lastError: undefined } : draft
+    ));
+    persistAccountDrafts(next);
+    setNotice("Queued account draft error cleared locally.");
+  }
+
+  function clearQueuedAccountDrafts() {
+    setQueuedAccountDrafts([]);
+    saveAccountDrafts([]);
+    setNotice("All queued account drafts cleared locally.");
+  }
+
+  async function syncQueuedAccountDrafts() {
+    if (!config.accessToken || !config.organizationId) {
+      setNotice("Add API credentials and organization ID before syncing queued account drafts.");
+      return;
+    }
+
+    setError("");
+    const result = await syncDraftQueue(queuedAccountDrafts, (draft) => api.createAccount(draft.input));
+    persistAccountDrafts(result.remaining);
+    setNotice(`Synced ${result.synced} queued account drafts; ${result.failed} failed and remain queued.`);
+    if (result.synced > 0) {
+      await refresh();
+    }
+  }
+
+  function queueJournalDraft(input: JournalTransactionInput) {
+    const draft = {
+      id: createDraftId("journal-draft"),
+      createdAt: new Date().toISOString(),
+      input
+    };
+    const next = [draft, ...queuedJournalDrafts];
+    setQueuedJournalDrafts(next);
+    saveJournalDrafts(next);
+    setNotice("Journal draft queued locally for offline sync.");
+  }
+
+  function deleteQueuedJournalDraft(draftId: string) {
+    const next = queuedJournalDrafts.filter((draft) => draft.id !== draftId);
+    setQueuedJournalDrafts(next);
+    saveJournalDrafts(next);
+    setNotice("Queued journal draft removed locally.");
+  }
+
+  function updateQueuedJournalDraft(draftId: string, input: JournalTransactionInput) {
+    const next = queuedJournalDrafts.map((draft) => (
+      draft.id === draftId ? { ...draft, input, lastError: undefined } : draft
+    ));
+    persistJournalDrafts(next);
+    setNotice("Queued journal draft updated locally.");
+  }
+
+  function clearQueuedJournalDraftError(draftId: string) {
+    const next = queuedJournalDrafts.map((draft) => (
+      draft.id === draftId ? { ...draft, lastError: undefined } : draft
+    ));
+    persistJournalDrafts(next);
+    setNotice("Queued journal draft error cleared locally.");
+  }
+
+  function clearQueuedJournalDrafts() {
+    setQueuedJournalDrafts([]);
+    saveJournalDrafts([]);
+    setNotice("All queued journal drafts cleared locally.");
+  }
+
+  async function syncQueuedJournalDrafts() {
+    if (!config.accessToken || !config.organizationId) {
+      setNotice("Add API credentials and organization ID before syncing queued journal drafts.");
+      return;
+    }
+
+    setError("");
+    const result = await syncDraftQueue(queuedJournalDrafts, (draft) => api.postJournalTransaction(draft.input));
+    persistJournalDrafts(result.remaining);
+    setNotice(`Synced ${result.synced} queued journal drafts; ${result.failed} failed and remain queued.`);
+    if (result.synced > 0) {
+      await refresh();
+    }
+  }
+
+  async function syncAllQueuedDrafts() {
+    if (!config.accessToken || !config.organizationId) {
+      setNotice("Add API credentials and organization ID before syncing queued work.");
+      return;
+    }
+
+    setError("");
+    const accountResult = await syncDraftQueue(queuedAccountDrafts, (draft) => api.createAccount(draft.input));
+    const journalResult = await syncDraftQueue(queuedJournalDrafts, (draft) => api.postJournalTransaction(draft.input));
+    persistAccountDrafts(accountResult.remaining);
+    persistJournalDrafts(journalResult.remaining);
+    setNotice(
+      `Synced ${accountResult.synced} account drafts and ${journalResult.synced} journal drafts; `
+      + `${accountResult.failed + journalResult.failed} failed and remain queued.`
+    );
+    if (accountResult.synced + journalResult.synced > 0) {
+      await refresh();
+    }
+  }
+
+  function persistAccountDrafts(drafts: QueuedAccountDraft[]) {
+    setQueuedAccountDrafts(drafts);
+    saveAccountDrafts(drafts);
+  }
+
+  function persistJournalDrafts(drafts: QueuedJournalDraft[]) {
+    setQueuedJournalDrafts(drafts);
+    saveJournalDrafts(drafts);
+  }
+
+  function updateBankStatementLines(next: BankStatementLine[]) {
+    setBankStatementLines(next);
+    saveAccountingSnapshot({
+      savedAt: new Date().toISOString(),
+      accounts,
+      transactions,
+      taxRates,
+      taxGroups,
+      payrollRuns,
+      employees,
+      lastPayslipPreview: lastPayslipPreview ?? undefined,
+      customers,
+      invoices,
+      vendors,
+      expenses,
+      bankStatementLines: next,
+      exchangeRates,
+      fiscalCloses,
+      auditLogs,
+      organizationUsers,
+      attachments,
+      budgets,
+      investmentLots
+    });
+  }
+
+  function updatePayslipPreview(preview: PayslipPreview | null) {
+    setLastPayslipPreview(preview);
+    saveAccountingSnapshot({
+      savedAt: new Date().toISOString(),
+      accounts,
+      transactions,
+      accountRegisterAccountId,
+      accountRegisterSplits,
+      taxAuthorities,
+      taxRates,
+      taxGroups,
+      payrollRuns,
+      employees,
+      lastPayslipPreview: preview ?? undefined,
+      customers,
+      invoices,
+      recurringInvoices,
+      estimates,
+      creditNotes,
+      vendors,
+      expenses,
+      bills,
+      purchaseOrders,
+      bankStatementLines,
+      exchangeRates,
+      fiscalCloses,
+      auditLogs,
+      organizationUsers,
+      attachments,
+      budgets,
+      investmentLots
+    });
+  }
+
+  function updateAccountRegister(accountId: string, splits: LedgerSplit[]) {
+    setAccountRegisterAccountId(accountId);
+    setAccountRegisterSplits(splits);
+    saveAccountingSnapshot({
+      savedAt: new Date().toISOString(),
+      accounts,
+      transactions,
+      accountRegisterAccountId: accountId,
+      accountRegisterSplits: splits,
+      taxAuthorities,
+      taxRates,
+      taxGroups,
+      payrollRuns,
+      employees,
+      lastPayslipPreview: lastPayslipPreview ?? undefined,
+      customers,
+      invoices,
+      vendors,
+      expenses,
+      bankStatementLines,
+      exchangeRates,
+      fiscalCloses,
+      auditLogs,
+      organizationUsers,
+      attachments,
+      budgets,
+      investmentLots
+    });
+  }
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div>
+          <p className="eyebrow">Ledger Works</p>
+          <h1>Accounting cockpit</h1>
+        </div>
+        <nav>
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>Dashboard</button>
+          <button className={view === "accounts" ? "active" : ""} onClick={() => setView("accounts")}>Accounts</button>
+          <button className={view === "ledger" ? "active" : ""} onClick={() => setView("ledger")}>Ledger</button>
+          <button className={view === "tax" ? "active" : ""} onClick={() => setView("tax")}>Tax</button>
+          <button className={view === "reports" ? "active" : ""} onClick={() => setView("reports")}>Reports</button>
+          <button className={view === "budgets" ? "active" : ""} onClick={() => setView("budgets")}>Budgets</button>
+          <button className={view === "investments" ? "active" : ""} onClick={() => setView("investments")}>Investments</button>
+          <button className={view === "payroll" ? "active" : ""} onClick={() => setView("payroll")}>Payroll</button>
+          <button className={view === "invoices" ? "active" : ""} onClick={() => setView("invoices")}>Invoices</button>
+          <button className={view === "expenses" ? "active" : ""} onClick={() => setView("expenses")}>Expenses</button>
+          <button className={view === "documents" ? "active" : ""} onClick={() => setView("documents")}>Documents</button>
+          <button className={view === "reconciliation" ? "active" : ""} onClick={() => setView("reconciliation")}>Reconcile</button>
+          <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Admin</button>
+        </nav>
+        <ConnectionPanel config={config} onSave={updateConfig} />
+      </aside>
+
+      <section className="workspace">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">India-first SMB accounting</p>
+            <h2>{titleFor(view)}</h2>
+          </div>
+          <button className="secondary" onClick={() => void refresh()}>Refresh</button>
+        </header>
+
+        {error && <div className="alert error">{error}</div>}
+        {notice && <div className="alert success">{notice}</div>}
+
+        {view === "dashboard" && (
+          <Dashboard
+            accounts={accounts}
+            transactions={transactions}
+            taxRates={taxRates.length}
+            taxGroups={taxGroups.length}
+            queuedAccountDrafts={queuedAccountDrafts.length}
+            queuedJournalDrafts={queuedJournalDrafts.length}
+            hasConnection={Boolean(config.accessToken && config.organizationId)}
+            onOpenAccounts={() => setView("accounts")}
+            onOpenLedger={() => setView("ledger")}
+            onSyncAllQueuedDrafts={syncAllQueuedDrafts}
+          />
+        )}
+        {view === "accounts" && (
+          <AccountsPage
+            accounts={accounts}
+            queuedAccountDrafts={queuedAccountDrafts}
+            api={api}
+            onChanged={refresh}
+            onQueueDraft={queueAccountDraft}
+            onUpdateQueuedDraft={updateQueuedAccountDraft}
+            onDeleteQueuedDraft={deleteQueuedAccountDraft}
+            onClearQueuedDraftError={clearQueuedAccountDraftError}
+            onClearQueuedDrafts={clearQueuedAccountDrafts}
+            onSyncQueuedDrafts={syncQueuedAccountDrafts}
+          />
+        )}
+        {view === "ledger" && (
+          <LedgerPage
+            accounts={accounts}
+            transactions={transactions}
+            accountRegisterAccountId={accountRegisterAccountId}
+            accountRegisterSplits={accountRegisterSplits}
+            queuedJournalDrafts={queuedJournalDrafts}
+            api={api}
+            onChanged={refresh}
+            onAccountRegisterChanged={updateAccountRegister}
+            onQueueDraft={queueJournalDraft}
+            onUpdateQueuedDraft={updateQueuedJournalDraft}
+            onDeleteQueuedDraft={deleteQueuedJournalDraft}
+            onClearQueuedDraftError={clearQueuedJournalDraftError}
+            onClearQueuedDrafts={clearQueuedJournalDrafts}
+            onSyncQueuedDrafts={syncQueuedJournalDrafts}
+          />
+        )}
+        {view === "tax" && (
+          <TaxPage
+            api={api}
+            accounts={accounts}
+            taxAuthorities={taxAuthorities}
+            taxRates={taxRates}
+            taxGroups={taxGroups}
+            onTaxAuthoritiesChanged={setTaxAuthorities}
+            onTaxRatesChanged={setTaxRates}
+            onTaxGroupsChanged={setTaxGroups}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "reports" && (
+          <ReportsPage api={api} budgets={budgets} onBudgetsChanged={setBudgets} />
+        )}
+        {view === "budgets" && (
+          <BudgetsPage
+            api={api}
+            accounts={accounts}
+            budgets={budgets}
+            onBudgetsChanged={setBudgets}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "investments" && (
+          <InvestmentsPage
+            api={api}
+            accounts={accounts}
+            investmentLots={investmentLots}
+            onInvestmentLotsChanged={setInvestmentLots}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "payroll" && (
+          <PayrollPage
+            api={api}
+            accounts={accounts}
+            payrollRuns={payrollRuns}
+            employees={employees}
+            payslipPreview={lastPayslipPreview}
+            onPayrollRunsChanged={setPayrollRuns}
+            onEmployeesChanged={setEmployees}
+            onPayslipPreviewChanged={updatePayslipPreview}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "invoices" && (
+          <InvoicesPage
+            api={api}
+            accounts={accounts}
+            customers={customers}
+            invoices={invoices}
+            recurringInvoices={recurringInvoices}
+            estimates={estimates}
+            creditNotes={creditNotes}
+            taxRates={taxRates}
+            taxGroups={taxGroups}
+            onCustomersChanged={setCustomers}
+            onInvoicesChanged={setInvoices}
+            onRecurringInvoicesChanged={setRecurringInvoices}
+            onEstimatesChanged={setEstimates}
+            onCreditNotesChanged={setCreditNotes}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "expenses" && (
+          <ExpensesPage
+            api={api}
+            accounts={accounts}
+            vendors={vendors}
+            expenses={expenses}
+            bills={bills}
+            purchaseOrders={purchaseOrders}
+            taxRates={taxRates}
+            taxGroups={taxGroups}
+            onVendorsChanged={setVendors}
+            onExpensesChanged={setExpenses}
+            onBillsChanged={setBills}
+            onPurchaseOrdersChanged={setPurchaseOrders}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "documents" && (
+          <DocumentsPage
+            api={api}
+            attachments={attachments}
+            onAttachmentsChanged={setAttachments}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "reconciliation" && (
+          <ReconciliationPage
+            api={api}
+            accounts={accounts}
+            transactions={transactions}
+            statementLines={bankStatementLines}
+            onStatementLinesChanged={updateBankStatementLines}
+            onRefresh={refresh}
+          />
+        )}
+        {view === "admin" && (
+          <AdminPage
+            api={api}
+            accounts={accounts}
+            exchangeRates={exchangeRates}
+            fiscalCloses={fiscalCloses}
+            auditLogs={auditLogs}
+            organizationUsers={organizationUsers}
+            onExchangeRatesChanged={setExchangeRates}
+            onFiscalClosesChanged={setFiscalCloses}
+            onAuditLogsChanged={setAuditLogs}
+            onOrganizationUsersChanged={setOrganizationUsers}
+            onRefresh={refresh}
+          />
+        )}
+      </section>
+    </main>
+  );
+}
+
+function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (config: ApiConfig) => void }) {
+  const [draft, setDraft] = useState(config);
+  const [loginForm, setLoginForm] = useState<LoginInput>({ email: "", password: "" });
+  const [bootstrapForm, setBootstrapForm] = useState<BootstrapFirstAdminInput>({
+    organization_name: "",
+    admin_name: "",
+    admin_email: "",
+    admin_password: "",
+    base_currency: "INR",
+    country_code: "IN",
+    seed_india_defaults: true
+  });
+  const [organizationForm, setOrganizationForm] = useState<CreateOrganizationInput>({ name: "", base_currency: "INR", country_code: "IN" });
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState("");
+  const [connectionError, setConnectionError] = useState("");
+  const [connectionNotice, setConnectionNotice] = useState("");
+  const connectionApi = useMemo(() => new ApiClient(draft), [draft]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onSave(draft);
+  }
+
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    setLoading("login");
+    setConnectionError("");
+    try {
+      const token = await connectionApi.login(loginForm);
+      const next = { ...draft, accessToken: token.access_token, refreshToken: token.refresh_token };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Logged in. Access token expires in ${token.expires_in} seconds.`);
+      await loadOrganizations(next);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function refreshAccessToken() {
+    if (!draft.refreshToken) {
+      setConnectionError("No refresh token is saved yet.");
+      return;
+    }
+    setLoading("refresh-token");
+    setConnectionError("");
+    try {
+      const token = await connectionApi.refreshToken(draft.refreshToken);
+      const next = { ...draft, accessToken: token.access_token, refreshToken: token.refresh_token };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Token refreshed. Access token expires in ${token.expires_in} seconds.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function bootstrapFirstAdmin(event: FormEvent) {
+    event.preventDefault();
+    setLoading("bootstrap");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.bootstrapFirstAdmin(toBootstrapFirstAdminInput(bootstrapForm));
+      const organizationId = result.organization?.id ?? draft.organizationId;
+      const next = { ...draft, organizationId };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Bootstrap complete${result.organization?.name ? ` for ${result.organization.name}` : ""}. Log in with the admin email to receive tokens.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadOrganizations(configOverride = draft) {
+    setLoading("organizations");
+    setConnectionError("");
+    try {
+      const nextOrganizations = await new ApiClient(configOverride).listOrganizations();
+      setOrganizations(nextOrganizations);
+      const firstOrganizationId = nextOrganizations[0]?.id;
+      if (!configOverride.organizationId && firstOrganizationId) {
+        const next = { ...configOverride, organizationId: firstOrganizationId };
+        setDraft(next);
+        onSave(next);
+      }
+      setConnectionNotice(`Loaded ${nextOrganizations.length} organization(s).`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createOrganization(event: FormEvent) {
+    event.preventDefault();
+    setLoading("create-organization");
+    setConnectionError("");
+    try {
+      const organization = await connectionApi.createOrganization(toCreateOrganizationInput(organizationForm));
+      const next = { ...draft, organizationId: organization.id };
+      setOrganizations([organization, ...organizations]);
+      setOrganizationForm({ name: "", base_currency: "INR", country_code: "IN" });
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Created and selected ${organization.name}.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  return (
+    <div className="connection-card stack">
+      <form className="form-grid" onSubmit={submit}>
+        <label>
+          API URL
+          <input value={draft.baseUrl} onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })} />
+        </label>
+        <label>
+          Access token
+          <textarea value={draft.accessToken} onChange={(event) => setDraft({ ...draft, accessToken: event.target.value })} />
+        </label>
+        <label>
+          Refresh token
+          <textarea value={draft.refreshToken ?? ""} onChange={(event) => setDraft({ ...draft, refreshToken: event.target.value })} />
+        </label>
+        <label>
+          Organization ID
+          <input value={draft.organizationId} onChange={(event) => setDraft({ ...draft, organizationId: event.target.value })} />
+        </label>
+        <button type="submit">Save connection</button>
+        <button className="secondary" type="button" disabled={!draft.refreshToken || loading === "refresh-token"} onClick={() => void refreshAccessToken()}>
+          {loading === "refresh-token" ? "Refreshing..." : "Refresh token"}
+        </button>
+      </form>
+
+      {connectionError && <div className="alert error">{connectionError}</div>}
+      {connectionNotice && <div className="alert success">{connectionNotice}</div>}
+
+      <form className="form-grid" onSubmit={login}>
+        <input placeholder="Email" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} />
+        <input placeholder="Password" type="password" value={loginForm.password} onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })} />
+        <button disabled={!loginForm.email || !loginForm.password || loading === "login"}>{loading === "login" ? "Logging in..." : "Login"}</button>
+        <button className="secondary" type="button" disabled={!draft.accessToken || loading === "organizations"} onClick={() => void loadOrganizations()}>
+          {loading === "organizations" ? "Loading..." : "Load organizations"}
+        </button>
+      </form>
+
+      {organizations.length > 0 && (
+        <label>
+          Select organization
+          <select value={draft.organizationId} onChange={(event) => {
+            const next = { ...draft, organizationId: event.target.value };
+            setDraft(next);
+            onSave(next);
+          }}>
+            <option value="">Select organization</option>
+            {organizations.map((organization) => (
+              <option key={organization.id} value={organization.id}>{organization.name} ({organization.base_currency})</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <form className="form-grid" onSubmit={createOrganization}>
+        <input placeholder="New organization name" value={organizationForm.name} onChange={(event) => setOrganizationForm({ ...organizationForm, name: event.target.value })} />
+        <input placeholder="Currency" maxLength={3} value={organizationForm.base_currency} onChange={(event) => setOrganizationForm({ ...organizationForm, base_currency: event.target.value.toUpperCase() })} />
+        <input placeholder="Country" value={organizationForm.country_code ?? ""} onChange={(event) => setOrganizationForm({ ...organizationForm, country_code: event.target.value.toUpperCase() })} />
+        <button disabled={!draft.accessToken || !organizationForm.name.trim() || loading === "create-organization"}>
+          {loading === "create-organization" ? "Creating..." : "Create organization"}
+        </button>
+      </form>
+
+      <form className="form-grid" onSubmit={bootstrapFirstAdmin}>
+        <input placeholder="Bootstrap organization" value={bootstrapForm.organization_name} onChange={(event) => setBootstrapForm({ ...bootstrapForm, organization_name: event.target.value })} />
+        <input placeholder="Admin name" value={bootstrapForm.admin_name} onChange={(event) => setBootstrapForm({ ...bootstrapForm, admin_name: event.target.value })} />
+        <input placeholder="Admin email" value={bootstrapForm.admin_email} onChange={(event) => setBootstrapForm({ ...bootstrapForm, admin_email: event.target.value })} />
+        <input placeholder="Admin password" type="password" value={bootstrapForm.admin_password} onChange={(event) => setBootstrapForm({ ...bootstrapForm, admin_password: event.target.value })} />
+        <input placeholder="Currency" maxLength={3} value={bootstrapForm.base_currency ?? ""} onChange={(event) => setBootstrapForm({ ...bootstrapForm, base_currency: event.target.value.toUpperCase() })} />
+        <label>
+          Seed India defaults
+          <select value={bootstrapForm.seed_india_defaults ? "yes" : "no"} onChange={(event) => setBootstrapForm({ ...bootstrapForm, seed_india_defaults: event.target.value === "yes" })}>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+        <button disabled={!bootstrapForm.organization_name || !bootstrapForm.admin_email || bootstrapForm.admin_password.length < 12 || loading === "bootstrap"}>
+          {loading === "bootstrap" ? "Bootstrapping..." : "Bootstrap first admin"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function Dashboard({
+  accounts,
+  transactions,
+  taxRates,
+  taxGroups,
+  queuedAccountDrafts,
+  queuedJournalDrafts,
+  hasConnection,
+  onOpenAccounts,
+  onOpenLedger,
+  onSyncAllQueuedDrafts
+}: {
+  accounts: Account[];
+  transactions: JournalTransaction[];
+  taxRates: number;
+  taxGroups: number;
+  queuedAccountDrafts: number;
+  queuedJournalDrafts: number;
+  hasConnection: boolean;
+  onOpenAccounts: () => void;
+  onOpenLedger: () => void;
+  onSyncAllQueuedDrafts: () => Promise<void>;
+}) {
+  const activeAccounts = accounts.filter((account) => account.is_active).length;
+  const postedTransactions = transactions.filter((transaction) => transaction.status === "posted").length;
+  const totalQueuedDrafts = queuedAccountDrafts + queuedJournalDrafts;
+
+  return (
+    <div className="grid">
+      <Metric label="Active accounts" value={activeAccounts.toString()} />
+      <Metric label="Posted transactions" value={postedTransactions.toString()} />
+      <Metric label="Offline drafts" value={totalQueuedDrafts.toString()} />
+      <Metric label="Currencies in chart" value={new Set(accounts.map((account) => account.currency)).size.toString()} />
+      <Metric label="GST rates cached" value={taxRates.toString()} />
+      <Metric label="Tax groups cached" value={taxGroups.toString()} />
+      <section className="panel wide offline-panel">
+        <div>
+          <p className="eyebrow">Offline readiness</p>
+          <h3>{hasConnection ? "Ready to sync queued work" : "Waiting for connection settings"}</h3>
+          <p>
+            Cached locally: {accounts.length} accounts and {transactions.length} journal transactions.
+            Queued locally: {queuedAccountDrafts} account drafts and {queuedJournalDrafts} journal drafts.
+          </p>
+        </div>
+        <div className="button-row">
+          <button
+            disabled={!hasConnection || totalQueuedDrafts === 0}
+            onClick={() => void onSyncAllQueuedDrafts()}
+          >
+            Sync all queued work
+          </button>
+          <button className="secondary" onClick={onOpenAccounts}>Review account queue</button>
+          <button className="secondary" onClick={onOpenLedger}>Review journal queue</button>
+        </div>
+      </section>
+      <section className="panel wide">
+        <h3>Next useful moves</h3>
+        <p>Create your chart, post opening balances, seed GST presets, then start recording invoices and expenses. The backend is ready for those workflows; this web shell gives us a clean control room to grow from.</p>
+      </section>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <section className="metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </section>
+  );
+}
+
+function TaxPage({
+  api,
+  accounts,
+  taxAuthorities,
+  taxRates,
+  taxGroups,
+  onTaxAuthoritiesChanged,
+  onTaxRatesChanged,
+  onTaxGroupsChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  taxAuthorities: TaxAuthority[];
+  taxRates: TaxRate[];
+  taxGroups: TaxGroup[];
+  onTaxAuthoritiesChanged: (authorities: TaxAuthority[]) => void;
+  onTaxRatesChanged: (rates: TaxRate[]) => void;
+  onTaxGroupsChanged: (groups: TaxGroup[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const activeRates = taxRates.filter((rate) => rate.is_active).length;
+  const activeGroups = taxGroups.filter((group) => group.is_active).length;
+  const taxAccounts = accounts.filter((account) => account.type === "liability" || account.type === "asset");
+  const defaultAuthorityId = taxAuthorities[0]?.id ?? "";
+  const [calculator, setCalculator] = useState({
+    amount_minor: 10000,
+    tax_inclusive: false,
+    target: defaultTaxTarget(taxGroups, taxRates)
+  });
+  const [authorityForm, setAuthorityForm] = useState<CreateTaxAuthorityInput>({ name: "", country_code: "IN", region_code: "" });
+  const [rateForm, setRateForm] = useState<CreateTaxRateInput>({
+    tax_authority_id: defaultAuthorityId,
+    name: "",
+    percentage_basis: 180000,
+    type: "GST",
+    output_account_id: "",
+    input_account_id: "",
+    effective_from: new Date().toISOString().slice(0, 10),
+    effective_to: "",
+    is_compound: false
+  });
+  const [groupForm, setGroupForm] = useState<CreateTaxGroupInput>({ name: "", description: "", tax_rate_ids: [] });
+  const [calculation, setCalculation] = useState<TaxCalculation | null>(null);
+  const [calculationError, setCalculationError] = useState("");
+  const [taxConfigError, setTaxConfigError] = useState("");
+  const [taxConfigNotice, setTaxConfigNotice] = useState("");
+  const [seedResult, setSeedResult] = useState<IndiaSeedResult | null>(null);
+  const [seedError, setSeedError] = useState("");
+  const canCalculate = calculator.amount_minor >= 0 && Boolean(calculator.target);
+  const canCreateAuthority = Boolean(authorityForm.name.trim());
+  const canCreateRate = Boolean(rateForm.tax_authority_id && rateForm.name.trim() && rateForm.effective_from && rateForm.percentage_basis >= 0);
+  const canCreateGroup = Boolean(groupForm.name.trim() && groupForm.tax_rate_ids.length > 0);
+
+  useEffect(() => {
+    if (!calculator.target) {
+      setCalculator((current) => ({ ...current, target: defaultTaxTarget(taxGroups, taxRates) }));
+    }
+  }, [calculator.target, taxGroups, taxRates]);
+
+  useEffect(() => {
+    if (!rateForm.tax_authority_id && taxAuthorities[0]) {
+      setRateForm((current) => ({ ...current, tax_authority_id: taxAuthorities[0].id }));
+    }
+  }, [rateForm.tax_authority_id, taxAuthorities]);
+
+  async function calculate(event: FormEvent) {
+    event.preventDefault();
+    if (!calculator.target) {
+      return;
+    }
+
+    setCalculationError("");
+    try {
+      const target = parseTaxTarget(calculator.target);
+      const result = await api.calculateTax({
+        base_amount_minor: calculator.amount_minor,
+        tax_inclusive: calculator.tax_inclusive,
+        tax_group_id: target.kind === "group" ? target.id : undefined,
+        tax_rate_id: target.kind === "rate" ? target.id : undefined
+      });
+      setCalculation(result);
+    } catch (error) {
+      setCalculation(null);
+      setCalculationError(errorMessage(error));
+    }
+  }
+
+  async function seedIndiaDefaults() {
+    setSeedError("");
+    setSeedResult(null);
+    try {
+      const result = await api.seedIndiaDefaults();
+      setSeedResult(result);
+      await onRefresh();
+    } catch (error) {
+      setSeedError(errorMessage(error));
+    }
+  }
+
+  async function createAuthority(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateAuthority) {
+      return;
+    }
+    setTaxConfigError("");
+    try {
+      const authority = await api.createTaxAuthority(toTaxAuthorityInput(authorityForm));
+      onTaxAuthoritiesChanged([authority, ...taxAuthorities]);
+      setAuthorityForm({ name: "", country_code: "IN", region_code: "" });
+      setTaxConfigNotice(`Tax authority ${authority.name} created.`);
+      await onRefresh();
+    } catch (error) {
+      setTaxConfigError(errorMessage(error));
+    }
+  }
+
+  async function createRate(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateRate) {
+      return;
+    }
+    setTaxConfigError("");
+    try {
+      const rate = await api.createTaxRate(toTaxRateInput(rateForm));
+      onTaxRatesChanged([rate, ...taxRates]);
+      setRateForm({ ...rateForm, name: "", percentage_basis: 0, effective_to: "" });
+      setTaxConfigNotice(`Tax rate ${rate.name} created.`);
+      await onRefresh();
+    } catch (error) {
+      setTaxConfigError(errorMessage(error));
+    }
+  }
+
+  async function createGroup(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateGroup) {
+      return;
+    }
+    setTaxConfigError("");
+    try {
+      const group = await api.createTaxGroup(toTaxGroupInput(groupForm));
+      onTaxGroupsChanged([group, ...taxGroups]);
+      setGroupForm({ name: "", description: "", tax_rate_ids: [] });
+      setTaxConfigNotice(`Tax group ${group.name} created.`);
+      await onRefresh();
+    } catch (error) {
+      setTaxConfigError(errorMessage(error));
+    }
+  }
+
+  function toggleGroupRate(rateId: string) {
+    setGroupForm((current) => ({
+      ...current,
+      tax_rate_ids: current.tax_rate_ids.includes(rateId)
+        ? current.tax_rate_ids.filter((candidate) => candidate !== rateId)
+        : [...current.tax_rate_ids, rateId]
+    }));
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">GST catalog</p>
+          <h3>Config-driven India tax setup</h3>
+          <p>
+            Cached locally: {taxRates.length} tax rates ({activeRates} active) and {taxGroups.length} groups ({activeGroups} active).
+            Refresh when online to pull the latest GST presets and organization-specific edits.
+          </p>
+        </div>
+        <div className="button-row">
+          <button className="secondary" onClick={() => void onRefresh()}>Refresh tax catalog</button>
+          <button onClick={() => void seedIndiaDefaults()}>Seed India defaults</button>
+        </div>
+      </section>
+
+      {seedError && <div className="alert error">{seedError}</div>}
+      {taxConfigError && <div className="alert error">{taxConfigError}</div>}
+      {taxConfigNotice && <div className="alert success">{taxConfigNotice}</div>}
+      {seedResult && (
+        <div className="alert success">
+          Seeded {seedResult.accounts_created} accounts, {seedResult.tax_rates_created} rates, and {seedResult.tax_groups_created} groups.
+          GST authority {seedResult.tax_authority_created ? "created" : "already existed"}.
+        </div>
+      )}
+
+      <form className="panel form-grid" onSubmit={createAuthority}>
+        <input placeholder="Authority name" value={authorityForm.name} onChange={(event) => setAuthorityForm({ ...authorityForm, name: event.target.value })} />
+        <input placeholder="Country code" value={authorityForm.country_code ?? ""} onChange={(event) => setAuthorityForm({ ...authorityForm, country_code: event.target.value.toUpperCase() })} />
+        <input placeholder="Region code" value={authorityForm.region_code ?? ""} onChange={(event) => setAuthorityForm({ ...authorityForm, region_code: event.target.value.toUpperCase() })} />
+        <button disabled={!canCreateAuthority}>Create authority</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={createRate}>
+        <label>
+          Authority
+          <select value={rateForm.tax_authority_id} onChange={(event) => setRateForm({ ...rateForm, tax_authority_id: event.target.value })}>
+            <option value="">Select authority</option>
+            {taxAuthorities.map((authority) => (
+              <option key={authority.id} value={authority.id}>{authority.name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Rate name" value={rateForm.name} onChange={(event) => setRateForm({ ...rateForm, name: event.target.value })} />
+        <label>
+          Percentage basis
+          <input type="number" min="0" value={rateForm.percentage_basis} onChange={(event) => setRateForm({ ...rateForm, percentage_basis: Number(event.target.value) })} />
+        </label>
+        <label>
+          Type
+          <select value={rateForm.type} onChange={(event) => setRateForm({ ...rateForm, type: event.target.value as TaxRate["type"] })}>
+            <option value="GST">GST</option>
+            <option value="VAT">VAT</option>
+            <option value="Sales Tax">Sales Tax</option>
+            <option value="Withholding">Withholding</option>
+          </select>
+        </label>
+        <AccountSelect label="Output tax account" accounts={taxAccounts} value={rateForm.output_account_id ?? ""} onChange={(value) => setRateForm({ ...rateForm, output_account_id: value })} />
+        <AccountSelect label="Input tax account" accounts={taxAccounts} value={rateForm.input_account_id ?? ""} onChange={(value) => setRateForm({ ...rateForm, input_account_id: value })} />
+        <label>
+          Effective from
+          <input type="date" value={rateForm.effective_from} onChange={(event) => setRateForm({ ...rateForm, effective_from: event.target.value })} />
+        </label>
+        <label>
+          Effective to
+          <input type="date" value={rateForm.effective_to ?? ""} onChange={(event) => setRateForm({ ...rateForm, effective_to: event.target.value })} />
+        </label>
+        <label>
+          Compound
+          <select value={rateForm.is_compound ? "yes" : "no"} onChange={(event) => setRateForm({ ...rateForm, is_compound: event.target.value === "yes" })}>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
+        <button disabled={!canCreateRate}>Create tax rate</button>
+      </form>
+
+      <form className="panel queue-panel" onSubmit={createGroup}>
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Tax group</p>
+            <h3>Create split/compound group</h3>
+            <p>Select one or more configured rates, such as CGST plus SGST.</p>
+          </div>
+          <strong>{groupForm.tax_rate_ids.length}</strong>
+        </div>
+        <div className="form-grid">
+          <input placeholder="Group name" value={groupForm.name} onChange={(event) => setGroupForm({ ...groupForm, name: event.target.value })} />
+          <input placeholder="Description" value={groupForm.description ?? ""} onChange={(event) => setGroupForm({ ...groupForm, description: event.target.value })} />
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Use</th>
+                <th>Rate</th>
+                <th>Basis</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {taxRates.map((rate) => (
+                <tr key={rate.id}>
+                  <td><input type="checkbox" checked={groupForm.tax_rate_ids.includes(rate.id)} onChange={() => toggleGroupRate(rate.id)} /></td>
+                  <td>{rate.name}</td>
+                  <td>{formatTaxBasis(rate.percentage_basis)}</td>
+                  <td>{rate.type}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <button disabled={!canCreateGroup}>Create tax group</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={calculate}>
+        <label>
+          Amount in paise
+          <input
+            type="number"
+            min="0"
+            value={calculator.amount_minor}
+            onChange={(event) => setCalculator({ ...calculator, amount_minor: Number(event.target.value) })}
+          />
+        </label>
+        <label>
+          Tax target
+          <select
+            value={calculator.target}
+            onChange={(event) => setCalculator({ ...calculator, target: event.target.value })}
+            required
+          >
+            <option value="">Select GST rate or group</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Pricing mode
+          <select
+            value={calculator.tax_inclusive ? "inclusive" : "exclusive"}
+            onChange={(event) => setCalculator({ ...calculator, tax_inclusive: event.target.value === "inclusive" })}
+          >
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <button disabled={!canCalculate}>Preview GST</button>
+      </form>
+
+      {calculationError && <div className="alert error">{calculationError}</div>}
+      {calculation && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Calculation preview</p>
+              <h3>{formatMinorAsInr(calculation.total_amount_minor)} total</h3>
+              <p>
+                Base {formatMinorAsInr(calculation.base_amount_minor)} plus tax {formatMinorAsInr(calculation.tax_amount_minor)}.
+              </p>
+            </div>
+            <strong>{calculation.components.length}</strong>
+          </div>
+          <DataTable
+            headers={["Component", "Rate", "Tax amount"]}
+            rows={calculation.components.map((component) => [
+              component.name,
+              formatTaxBasis(component.percentage_basis),
+              formatMinorAsInr(component.tax_amount_minor)
+            ])}
+          />
+        </section>
+      )}
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Rates</p>
+            <h3>Tax rates</h3>
+            <p>Rates stay rule-based: no hardcoded country behavior in business code.</p>
+          </div>
+          <strong>{taxRates.length}</strong>
+        </div>
+        <DataTable
+          headers={["Name", "Type", "Rate", "Effective from", "Active"]}
+          rows={taxRates.map((rate) => [
+            rate.name,
+            rate.type,
+            formatTaxBasis(rate.percentage_basis),
+            rate.effective_from.slice(0, 10),
+            rate.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Groups</p>
+            <h3>Tax groups</h3>
+            <p>Groups model split GST such as CGST plus SGST while keeping each component separately reportable.</p>
+          </div>
+          <strong>{taxGroups.length}</strong>
+        </div>
+        <DataTable
+          headers={["Name", "Components", "Total rate", "Active"]}
+          rows={taxGroups.map((group) => [
+            group.name,
+            formatTaxGroupComponents(group),
+            formatTaxBasis(totalTaxGroupBasis(group)),
+            group.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+    </div>
+  );
+}
+
+function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budgets: Budget[]; onBudgetsChanged: (budgets: Budget[]) => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const cachedReports = useMemo(() => loadReportSnapshot(), []);
+  const [asOf, setAsOf] = useState(today);
+  const [fromDate, setFromDate] = useState(`${today.slice(0, 4)}-04-01`);
+  const [toDate, setToDate] = useState(today);
+  const [reportSnapshot, setReportSnapshot] = useState<ReportSnapshot>(() => cachedReports ?? { savedAt: "" });
+  const [selectedBudgetId, setSelectedBudgetId] = useState(cachedReports?.budgetVsActual?.budget_id ?? "");
+  const [trialBalance, setTrialBalance] = useState<TrialBalanceReport | null>(() => cachedReports?.trialBalance ?? null);
+  const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossReport | null>(() => cachedReports?.profitAndLoss ?? null);
+  const [balanceSheet, setBalanceSheet] = useState<BalanceSheetReport | null>(() => cachedReports?.balanceSheet ?? null);
+  const [cashFlow, setCashFlow] = useState<CashFlowReport | null>(() => cachedReports?.cashFlow ?? null);
+  const [arAging, setARAging] = useState<ARAgingReport | null>(() => cachedReports?.arAging ?? null);
+  const [apAging, setAPAging] = useState<APAgingReport | null>(() => cachedReports?.apAging ?? null);
+  const [taxLiability, setTaxLiability] = useState<TaxLiabilityReport | null>(() => cachedReports?.taxLiability ?? null);
+  const [taxSummary, setTaxSummary] = useState<TaxSummaryReport | null>(() => cachedReports?.taxSummary ?? null);
+  const [budgetVsActual, setBudgetVsActual] = useState<BudgetVsActualReport | null>(() => cachedReports?.budgetVsActual ?? null);
+  const [loadingReport, setLoadingReport] = useState<"trial-balance" | "profit-and-loss" | "balance-sheet" | "cash-flow" | "ar-aging" | "ap-aging" | "tax-liability" | "tax-summary" | "budgets" | "budget-vs-actual" | null>(null);
+  const [reportError, setReportError] = useState("");
+
+  async function loadTrialBalance(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("trial-balance");
+    setReportError("");
+    try {
+      const report = await api.getTrialBalance(asOf);
+      setTrialBalance(report);
+      persistReportSnapshot({ trialBalance: report });
+    } catch (error) {
+      setTrialBalance(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadProfitAndLoss(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("profit-and-loss");
+    setReportError("");
+    try {
+      const report = await api.getProfitAndLoss(fromDate, toDate);
+      setProfitAndLoss(report);
+      persistReportSnapshot({ profitAndLoss: report });
+    } catch (error) {
+      setProfitAndLoss(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadBalanceSheet(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("balance-sheet");
+    setReportError("");
+    try {
+      const report = await api.getBalanceSheet(asOf);
+      setBalanceSheet(report);
+      persistReportSnapshot({ balanceSheet: report });
+    } catch (error) {
+      setBalanceSheet(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadCashFlow(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("cash-flow");
+    setReportError("");
+    try {
+      const report = await api.getCashFlow(fromDate, toDate);
+      setCashFlow(report);
+      persistReportSnapshot({ cashFlow: report });
+    } catch (error) {
+      setCashFlow(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadARAging(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("ar-aging");
+    setReportError("");
+    try {
+      const report = await api.getARAging(asOf);
+      setARAging(report);
+      persistReportSnapshot({ arAging: report });
+    } catch (error) {
+      setARAging(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadAPAging(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("ap-aging");
+    setReportError("");
+    try {
+      const report = await api.getAPAging(asOf);
+      setAPAging(report);
+      persistReportSnapshot({ apAging: report });
+    } catch (error) {
+      setAPAging(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadTaxLiability(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("tax-liability");
+    setReportError("");
+    try {
+      const report = await api.getTaxLiability(fromDate, toDate);
+      setTaxLiability(report);
+      persistReportSnapshot({ taxLiability: report });
+    } catch (error) {
+      setTaxLiability(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadTaxSummary(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("tax-summary");
+    setReportError("");
+    try {
+      const report = await api.getTaxSummary(fromDate, toDate);
+      setTaxSummary(report);
+      persistReportSnapshot({ taxSummary: report });
+    } catch (error) {
+      setTaxSummary(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadBudgets() {
+    setLoadingReport("budgets");
+    setReportError("");
+    try {
+      const nextBudgets = await api.listBudgets();
+      onBudgetsChanged(nextBudgets);
+      setSelectedBudgetId((current) => current || nextBudgets[0]?.id || "");
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadBudgetVsActual(event?: FormEvent) {
+    event?.preventDefault();
+    if (!selectedBudgetId) {
+      return;
+    }
+    setLoadingReport("budget-vs-actual");
+    setReportError("");
+    try {
+      const report = await api.getBudgetVsActual(selectedBudgetId);
+      setBudgetVsActual(report);
+      persistReportSnapshot({ budgetVsActual: report });
+    } catch (error) {
+      setBudgetVsActual(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  function persistReportSnapshot(update: Partial<Omit<ReportSnapshot, "savedAt">>) {
+    const next = {
+      ...reportSnapshot,
+      ...update,
+      savedAt: new Date().toISOString()
+    };
+    setReportSnapshot(next);
+    saveReportSnapshot(next);
+  }
+
+  function clearCachedReports() {
+    clearReportSnapshot();
+    setReportSnapshot({ savedAt: "" });
+    setTrialBalance(null);
+    setProfitAndLoss(null);
+    setBalanceSheet(null);
+    setCashFlow(null);
+    setARAging(null);
+    setAPAging(null);
+    setTaxLiability(null);
+    setTaxSummary(null);
+    setBudgetVsActual(null);
+    setReportError("");
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Financial reports</p>
+          <h3>Core statements</h3>
+          <p>
+            Run point-in-time, period, and GST reports from the double-entry ledger and tax postings.
+            {reportSnapshot.savedAt && ` Last cached report set: ${new Date(reportSnapshot.savedAt).toLocaleString()}.`}
+          </p>
+        </div>
+        {reportSnapshot.savedAt && (
+          <div className="button-row">
+            <button className="danger" onClick={clearCachedReports}>Clear cached reports</button>
+          </div>
+        )}
+      </section>
+
+      <form className="panel form-grid" onSubmit={loadTrialBalance}>
+        <label>
+          As of date
+          <input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} required />
+        </label>
+        <button disabled={loadingReport === "trial-balance"}>
+          {loadingReport === "trial-balance" ? "Loading..." : "Run trial balance"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "balance-sheet"} onClick={() => void loadBalanceSheet()}>
+          {loadingReport === "balance-sheet" ? "Loading..." : "Run balance sheet"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "ar-aging"} onClick={() => void loadARAging()}>
+          {loadingReport === "ar-aging" ? "Loading..." : "Run AR aging"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "ap-aging"} onClick={() => void loadAPAging()}>
+          {loadingReport === "ap-aging" ? "Loading..." : "Run AP aging"}
+        </button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={loadProfitAndLoss}>
+        <label>
+          From date
+          <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} required />
+        </label>
+        <label>
+          To date
+          <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} required />
+        </label>
+        <button disabled={loadingReport === "profit-and-loss"}>
+          {loadingReport === "profit-and-loss" ? "Loading..." : "Run P&L"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "cash-flow"} onClick={() => void loadCashFlow()}>
+          {loadingReport === "cash-flow" ? "Loading..." : "Run cash flow"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "tax-liability"} onClick={() => void loadTaxLiability()}>
+          {loadingReport === "tax-liability" ? "Loading..." : "Run GST liability"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "tax-summary"} onClick={() => void loadTaxSummary()}>
+          {loadingReport === "tax-summary" ? "Loading..." : "Run GST summary"}
+        </button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={loadBudgetVsActual}>
+        <label>
+          Budget
+          <select value={selectedBudgetId} onChange={(event) => setSelectedBudgetId(event.target.value)} required>
+            <option value="">Select budget</option>
+            {budgets.map((budget) => (
+              <option key={budget.id} value={budget.id}>
+                {budget.name} ({budget.start_date.slice(0, 10)} to {budget.end_date.slice(0, 10)})
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="secondary" type="button" disabled={loadingReport === "budgets"} onClick={() => void loadBudgets()}>
+          {loadingReport === "budgets" ? "Loading..." : "Refresh budgets"}
+        </button>
+        <button disabled={!selectedBudgetId || loadingReport === "budget-vs-actual"}>
+          {loadingReport === "budget-vs-actual" ? "Loading..." : "Run budget vs actual"}
+        </button>
+      </form>
+
+      {reportError && <div className="alert error">{reportError}</div>}
+      {trialBalance && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">As of {trialBalance.as_of_date.slice(0, 10)}</p>
+              <h3>{trialBalance.balanced ? "Ledger is balanced" : "Ledger is out of balance"}</h3>
+              <p>
+                Total debits {formatMinorAsInr(trialBalance.total_debit_minor)} and total credits {formatMinorAsInr(trialBalance.total_credit_minor)}.
+              </p>
+            </div>
+            <strong>{trialBalance.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportTrialBalance(trialBalance)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Code", "Account", "Type", "Debit", "Credit", "Balance"]}
+            rows={trialBalance.rows.map((row) => [
+              row.account_code,
+              row.account_name,
+              row.account_type,
+              formatMinorAsInr(row.debit_minor),
+              formatMinorAsInr(row.credit_minor),
+              formatMinorAsInr(row.balance_minor)
+            ])}
+          />
+        </section>
+      )}
+      {profitAndLoss && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {profitAndLoss.from_date.slice(0, 10)} to {profitAndLoss.to_date.slice(0, 10)}
+              </p>
+              <h3>Net income {formatMinorAsInr(profitAndLoss.net_income_minor)}</h3>
+              <p>
+                Income {formatMinorAsInr(profitAndLoss.total_income_minor)} less expenses {formatMinorAsInr(profitAndLoss.total_expense_minor)}.
+              </p>
+            </div>
+            <strong>{profitAndLoss.income_rows.length + profitAndLoss.expense_rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportProfitAndLoss(profitAndLoss)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Section", "Code", "Account", "Amount"]}
+            rows={[
+              ...profitAndLoss.income_rows.map((row) => ["Income", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
+              ...profitAndLoss.expense_rows.map((row) => ["Expense", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)])
+            ]}
+          />
+        </section>
+      )}
+      {balanceSheet && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">As of {balanceSheet.as_of_date.slice(0, 10)}</p>
+              <h3>{balanceSheet.balanced ? "Balance sheet balances" : "Balance sheet is out of balance"}</h3>
+              <p>
+                Assets {formatMinorAsInr(balanceSheet.total_assets_minor)} against liabilities {formatMinorAsInr(balanceSheet.total_liabilities_minor)}
+                {" "}and equity {formatMinorAsInr(balanceSheet.total_equity_minor)}.
+              </p>
+            </div>
+            <strong>{balanceSheet.asset_rows.length + balanceSheet.liability_rows.length + balanceSheet.equity_rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportBalanceSheet(balanceSheet)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Section", "Code", "Account", "Balance"]}
+            rows={[
+              ...balanceSheet.asset_rows.map((row) => ["Assets", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
+              ...balanceSheet.liability_rows.map((row) => ["Liabilities", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
+              ...balanceSheet.equity_rows.map((row) => ["Equity", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)])
+            ]}
+          />
+        </section>
+      )}
+      {cashFlow && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {cashFlow.from_date.slice(0, 10)} to {cashFlow.to_date.slice(0, 10)}
+              </p>
+              <h3>Net cash flow {formatMinorAsInr(cashFlow.net_cash_flow_minor)}</h3>
+              <p>
+                Opening cash {formatMinorAsInr(cashFlow.opening_cash_minor)}, inflows {formatMinorAsInr(cashFlow.total_inflows_minor)},
+                {" "}outflows {formatMinorAsInr(cashFlow.total_outflows_minor)}, closing cash {formatMinorAsInr(cashFlow.closing_cash_minor)}.
+              </p>
+            </div>
+            <strong>{cashFlow.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportCashFlow(cashFlow)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Code", "Cash account", "Source", "Inflows", "Outflows", "Net"]}
+            rows={cashFlow.rows.map((row) => [
+              row.account_code,
+              row.account_name,
+              titleCase(row.source_module),
+              formatMinorAsInr(row.inflow_minor),
+              formatMinorAsInr(row.outflow_minor),
+              formatMinorAsInr(row.net_cash_flow_minor)
+            ])}
+          />
+        </section>
+      )}
+      {arAging && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">As of {arAging.as_of_date.slice(0, 10)}</p>
+              <h3>AR outstanding {formatMinorAsInr(arAging.total_outstanding_minor)}</h3>
+              <p>
+                Current {formatMinorAsInr(arAging.total_current_minor)}, 1-30 {formatMinorAsInr(arAging.total_one_to_thirty_minor)},
+                {" "}31-60 {formatMinorAsInr(arAging.total_thirty_one_to_sixty_minor)}, 61-90 {formatMinorAsInr(arAging.total_sixty_one_to_ninety_minor)},
+                {" "}90+ {formatMinorAsInr(arAging.total_over_ninety_minor)}.
+              </p>
+            </div>
+            <strong>{arAging.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportARAging(arAging)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Customer", "Invoice", "Due", "Days", "Current", "1-30", "31-60", "61-90", "90+", "Outstanding"]}
+            rows={arAging.rows.map((row) => [
+              row.customer_name,
+              row.invoice_number,
+              row.due_date.slice(0, 10),
+              String(row.days_overdue),
+              formatMinorAsInr(row.current_minor),
+              formatMinorAsInr(row.one_to_thirty_minor),
+              formatMinorAsInr(row.thirty_one_to_sixty_minor),
+              formatMinorAsInr(row.sixty_one_to_ninety_minor),
+              formatMinorAsInr(row.over_ninety_minor),
+              formatMinorAsInr(row.outstanding_minor)
+            ])}
+          />
+        </section>
+      )}
+      {apAging && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">As of {apAging.as_of_date.slice(0, 10)}</p>
+              <h3>AP outstanding {formatMinorAsInr(apAging.total_outstanding_minor)}</h3>
+              <p>
+                Current {formatMinorAsInr(apAging.total_current_minor)}, 1-30 {formatMinorAsInr(apAging.total_one_to_thirty_minor)},
+                {" "}31-60 {formatMinorAsInr(apAging.total_thirty_one_to_sixty_minor)}, 61-90 {formatMinorAsInr(apAging.total_sixty_one_to_ninety_minor)},
+                {" "}90+ {formatMinorAsInr(apAging.total_over_ninety_minor)}.
+              </p>
+            </div>
+            <strong>{apAging.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportAPAging(apAging)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Vendor", "Bill", "Due", "Days", "Current", "1-30", "31-60", "61-90", "90+", "Outstanding"]}
+            rows={apAging.rows.map((row) => [
+              row.vendor_name,
+              row.bill_number,
+              row.due_date.slice(0, 10),
+              String(row.days_overdue),
+              formatMinorAsInr(row.current_minor),
+              formatMinorAsInr(row.one_to_thirty_minor),
+              formatMinorAsInr(row.thirty_one_to_sixty_minor),
+              formatMinorAsInr(row.sixty_one_to_ninety_minor),
+              formatMinorAsInr(row.over_ninety_minor),
+              formatMinorAsInr(row.outstanding_minor)
+            ])}
+          />
+        </section>
+      )}
+      {taxLiability && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {taxLiability.from_date.slice(0, 10)} to {taxLiability.to_date.slice(0, 10)}
+              </p>
+              <h3>Net GST {formatMinorAsInr(taxLiability.net_payable_minor)}</h3>
+              <p>
+                Output GST {formatMinorAsInr(taxLiability.output_tax_minor)} less input GST {formatMinorAsInr(taxLiability.input_tax_minor)}.
+              </p>
+            </div>
+            <strong>{taxLiability.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportTaxLiability(taxLiability)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Tax", "Output", "Input", "Net payable"]}
+            rows={taxLiability.rows.map((row) => [
+              row.name,
+              formatMinorAsInr(row.output_tax_minor),
+              formatMinorAsInr(row.input_tax_minor),
+              formatMinorAsInr(row.net_payable_minor)
+            ])}
+          />
+        </section>
+      )}
+      {taxSummary && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {taxSummary.from_date.slice(0, 10)} to {taxSummary.to_date.slice(0, 10)}
+              </p>
+              <h3>GST summary by rate/group</h3>
+              <p>Use this filing-oriented breakdown to reconcile collected and paid GST before export workflows are added.</p>
+            </div>
+            <strong>{taxSummary.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportTaxSummary(taxSummary)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Tax", "Output", "Input", "Net"]}
+            rows={taxSummary.rows.map((row) => [
+              row.name,
+              formatMinorAsInr(row.output_tax_minor),
+              formatMinorAsInr(row.input_tax_minor),
+              formatMinorAsInr(row.net_payable_minor)
+            ])}
+          />
+        </section>
+      )}
+      {budgetVsActual && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Budget {budgetVsActual.budget_id}</p>
+              <h3>Budget vs actual</h3>
+              <p>
+                Total variance {formatMinorAsInr(totalBudgetVarianceMinor(budgetVsActual))} across {budgetVsActual.rows.length} budget lines.
+              </p>
+            </div>
+            <strong>{budgetVsActual.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => exportBudgetVsActual(budgetVsActual)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Code", "Account", "Period", "Budget", "Actual", "Variance", "Variance %"]}
+            rows={budgetVsActual.rows.map((row) => [
+              row.account_code,
+              row.account_name,
+              `${row.period_start.slice(0, 10)} to ${row.period_end.slice(0, 10)}`,
+              formatMinorAsInr(row.budget_minor),
+              formatMinorAsInr(row.actual_minor),
+              formatMinorAsInr(row.variance_minor),
+              formatBasisPercent(row.variance_percent_basis)
+            ])}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function BudgetsPage({
+  api,
+  accounts,
+  budgets,
+  onBudgetsChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  budgets: Budget[];
+  onBudgetsChanged: (budgets: Budget[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const fiscalStart = `${today.slice(0, 4)}-04-01`;
+  const fiscalEnd = `${Number(today.slice(0, 4)) + 1}-03-31`;
+  const [budgetForm, setBudgetForm] = useState({
+    name: "",
+    start_date: fiscalStart,
+    end_date: fiscalEnd,
+    status: "active" as Budget["status"]
+  });
+  const [lineForm, setLineForm] = useState({
+    account_id: accounts.find((account) => account.type === "income" || account.type === "expense")?.id ?? "",
+    period_start: fiscalStart,
+    period_end: fiscalEnd,
+    amount_minor: 0
+  });
+  const [draftLines, setDraftLines] = useState<CreateBudgetInput["lines"]>([]);
+  const [loading, setLoading] = useState("");
+  const [budgetError, setBudgetError] = useState("");
+  const [budgetNotice, setBudgetNotice] = useState("");
+  const budgetAccounts = accounts.filter((account) => account.type === "income" || account.type === "expense");
+  const canAddLine = Boolean(lineForm.account_id && lineForm.period_start && lineForm.period_end);
+  const canCreateBudget = Boolean(budgetForm.name.trim() && budgetForm.start_date && budgetForm.end_date && draftLines.length > 0);
+
+  async function refreshBudgets() {
+    setLoading("refresh");
+    setBudgetError("");
+    try {
+      const nextBudgets = await api.listBudgets();
+      onBudgetsChanged(nextBudgets);
+      setBudgetNotice(`Loaded ${nextBudgets.length} budget plan(s).`);
+    } catch (error) {
+      setBudgetError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  function addBudgetLine() {
+    if (!canAddLine) {
+      return;
+    }
+    setDraftLines([...draftLines, { ...lineForm }]);
+    setLineForm({ ...lineForm, amount_minor: 0 });
+    setBudgetNotice("Budget line staged locally.");
+  }
+
+  function removeBudgetLine(index: number) {
+    setDraftLines(draftLines.filter((_, draftIndex) => draftIndex !== index));
+    setBudgetNotice("Budget line removed.");
+  }
+
+  async function createBudget(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateBudget) {
+      return;
+    }
+    setLoading("create");
+    setBudgetError("");
+    try {
+      const budget = await api.createBudget(toBudgetInput(budgetForm, draftLines));
+      onBudgetsChanged([budget, ...budgets]);
+      setBudgetForm({ name: "", start_date: budgetForm.start_date, end_date: budgetForm.end_date, status: "active" });
+      setDraftLines([]);
+      setBudgetNotice(`Budget ${budget.name} created.`);
+      await onRefresh();
+    } catch (error) {
+      setBudgetError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  function accountName(accountId: string) {
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    return account ? `${account.code} · ${account.name}` : accountId;
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Planning</p>
+          <h3>Budget plans</h3>
+          <p>Create account-period budgets that feed the budget-vs-actual report.</p>
+        </div>
+        <button className="secondary" disabled={loading === "refresh"} onClick={() => void refreshBudgets()}>
+          {loading === "refresh" ? "Refreshing..." : "Refresh budgets"}
+        </button>
+      </section>
+
+      {budgetError && <div className="alert error">{budgetError}</div>}
+      {budgetNotice && <div className="alert success">{budgetNotice}</div>}
+
+      <section className="panel form-grid">
+        <AccountSelect label="Budget account" accounts={budgetAccounts} value={lineForm.account_id} onChange={(value) => setLineForm({ ...lineForm, account_id: value })} />
+        <label>
+          Period start
+          <input type="date" value={lineForm.period_start} onChange={(event) => setLineForm({ ...lineForm, period_start: event.target.value })} />
+        </label>
+        <label>
+          Period end
+          <input type="date" value={lineForm.period_end} onChange={(event) => setLineForm({ ...lineForm, period_end: event.target.value })} />
+        </label>
+        <label>
+          Amount minor
+          <input type="number" value={lineForm.amount_minor} onChange={(event) => setLineForm({ ...lineForm, amount_minor: Number(event.target.value) })} />
+        </label>
+        <button type="button" disabled={!canAddLine} onClick={addBudgetLine}>Stage budget line</button>
+      </section>
+
+      <form className="panel queue-panel" onSubmit={createBudget}>
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Draft budget</p>
+            <h3>Create budget</h3>
+            <p>Stage one or more account-period lines, then save the plan for reporting.</p>
+          </div>
+          <strong>{draftLines.length}</strong>
+        </div>
+        <div className="form-grid">
+          <input placeholder="Budget name" value={budgetForm.name} onChange={(event) => setBudgetForm({ ...budgetForm, name: event.target.value })} />
+          <label>
+            Start date
+            <input type="date" value={budgetForm.start_date} onChange={(event) => setBudgetForm({ ...budgetForm, start_date: event.target.value })} />
+          </label>
+          <label>
+            End date
+            <input type="date" value={budgetForm.end_date} onChange={(event) => setBudgetForm({ ...budgetForm, end_date: event.target.value })} />
+          </label>
+          <label>
+            Status
+            <select value={budgetForm.status} onChange={(event) => setBudgetForm({ ...budgetForm, status: event.target.value as Budget["status"] })}>
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Period</th>
+                <th>Budget</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draftLines.map((line, index) => (
+                <tr key={`${line.account_id}-${line.period_start}-${index}`}>
+                  <td>{accountName(line.account_id)}</td>
+                  <td>{line.period_start} to {line.period_end}</td>
+                  <td>{formatMinorAsInr(line.amount_minor ?? 0)}</td>
+                  <td><button className="danger compact" type="button" onClick={() => removeBudgetLine(index)}>Remove</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <button disabled={!canCreateBudget || loading === "create"}>{loading === "create" ? "Creating..." : "Create budget"}</button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Budget catalog</p>
+            <h3>Saved budgets</h3>
+            <p>Budget metadata and lines are cached locally for offline review.</p>
+          </div>
+          <strong>{budgets.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Lines</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {budgets.map((budget) => (
+                <tr key={budget.id}>
+                  <td>{budget.name}</td>
+                  <td>{budget.start_date.slice(0, 10)} to {budget.end_date.slice(0, 10)}</td>
+                  <td>{budget.status}</td>
+                  <td>{budget.lines?.length ?? 0}</td>
+                  <td>{formatMinorAsInr(totalBudgetMinor(budget))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function InvestmentsPage({
+  api,
+  accounts,
+  investmentLots,
+  onInvestmentLotsChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  investmentLots: InvestmentLot[];
+  onInvestmentLotsChanged: (lots: InvestmentLot[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const fiscalStart = `${today.slice(0, 4)}-04-01`;
+  const investmentAccounts = accounts.filter((account) => account.type === "asset");
+  const cachedReports = useMemo(() => loadReportSnapshot(), []);
+  const [lotForm, setLotForm] = useState({
+    account_id: investmentAccounts[0]?.id ?? "",
+    symbol: "",
+    security_name: "",
+    acquisition_date: today,
+    quantity_millis: 1000,
+    cost_basis_minor: 0,
+    currency: "INR",
+    cost_method: "specific_lot" as InvestmentLot["cost_method"],
+    notes: ""
+  });
+  const [saleForm, setSaleForm] = useState({
+    lot_id: "",
+    sale_date: today,
+    quantity_millis: 1000,
+    proceeds_minor: 0,
+    proceeds_account_id: investmentAccounts[0]?.id ?? "",
+    gain_loss_account_id: accounts.find((account) => account.type === "income" || account.type === "expense")?.id ?? "",
+    notes: ""
+  });
+  const [reportFrom, setReportFrom] = useState(fiscalStart);
+  const [reportTo, setReportTo] = useState(today);
+  const [realizedGains, setRealizedGains] = useState<RealizedGainsReport | null>(() => cachedReports?.realizedGains ?? null);
+  const [loading, setLoading] = useState("");
+  const [investmentError, setInvestmentError] = useState("");
+  const [investmentNotice, setInvestmentNotice] = useState("");
+  const openLots = investmentLots.filter((lot) => lot.remaining_quantity_millis > 0);
+  const totalCostBasis = investmentLots.reduce((total, lot) => total + lot.cost_basis_minor, 0);
+  const totalRemainingQuantity = investmentLots.reduce((total, lot) => total + lot.remaining_quantity_millis, 0);
+  const canCreateLot = Boolean(lotForm.account_id && lotForm.symbol.trim() && lotForm.acquisition_date && lotForm.quantity_millis > 0 && lotForm.cost_basis_minor > 0);
+  const canSellLot = Boolean(saleForm.lot_id && saleForm.sale_date && saleForm.quantity_millis > 0 && saleForm.proceeds_minor > 0);
+
+  async function refreshLots() {
+    setLoading("refresh");
+    setInvestmentError("");
+    try {
+      const lots = await api.listInvestmentLots();
+      onInvestmentLotsChanged(lots);
+      setInvestmentNotice(`Loaded ${lots.length} investment lot(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createLot(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateLot) {
+      return;
+    }
+    setLoading("create-lot");
+    setInvestmentError("");
+    try {
+      const lot = await api.createInvestmentLot(toInvestmentLotInput(lotForm));
+      onInvestmentLotsChanged([lot, ...investmentLots]);
+      setLotForm({ ...lotForm, symbol: "", security_name: "", quantity_millis: 1000, cost_basis_minor: 0, notes: "" });
+      setInvestmentNotice(`Created lot for ${lot.symbol}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function sellLot(event: FormEvent) {
+    event.preventDefault();
+    if (!canSellLot) {
+      return;
+    }
+    setLoading("sell-lot");
+    setInvestmentError("");
+    try {
+      const disposition = await api.sellInvestmentLot(saleForm.lot_id, toSellInvestmentLotInput(saleForm));
+      const lots = await api.listInvestmentLots();
+      onInvestmentLotsChanged(lots);
+      setSaleForm({ ...saleForm, lot_id: "", quantity_millis: 1000, proceeds_minor: 0, notes: "" });
+      setInvestmentNotice(`Recorded sale with realized gain/loss ${formatMinorAsInr(disposition.realized_gain_loss_minor)}${disposition.journal_transaction_id ? " and posted it to the ledger" : ""}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadRealizedGains(event?: FormEvent) {
+    event?.preventDefault();
+    setLoading("realized-gains");
+    setInvestmentError("");
+    try {
+      const report = await api.getRealizedGains(reportFrom, reportTo);
+      setRealizedGains(report);
+      const snapshot = loadReportSnapshot() ?? { savedAt: "" };
+      saveReportSnapshot({ ...snapshot, realizedGains: report, savedAt: new Date().toISOString() });
+      setInvestmentNotice(`Loaded realized gains report with ${report.rows.length} disposition(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  function accountName(accountId: string) {
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    return account ? `${account.code} · ${account.name}` : accountId;
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Investment lots</p>
+          <h3>Specific-lot capital gains</h3>
+          <p>
+            Cached locally: {investmentLots.length} lots, {openLots.length} still open, {formatQuantityMillis(totalRemainingQuantity)} units remaining,
+            with original cost basis {formatMinorAsInr(totalCostBasis)}.
+          </p>
+        </div>
+        <button className="secondary" disabled={loading === "refresh"} onClick={() => void refreshLots()}>
+          {loading === "refresh" ? "Refreshing..." : "Refresh lots"}
+        </button>
+      </section>
+
+      {investmentError && <div className="alert error">{investmentError}</div>}
+      {investmentNotice && <div className="alert success">{investmentNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={createLot}>
+        <AccountSelect label="Investment account" accounts={investmentAccounts} value={lotForm.account_id} onChange={(value) => setLotForm({ ...lotForm, account_id: value })} />
+        <input placeholder="Symbol" value={lotForm.symbol} onChange={(event) => setLotForm({ ...lotForm, symbol: event.target.value.toUpperCase() })} />
+        <input placeholder="Security name" value={lotForm.security_name} onChange={(event) => setLotForm({ ...lotForm, security_name: event.target.value })} />
+        <label>
+          Acquisition date
+          <input type="date" value={lotForm.acquisition_date} onChange={(event) => setLotForm({ ...lotForm, acquisition_date: event.target.value })} />
+        </label>
+        <label>
+          Quantity x1000
+          <input type="number" min={1} value={lotForm.quantity_millis} onChange={(event) => setLotForm({ ...lotForm, quantity_millis: Number(event.target.value) })} />
+        </label>
+        <label>
+          Cost basis minor
+          <input type="number" min={1} value={lotForm.cost_basis_minor} onChange={(event) => setLotForm({ ...lotForm, cost_basis_minor: Number(event.target.value) })} />
+        </label>
+        <input maxLength={3} value={lotForm.currency} onChange={(event) => setLotForm({ ...lotForm, currency: event.target.value.toUpperCase() })} />
+        <label>
+          Cost method
+          <select value={lotForm.cost_method} onChange={(event) => setLotForm({ ...lotForm, cost_method: event.target.value as InvestmentLot["cost_method"] })}>
+            <option value="specific_lot">Specific lot</option>
+            <option value="average_cost">Average cost</option>
+          </select>
+        </label>
+        <input placeholder="Notes" value={lotForm.notes} onChange={(event) => setLotForm({ ...lotForm, notes: event.target.value })} />
+        <button disabled={!canCreateLot || loading === "create-lot"}>{loading === "create-lot" ? "Creating..." : "Create lot"}</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={sellLot}>
+        <label>
+          Lot to sell
+          <select value={saleForm.lot_id} onChange={(event) => setSaleForm({ ...saleForm, lot_id: event.target.value })} required>
+            <option value="">Select open lot</option>
+            {openLots.map((lot) => (
+              <option key={lot.id} value={lot.id}>
+                {lot.symbol} · {formatQuantityMillis(lot.remaining_quantity_millis)} remaining · {lot.acquisition_date.slice(0, 10)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Sale date
+          <input type="date" value={saleForm.sale_date} onChange={(event) => setSaleForm({ ...saleForm, sale_date: event.target.value })} />
+        </label>
+        <label>
+          Quantity x1000
+          <input type="number" min={1} value={saleForm.quantity_millis} onChange={(event) => setSaleForm({ ...saleForm, quantity_millis: Number(event.target.value) })} />
+        </label>
+        <label>
+          Proceeds minor
+          <input type="number" min={1} value={saleForm.proceeds_minor} onChange={(event) => setSaleForm({ ...saleForm, proceeds_minor: Number(event.target.value) })} />
+        </label>
+        <AccountSelect label="Proceeds account" accounts={accounts.filter((account) => account.type === "asset")} value={saleForm.proceeds_account_id} onChange={(value) => setSaleForm({ ...saleForm, proceeds_account_id: value })} />
+        <AccountSelect label="Gain/loss account" accounts={accounts.filter((account) => account.type === "income" || account.type === "expense")} value={saleForm.gain_loss_account_id} onChange={(value) => setSaleForm({ ...saleForm, gain_loss_account_id: value })} />
+        <input placeholder="Sale notes" value={saleForm.notes} onChange={(event) => setSaleForm({ ...saleForm, notes: event.target.value })} />
+        <button disabled={!canSellLot || loading === "sell-lot"}>{loading === "sell-lot" ? "Recording..." : "Record sale"}</button>
+      </form>
+
+      <DataTable
+        headers={["Symbol", "Security", "Account", "Acquired", "Qty", "Remaining", "Cost", "Method"]}
+        rows={investmentLots.map((lot) => [
+          lot.symbol,
+          lot.security_name ?? "",
+          accountName(lot.account_id),
+          lot.acquisition_date.slice(0, 10),
+          formatQuantityMillis(lot.quantity_millis),
+          formatQuantityMillis(lot.remaining_quantity_millis),
+          formatMinorAsInr(lot.cost_basis_minor),
+          titleCase(lot.cost_method)
+        ])}
+      />
+
+      <form className="panel form-grid" onSubmit={loadRealizedGains}>
+        <label>
+          From date
+          <input type="date" value={reportFrom} onChange={(event) => setReportFrom(event.target.value)} required />
+        </label>
+        <label>
+          To date
+          <input type="date" value={reportTo} onChange={(event) => setReportTo(event.target.value)} required />
+        </label>
+        <button disabled={loading === "realized-gains"}>{loading === "realized-gains" ? "Loading..." : "Run realized gains"}</button>
+      </form>
+
+      {realizedGains && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">{realizedGains.from_date.slice(0, 10)} to {realizedGains.to_date.slice(0, 10)}</p>
+              <h3>Realized gain/loss {formatMinorAsInr(realizedGains.total_gain_loss_minor)}</h3>
+              <p>Proceeds {formatMinorAsInr(realizedGains.total_proceeds_minor)} less cost basis {formatMinorAsInr(realizedGains.total_cost_basis_minor)}.</p>
+            </div>
+            <button className="secondary" onClick={() => exportRealizedGains(realizedGains)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Sale date", "Lot", "Qty", "Proceeds", "Cost basis", "Gain/Loss", "Currency"]}
+            rows={realizedGains.rows.map((row) => [
+              row.sale_date.slice(0, 10),
+              row.investment_lot_id,
+              formatQuantityMillis(row.quantity_millis),
+              formatMinorAsInr(row.proceeds_minor),
+              formatMinorAsInr(row.allocated_cost_basis_minor),
+              formatMinorAsInr(row.realized_gain_loss_minor),
+              row.currency
+            ])}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function PayrollPage({
+  api,
+  accounts,
+  payrollRuns,
+  employees,
+  payslipPreview,
+  onPayrollRunsChanged,
+  onEmployeesChanged,
+  onPayslipPreviewChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  payrollRuns: PayrollRun[];
+  employees: Employee[];
+  payslipPreview: PayslipPreview | null;
+  onPayrollRunsChanged: (runs: PayrollRun[]) => void;
+  onEmployeesChanged: (employees: Employee[]) => void;
+  onPayslipPreviewChanged: (preview: PayslipPreview | null) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [payrollError, setPayrollError] = useState("");
+  const [payrollNotice, setPayrollNotice] = useState("");
+  const [loading, setLoading] = useState<"refresh" | string | null>(null);
+  const [indiaPayrollPreview, setIndiaPayrollPreview] = useState<IndiaPayrollPreview | null>(null);
+  const [employeeForm, setEmployeeForm] = useState({
+    display_name: "",
+    email: "",
+    phone: "",
+    employee_code: "",
+    pan: "",
+    uan: ""
+  });
+  const [runForm, setRunForm] = useState({
+    run_number: "",
+    period_start: new Date().toISOString().slice(0, 10),
+    period_end: new Date().toISOString().slice(0, 10),
+    pay_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    employee_id: "",
+    gross_pay_minor: 0,
+    deductions_minor: 0,
+    basic_pay_minor: 0,
+    hra_minor: 0,
+    special_minor: 0,
+    bonus_minor: 0,
+    reimbursement_minor: 0,
+    employee_pf_enabled: true,
+    employee_pf_rate_bps: 1200,
+    pf_wage_ceiling_minor: 1500000,
+    employee_esi_enabled: true,
+    employee_esi_rate_bps: 75,
+    esi_gross_limit_minor: 2100000,
+    professional_tax_minor: 0,
+    tds_minor: 0,
+    preview_components: [] as CreatePayrollComponentInput[],
+    payslip_key: "",
+    payroll_expense_account_id: "",
+    payroll_liability_account_id: "",
+    deduction_liability_account_id: ""
+  });
+  const draftRuns = payrollRuns.filter((run) => run.status === "draft").length;
+  const postedRuns = payrollRuns.filter((run) => run.status === "posted").length;
+  const activeEmployees = employees.filter((employee) => employee.is_active).length;
+  const canCreateEmployee = Boolean(employeeForm.display_name.trim());
+  const canCreatePayrollRun = Boolean(
+    runForm.run_number.trim() &&
+    runForm.employee_id &&
+    (runForm.gross_pay_minor > 0 || runForm.preview_components.length > 0 || runForm.basic_pay_minor + runForm.hra_minor + runForm.special_minor + runForm.bonus_minor + runForm.reimbursement_minor > 0) &&
+    runForm.payroll_expense_account_id &&
+    runForm.payroll_liability_account_id &&
+    runForm.deduction_liability_account_id
+  );
+
+  function updatePayrollRunForm(next: Partial<typeof runForm>, clearPreview = false) {
+    setRunForm((current) => ({
+      ...current,
+      ...next,
+      preview_components: clearPreview ? [] : current.preview_components
+    }));
+    if (clearPreview) {
+      setIndiaPayrollPreview(null);
+    }
+  }
+
+  async function refreshPayrollRuns() {
+    setLoading("refresh");
+    setPayrollError("");
+    try {
+      const runs = await api.listPayrollRuns();
+      onPayrollRunsChanged(runs);
+      setPayrollNotice(`Loaded ${runs.length} payroll runs.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshEmployees() {
+    setLoading("employees");
+    setPayrollError("");
+    try {
+      const nextEmployees = await api.listEmployees();
+      onEmployeesChanged(nextEmployees);
+      setPayrollNotice(`Loaded ${nextEmployees.length} employees.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createEmployee(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateEmployee) {
+      return;
+    }
+
+    setLoading("create-employee");
+    setPayrollError("");
+    try {
+      const employee = await api.createEmployee(toEmployeeInput(employeeForm));
+      onEmployeesChanged([employee, ...employees]);
+      setEmployeeForm({
+        display_name: "",
+        email: "",
+        phone: "",
+        employee_code: "",
+        pan: "",
+        uan: ""
+      });
+      setPayrollNotice(`Created employee ${employee.display_name}.`);
+      await onRefresh();
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createPayrollRun(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreatePayrollRun) {
+      return;
+    }
+
+    setLoading("create-run");
+    setPayrollError("");
+    try {
+      const run = await api.createPayrollRun(toPayrollRunInput(runForm));
+      onPayrollRunsChanged([run, ...payrollRuns]);
+      setRunForm({
+        ...runForm,
+        run_number: "",
+        employee_id: "",
+        gross_pay_minor: 0,
+        deductions_minor: 0,
+        preview_components: [],
+        payslip_key: ""
+      });
+      setIndiaPayrollPreview(null);
+      setPayrollNotice(`Created payroll run ${run.run_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function previewIndiaPayroll() {
+    setLoading("preview-india-payroll");
+    setPayrollError("");
+    try {
+      const preview = await api.previewIndiaPayroll({
+        basic_minor: runForm.basic_pay_minor,
+        hra_minor: runForm.hra_minor,
+        special_minor: runForm.special_minor,
+        bonus_minor: runForm.bonus_minor,
+        reimbursement_minor: runForm.reimbursement_minor,
+        employee_pf_enabled: runForm.employee_pf_enabled,
+        employee_pf_rate_bps: runForm.employee_pf_rate_bps,
+        pf_wage_ceiling_minor: runForm.pf_wage_ceiling_minor,
+        employee_esi_enabled: runForm.employee_esi_enabled,
+        employee_esi_rate_bps: runForm.employee_esi_rate_bps,
+        esi_gross_limit_minor: runForm.esi_gross_limit_minor,
+        professional_tax_minor: runForm.professional_tax_minor,
+        tds_minor: runForm.tds_minor
+      });
+      setIndiaPayrollPreview(preview);
+      setRunForm({
+        ...runForm,
+        gross_pay_minor: preview.gross_pay_minor,
+        deductions_minor: preview.deductions_minor,
+        preview_components: preview.components
+      });
+      setPayrollNotice(`Previewed India payroll: net pay ${formatMinorAsInr(preview.net_pay_minor)}.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function postPayrollRun(runId: string) {
+    setLoading(runId);
+    setPayrollError("");
+    try {
+      const postedRun = await api.postPayrollRun(runId);
+      onPayrollRunsChanged(payrollRuns.map((run) => run.id === postedRun.id ? postedRun : run));
+      setPayrollNotice(`Posted payroll run ${postedRun.run_number} to the ledger.`);
+      await onRefresh();
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadPayslipPreview(run: PayrollRun) {
+    const item = run.items?.find((candidate) => candidate.id);
+    if (!item?.id) {
+      setPayrollError("This payroll run does not include a payslip-ready item yet.");
+      return;
+    }
+
+    setLoading(`payslip-${run.id}`);
+    setPayrollError("");
+    try {
+      const preview = await api.getPayslipPreview(run.id, item.id);
+      onPayslipPreviewChanged(preview);
+      setPayrollNotice(`Loaded payslip preview for ${preview.employee.display_name}.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Payroll</p>
+          <h3>Payroll run control</h3>
+          <p>
+            Cached locally: {payrollRuns.length} payroll runs, including {draftRuns} draft and {postedRuns} posted runs.
+            Employees cached locally: {employees.length}, with {activeEmployees} active.
+            Draft runs can be posted to create payroll ledger entries.
+            {payslipPreview ? ` Last payslip preview cached for ${payslipPreview.employee.display_name}.` : ""}
+          </p>
+        </div>
+        <div className="button-row">
+          <button className="secondary" disabled={loading === "refresh"} onClick={() => void refreshPayrollRuns()}>
+            {loading === "refresh" ? "Loading..." : "Refresh payroll runs"}
+          </button>
+          <button className="secondary" disabled={loading === "employees"} onClick={() => void refreshEmployees()}>
+            {loading === "employees" ? "Loading..." : "Refresh employees"}
+          </button>
+        </div>
+      </section>
+
+      {payrollError && <div className="alert error">{payrollError}</div>}
+      {payrollNotice && <div className="alert success">{payrollNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={createEmployee}>
+        <input
+          placeholder="Display name"
+          value={employeeForm.display_name}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, display_name: event.target.value })}
+          required
+        />
+        <input
+          placeholder="Email"
+          value={employeeForm.email}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, email: event.target.value })}
+        />
+        <input
+          placeholder="Phone"
+          value={employeeForm.phone}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, phone: event.target.value })}
+        />
+        <input
+          placeholder="Employee code"
+          value={employeeForm.employee_code}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, employee_code: event.target.value })}
+        />
+        <input
+          placeholder="PAN"
+          value={employeeForm.pan}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, pan: event.target.value })}
+        />
+        <input
+          placeholder="UAN"
+          value={employeeForm.uan}
+          onChange={(event) => setEmployeeForm({ ...employeeForm, uan: event.target.value })}
+        />
+        <button disabled={!canCreateEmployee || loading === "create-employee"}>
+          {loading === "create-employee" ? "Creating..." : "Create employee"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Employees</p>
+            <h3>Employee master</h3>
+            <p>India payroll identifiers are captured as editable master data for payroll previews and posted runs.</p>
+          </div>
+          <strong>{employees.length}</strong>
+        </div>
+        <DataTable
+          headers={["Code", "Name", "Email", "Phone", "PAN", "UAN", "Active"]}
+          rows={employees.map((employee) => [
+            employee.employee_code ?? "",
+            employee.display_name,
+            employee.email ?? "",
+            employee.phone ?? "",
+            employee.pan ?? "",
+            employee.uan ?? "",
+            employee.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+
+      <form className="panel form-grid" onSubmit={createPayrollRun}>
+        <input
+          placeholder="Run number"
+          value={runForm.run_number}
+          onChange={(event) => setRunForm({ ...runForm, run_number: event.target.value })}
+          required
+        />
+        <label>
+          Period start
+          <input type="date" value={runForm.period_start} onChange={(event) => setRunForm({ ...runForm, period_start: event.target.value })} required />
+        </label>
+        <label>
+          Period end
+          <input type="date" value={runForm.period_end} onChange={(event) => setRunForm({ ...runForm, period_end: event.target.value })} required />
+        </label>
+        <label>
+          Pay date
+          <input type="date" value={runForm.pay_date} onChange={(event) => setRunForm({ ...runForm, pay_date: event.target.value })} required />
+        </label>
+        <input
+          placeholder="Currency"
+          value={runForm.currency}
+          onChange={(event) => setRunForm({ ...runForm, currency: event.target.value })}
+        />
+        <label>
+          Employee
+          <select value={runForm.employee_id} onChange={(event) => setRunForm({ ...runForm, employee_id: event.target.value })} required>
+            <option value="">Select employee</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.employee_code ? `${employee.employee_code} · ` : ""}{employee.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input
+          type="number"
+          min="0"
+          placeholder="Gross pay minor"
+          value={runForm.gross_pay_minor}
+          onChange={(event) => updatePayrollRunForm({ gross_pay_minor: Number(event.target.value) }, true)}
+          required
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Deductions minor"
+          value={runForm.deductions_minor}
+          onChange={(event) => updatePayrollRunForm({ deductions_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Basic pay component"
+          value={runForm.basic_pay_minor}
+          onChange={(event) => updatePayrollRunForm({ basic_pay_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="HRA component"
+          value={runForm.hra_minor}
+          onChange={(event) => updatePayrollRunForm({ hra_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Special allowance"
+          value={runForm.special_minor}
+          onChange={(event) => updatePayrollRunForm({ special_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Bonus"
+          value={runForm.bonus_minor}
+          onChange={(event) => updatePayrollRunForm({ bonus_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Reimbursement"
+          value={runForm.reimbursement_minor}
+          onChange={(event) => updatePayrollRunForm({ reimbursement_minor: Number(event.target.value) }, true)}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={runForm.employee_pf_enabled}
+            onChange={(event) => updatePayrollRunForm({ employee_pf_enabled: event.target.checked }, true)}
+          />
+          Employee PF enabled
+        </label>
+        <input
+          type="number"
+          min="0"
+          placeholder="PF rate bps"
+          value={runForm.employee_pf_rate_bps}
+          onChange={(event) => updatePayrollRunForm({ employee_pf_rate_bps: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="PF wage ceiling minor"
+          value={runForm.pf_wage_ceiling_minor}
+          onChange={(event) => updatePayrollRunForm({ pf_wage_ceiling_minor: Number(event.target.value) }, true)}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={runForm.employee_esi_enabled}
+            onChange={(event) => updatePayrollRunForm({ employee_esi_enabled: event.target.checked }, true)}
+          />
+          Employee ESI enabled
+        </label>
+        <input
+          type="number"
+          min="0"
+          placeholder="ESI rate bps"
+          value={runForm.employee_esi_rate_bps}
+          onChange={(event) => updatePayrollRunForm({ employee_esi_rate_bps: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="ESI gross limit minor"
+          value={runForm.esi_gross_limit_minor}
+          onChange={(event) => updatePayrollRunForm({ esi_gross_limit_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Professional tax minor"
+          value={runForm.professional_tax_minor}
+          onChange={(event) => updatePayrollRunForm({ professional_tax_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="TDS minor"
+          value={runForm.tds_minor}
+          onChange={(event) => updatePayrollRunForm({ tds_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          placeholder="Payslip key"
+          value={runForm.payslip_key}
+          onChange={(event) => setRunForm({ ...runForm, payslip_key: event.target.value })}
+        />
+        <AccountSelect
+          label="Payroll expense account"
+          accounts={accounts}
+          value={runForm.payroll_expense_account_id}
+          onChange={(value) => setRunForm({ ...runForm, payroll_expense_account_id: value })}
+        />
+        <AccountSelect
+          label="Net pay liability account"
+          accounts={accounts}
+          value={runForm.payroll_liability_account_id}
+          onChange={(value) => setRunForm({ ...runForm, payroll_liability_account_id: value })}
+        />
+        <AccountSelect
+          label="Deduction liability account"
+          accounts={accounts}
+          value={runForm.deduction_liability_account_id}
+          onChange={(value) => setRunForm({ ...runForm, deduction_liability_account_id: value })}
+        />
+        <button type="button" className="secondary" disabled={loading === "preview-india-payroll"} onClick={() => void previewIndiaPayroll()}>
+          {loading === "preview-india-payroll" ? "Previewing..." : "Preview India payroll"}
+        </button>
+        <button disabled={!canCreatePayrollRun || loading === "create-run"}>
+          {loading === "create-run" ? "Creating..." : "Create payroll run"}
+        </button>
+      </form>
+
+      {indiaPayrollPreview && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">India preview</p>
+              <h3>Payroll component breakdown</h3>
+              <p>
+                Gross {formatMinorAsInr(indiaPayrollPreview.gross_pay_minor)}, deductions {formatMinorAsInr(indiaPayrollPreview.deductions_minor)},
+                {" "}net {formatMinorAsInr(indiaPayrollPreview.net_pay_minor)}. These components will be attached to the next draft run.
+              </p>
+            </div>
+            <strong>{indiaPayrollPreview.components.length}</strong>
+          </div>
+          <DataTable
+            headers={["Code", "Name", "Type", "Amount", "Statutory"]}
+            rows={indiaPayrollPreview.components.map((component) => [
+              component.code,
+              component.name,
+              component.type,
+              formatMinorAsInr(component.amount_minor),
+              component.is_statutory ? "Yes" : "No"
+            ])}
+          />
+        </section>
+      )}
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Runs</p>
+            <h3>Payroll runs</h3>
+            <p>Use the India preview to generate componentized draft runs, then post approved runs to the ledger.</p>
+          </div>
+          <strong>{payrollRuns.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Period</th>
+                <th>Pay date</th>
+                <th>Status</th>
+                <th>Gross</th>
+                <th>Deductions</th>
+                <th>Net</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payrollRuns.map((run) => (
+                <tr key={run.id}>
+                  <td>{run.run_number}</td>
+                  <td>{run.period_start.slice(0, 10)} to {run.period_end.slice(0, 10)}</td>
+                  <td>{run.pay_date.slice(0, 10)}</td>
+                  <td>{run.status}</td>
+                  <td>{formatMinorAsInr(run.gross_pay_minor)}</td>
+                  <td>{formatMinorAsInr(run.deductions_minor)}</td>
+                  <td>{formatMinorAsInr(run.net_pay_minor)}</td>
+                  <td>
+                    <div className="button-row compact">
+                      <button
+                        className="secondary compact"
+                        disabled={!run.items?.some((item) => item.id) || loading === `payslip-${run.id}`}
+                        onClick={() => void loadPayslipPreview(run)}
+                      >
+                        {loading === `payslip-${run.id}` ? "Loading..." : "Payslip"}
+                      </button>
+                      <button
+                        className="secondary compact"
+                        disabled={run.status !== "draft" || loading === run.id}
+                        onClick={() => void postPayrollRun(run.id)}
+                      >
+                        {loading === run.id ? "Posting..." : "Post"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+
+      {payslipPreview && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Payslip preview</p>
+              <h3>{payslipPreview.employee.display_name}</h3>
+              <p>
+                {payslipPreview.run_number} · {payslipPreview.period_start.slice(0, 10)} to {payslipPreview.period_end.slice(0, 10)}
+                {" "}· Net {formatMinorAsInr(payslipPreview.net_pay_minor)}
+              </p>
+            </div>
+            <div className="button-row">
+              <strong>{payslipPreview.status}</strong>
+              <button className="secondary compact" onClick={() => exportPayslipPreview(payslipPreview)}>
+                Export CSV
+              </button>
+            </div>
+          </div>
+          <DataTable
+            headers={["Earning", "Amount"]}
+            rows={payslipPreview.earnings.map((component) => [component.name, formatMinorAsInr(component.amount_minor)])}
+          />
+          <DataTable
+            headers={["Deduction", "Amount", "Statutory"]}
+            rows={payslipPreview.deductions.map((component) => [
+              component.name,
+              formatMinorAsInr(component.amount_minor),
+              component.is_statutory ? "Yes" : "No"
+            ])}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function InvoicesPage({
+  api,
+  accounts,
+  customers,
+  invoices,
+  recurringInvoices,
+  estimates,
+  creditNotes,
+  taxRates,
+  taxGroups,
+  onCustomersChanged,
+  onInvoicesChanged,
+  onRecurringInvoicesChanged,
+  onEstimatesChanged,
+  onCreditNotesChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  customers: Customer[];
+  invoices: Invoice[];
+  recurringInvoices: RecurringInvoiceTemplate[];
+  estimates: Estimate[];
+  creditNotes: CreditNote[];
+  taxRates: TaxRate[];
+  taxGroups: TaxGroup[];
+  onCustomersChanged: (customers: Customer[]) => void;
+  onInvoicesChanged: (invoices: Invoice[]) => void;
+  onRecurringInvoicesChanged: (templates: RecurringInvoiceTemplate[]) => void;
+  onEstimatesChanged: (estimates: Estimate[]) => void;
+  onCreditNotesChanged: (creditNotes: CreditNote[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [invoiceError, setInvoiceError] = useState("");
+  const [invoiceNotice, setInvoiceNotice] = useState("");
+  const [loading, setLoading] = useState<"customers" | "invoices" | "create-customer" | string | null>(null);
+  const [customerForm, setCustomerForm] = useState({
+    display_name: "",
+    email: "",
+    phone: "",
+    billing_address: "",
+    gstin: ""
+  });
+  const [invoiceForm, setInvoiceForm] = useState({
+    customer_id: "",
+    invoice_number: "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    due_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    tax_inclusive: false,
+    accounts_receivable_id: "",
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    income_account_id: "",
+    tax_target: ""
+  });
+  const [paymentForm, setPaymentForm] = useState({
+    invoice_id: "",
+    payment_number: "",
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: "bank_transfer",
+    reference: "",
+    currency: "INR",
+    amount_minor: 0,
+    payment_account_id: ""
+  });
+  const [estimateForm, setEstimateForm] = useState({
+    customer_id: "",
+    estimate_number: "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    expiry_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    tax_inclusive: false,
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    income_account_id: "",
+    tax_target: ""
+  });
+  const [recurringInvoiceForm, setRecurringInvoiceForm] = useState({
+    customer_id: "",
+    name: "",
+    invoice_number_prefix: "",
+    start_date: new Date().toISOString().slice(0, 10),
+    next_run_date: "",
+    frequency: "monthly" as RecurringInvoiceTemplate["frequency"],
+    due_days: 30,
+    currency: "INR",
+    tax_inclusive: false,
+    accounts_receivable_id: "",
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    income_account_id: "",
+    tax_target: ""
+  });
+  const [creditNoteForm, setCreditNoteForm] = useState({
+    customer_id: "",
+    invoice_id: "",
+    credit_note_number: "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    tax_inclusive: false,
+    accounts_receivable_id: "",
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    income_account_id: "",
+    tax_target: ""
+  });
+  const draftInvoices = invoices.filter((invoice) => invoice.status === "draft").length;
+  const postedInvoices = invoices.filter((invoice) => invoice.status === "posted").length;
+  const draftCreditNotes = creditNotes.filter((creditNote) => creditNote.status === "draft").length;
+  const canCreateCustomer = Boolean(customerForm.display_name.trim());
+  const canCreateInvoice = Boolean(
+    invoiceForm.customer_id &&
+    invoiceForm.invoice_number.trim() &&
+    invoiceForm.accounts_receivable_id &&
+    invoiceForm.description.trim() &&
+    invoiceForm.unit_price_minor >= 0 &&
+    invoiceForm.income_account_id
+  );
+  const canRecordPayment = Boolean(
+    paymentForm.invoice_id &&
+    paymentForm.payment_number.trim() &&
+    paymentForm.amount_minor > 0 &&
+    paymentForm.payment_account_id
+  );
+  const canCreateEstimate = Boolean(
+    estimateForm.customer_id &&
+    estimateForm.estimate_number.trim() &&
+    estimateForm.description.trim() &&
+    estimateForm.income_account_id &&
+    estimateForm.unit_price_minor >= 0
+  );
+  const canCreateRecurringInvoice = Boolean(
+    recurringInvoiceForm.customer_id &&
+    recurringInvoiceForm.name.trim() &&
+    recurringInvoiceForm.invoice_number_prefix.trim() &&
+    recurringInvoiceForm.accounts_receivable_id &&
+    recurringInvoiceForm.description.trim() &&
+    recurringInvoiceForm.income_account_id &&
+    recurringInvoiceForm.unit_price_minor >= 0
+  );
+  const canCreateCreditNote = Boolean(
+    creditNoteForm.customer_id &&
+    creditNoteForm.credit_note_number.trim() &&
+    creditNoteForm.accounts_receivable_id &&
+    creditNoteForm.description.trim() &&
+    creditNoteForm.income_account_id &&
+    creditNoteForm.unit_price_minor >= 0
+  );
+
+  async function refreshCustomers() {
+    setLoading("customers");
+    setInvoiceError("");
+    try {
+      const nextCustomers = await api.listCustomers();
+      onCustomersChanged(nextCustomers);
+      setInvoiceNotice(`Loaded ${nextCustomers.length} customers.`);
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshInvoices() {
+    setLoading("invoices");
+    setInvoiceError("");
+    try {
+      const nextInvoices = await api.listInvoices();
+      onInvoicesChanged(nextInvoices);
+      setInvoiceNotice(`Loaded ${nextInvoices.length} invoices.`);
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshCommercialDocs() {
+    setLoading("commercial-docs");
+    setInvoiceError("");
+    try {
+      const [nextEstimates, nextCreditNotes] = await Promise.all([
+        api.listEstimates(),
+        api.listCreditNotes()
+      ]);
+      onEstimatesChanged(nextEstimates);
+      onCreditNotesChanged(nextCreditNotes);
+      setInvoiceNotice(`Loaded ${nextEstimates.length} estimates and ${nextCreditNotes.length} credit notes.`);
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshRecurringInvoices() {
+    setLoading("recurring-invoices");
+    setInvoiceError("");
+    try {
+      const nextTemplates = await api.listRecurringInvoices();
+      onRecurringInvoicesChanged(nextTemplates);
+      setInvoiceNotice(`Loaded ${nextTemplates.length} recurring invoice templates.`);
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createCustomer(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateCustomer) {
+      return;
+    }
+
+    setLoading("create-customer");
+    setInvoiceError("");
+    try {
+      const customer = await api.createCustomer(toCustomerInput(customerForm));
+      onCustomersChanged([customer, ...customers]);
+      setCustomerForm({
+        display_name: "",
+        email: "",
+        phone: "",
+        billing_address: "",
+        gstin: ""
+      });
+      setInvoiceNotice(`Created customer ${customer.display_name}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createInvoice(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateInvoice) {
+      return;
+    }
+
+    setLoading("create-invoice");
+    setInvoiceError("");
+    try {
+      const invoice = await api.createInvoice(toInvoiceInput(invoiceForm));
+      onInvoicesChanged([invoice, ...invoices]);
+      setInvoiceForm({
+        ...invoiceForm,
+        invoice_number: "",
+        description: "",
+        unit_price_minor: 0,
+        tax_target: ""
+      });
+      setInvoiceNotice(`Created invoice ${invoice.invoice_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createEstimate(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateEstimate) {
+      return;
+    }
+    setLoading("create-estimate");
+    setInvoiceError("");
+    try {
+      const estimate = await api.createEstimate(toEstimateInput(estimateForm));
+      onEstimatesChanged([estimate, ...estimates]);
+      setEstimateForm({ ...estimateForm, estimate_number: "", description: "", unit_price_minor: 0, tax_target: "" });
+      setInvoiceNotice(`Created estimate ${estimate.estimate_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createRecurringInvoice(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateRecurringInvoice) {
+      return;
+    }
+    setLoading("create-recurring-invoice");
+    setInvoiceError("");
+    try {
+      const template = await api.createRecurringInvoice(toRecurringInvoiceInput(recurringInvoiceForm));
+      onRecurringInvoicesChanged([template, ...recurringInvoices]);
+      setRecurringInvoiceForm({ ...recurringInvoiceForm, name: "", invoice_number_prefix: "", description: "", unit_price_minor: 0, tax_target: "" });
+      setInvoiceNotice(`Created recurring invoice template ${template.name}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function generateDueRecurringInvoices() {
+    setLoading("generate-recurring-invoices");
+    setInvoiceError("");
+    try {
+      const result = await api.generateDueRecurringInvoices(new Date().toISOString().slice(0, 10));
+      const [nextInvoices, nextTemplates] = await Promise.all([
+        api.listInvoices(),
+        api.listRecurringInvoices()
+      ]);
+      onInvoicesChanged(nextInvoices);
+      onRecurringInvoicesChanged(nextTemplates);
+      setInvoiceNotice(`Generated ${result.generated_count} recurring draft invoice(s).`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createCreditNote(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateCreditNote) {
+      return;
+    }
+    setLoading("create-credit-note");
+    setInvoiceError("");
+    try {
+      const creditNote = await api.createCreditNote(toCreditNoteInput(creditNoteForm));
+      onCreditNotesChanged([creditNote, ...creditNotes]);
+      setCreditNoteForm({ ...creditNoteForm, credit_note_number: "", description: "", unit_price_minor: 0, tax_target: "" });
+      setInvoiceNotice(`Created credit note ${creditNote.credit_note_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function postInvoice(invoiceId: string) {
+    setLoading(invoiceId);
+    setInvoiceError("");
+    try {
+      const postedInvoice = await api.postInvoice(invoiceId);
+      onInvoicesChanged(invoices.map((invoice) => invoice.id === postedInvoice.id ? postedInvoice : invoice));
+      setInvoiceNotice(`Posted invoice ${postedInvoice.invoice_number} to the ledger.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function recordCustomerPayment(event: FormEvent) {
+    event.preventDefault();
+    if (!canRecordPayment) {
+      return;
+    }
+
+    setLoading("record-payment");
+    setInvoiceError("");
+    try {
+      await api.recordCustomerPayment(paymentForm.invoice_id, toRecordPaymentInput(paymentForm));
+      const nextInvoices = await api.listInvoices();
+      onInvoicesChanged(nextInvoices);
+      setPaymentForm({
+        ...paymentForm,
+        invoice_id: "",
+        payment_number: "",
+        reference: "",
+        amount_minor: 0
+      });
+      setInvoiceNotice("Recorded customer payment and updated AR status.");
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function postCreditNote(creditNoteId: string) {
+    setLoading(creditNoteId);
+    setInvoiceError("");
+    try {
+      const postedCreditNote = await api.postCreditNote(creditNoteId);
+      onCreditNotesChanged(creditNotes.map((creditNote) => creditNote.id === postedCreditNote.id ? postedCreditNote : creditNote));
+      setInvoiceNotice(`Posted credit note ${postedCreditNote.credit_note_number} to AR.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function convertEstimateToInvoice(estimate: Estimate) {
+    const accountsReceivable = defaultAccountsReceivableAccount(accounts);
+    if (!accountsReceivable) {
+      setInvoiceError("Create or seed an accounts receivable account before converting estimates.");
+      return;
+    }
+    const invoiceNumber = window.prompt("Invoice number", estimate.estimate_number.replace(/^EST/i, "INV"));
+    if (!invoiceNumber) {
+      return;
+    }
+    const issueDate = new Date().toISOString().slice(0, 10);
+    const dueDate = addDays(issueDate, 30);
+    setLoading(estimate.id);
+    setInvoiceError("");
+    try {
+      const invoice = await api.convertEstimateToInvoice(estimate.id, {
+        invoice_number: invoiceNumber.trim(),
+        issue_date: issueDate,
+        due_date: dueDate,
+        accounts_receivable_id: accountsReceivable.id
+      });
+      onInvoicesChanged([invoice, ...invoices]);
+      const nextEstimates = await api.listEstimates();
+      onEstimatesChanged(nextEstimates);
+      setInvoiceNotice(`Converted estimate ${estimate.estimate_number} to draft invoice ${invoice.invoice_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function updateEstimateStatus(estimate: Estimate, status: Estimate["status"]) {
+    setLoading(`${estimate.id}-${status}`);
+    setInvoiceError("");
+    try {
+      const updated = await api.updateEstimateStatus(estimate.id, status);
+      onEstimatesChanged(estimates.map((candidate) => candidate.id === updated.id ? updated : candidate));
+      setInvoiceNotice(`Updated estimate ${updated.estimate_number} to ${updated.status}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function customerName(customerId?: string) {
+    return customers.find((customer) => customer.id === customerId)?.display_name ?? customerId ?? "";
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Invoices</p>
+          <h3>Customer and AR control</h3>
+          <p>
+            Cached locally: {customers.length} customers and {invoices.length} invoices, including {draftInvoices} draft and {postedInvoices} posted invoices.
+            Commercial docs: {estimates.length} estimates, {creditNotes.length} credit notes ({draftCreditNotes} draft), and {recurringInvoices.length} recurring templates.
+          </p>
+        </div>
+        <div className="button-row">
+          <button className="secondary" disabled={loading === "customers"} onClick={() => void refreshCustomers()}>
+            {loading === "customers" ? "Loading..." : "Refresh customers"}
+          </button>
+          <button className="secondary" disabled={loading === "invoices"} onClick={() => void refreshInvoices()}>
+            {loading === "invoices" ? "Loading..." : "Refresh invoices"}
+          </button>
+          <button className="secondary" disabled={loading === "commercial-docs"} onClick={() => void refreshCommercialDocs()}>
+            {loading === "commercial-docs" ? "Loading..." : "Refresh estimates/credits"}
+          </button>
+          <button className="secondary" disabled={loading === "recurring-invoices"} onClick={() => void refreshRecurringInvoices()}>
+            {loading === "recurring-invoices" ? "Loading..." : "Refresh recurring"}
+          </button>
+          <button className="secondary" disabled={loading === "generate-recurring-invoices"} onClick={() => void generateDueRecurringInvoices()}>
+            {loading === "generate-recurring-invoices" ? "Generating..." : "Generate due drafts"}
+          </button>
+        </div>
+      </section>
+
+      {invoiceError && <div className="alert error">{invoiceError}</div>}
+      {invoiceNotice && <div className="alert success">{invoiceNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={createCustomer}>
+        <input
+          placeholder="Display name"
+          value={customerForm.display_name}
+          onChange={(event) => setCustomerForm({ ...customerForm, display_name: event.target.value })}
+          required
+        />
+        <input
+          placeholder="Email"
+          value={customerForm.email}
+          onChange={(event) => setCustomerForm({ ...customerForm, email: event.target.value })}
+        />
+        <input
+          placeholder="Phone"
+          value={customerForm.phone}
+          onChange={(event) => setCustomerForm({ ...customerForm, phone: event.target.value })}
+        />
+        <input
+          placeholder="GSTIN"
+          value={customerForm.gstin}
+          onChange={(event) => setCustomerForm({ ...customerForm, gstin: event.target.value })}
+        />
+        <input
+          placeholder="Billing address"
+          value={customerForm.billing_address}
+          onChange={(event) => setCustomerForm({ ...customerForm, billing_address: event.target.value })}
+        />
+        <button disabled={!canCreateCustomer || loading === "create-customer"}>
+          {loading === "create-customer" ? "Creating..." : "Create customer"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Customers</p>
+            <h3>Customer master</h3>
+            <p>GSTIN and billing details are cached locally after refresh for offline review.</p>
+          </div>
+          <strong>{customers.length}</strong>
+        </div>
+        <DataTable
+          headers={["Name", "Email", "Phone", "GSTIN", "Active"]}
+          rows={customers.map((customer) => [
+            customer.display_name,
+            customer.email ?? "",
+            customer.phone ?? "",
+            customer.gstin ?? "",
+            customer.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+
+      <form className="panel form-grid" onSubmit={createRecurringInvoice}>
+        <label>
+          Customer
+          <select value={recurringInvoiceForm.customer_id} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, customer_id: event.target.value })} required>
+            <option value="">Select customer</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Template name" value={recurringInvoiceForm.name} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, name: event.target.value })} required />
+        <input placeholder="Invoice prefix" value={recurringInvoiceForm.invoice_number_prefix} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, invoice_number_prefix: event.target.value })} required />
+        <label>
+          Start date
+          <input type="date" value={recurringInvoiceForm.start_date} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, start_date: event.target.value })} required />
+        </label>
+        <label>
+          Next run date
+          <input type="date" value={recurringInvoiceForm.next_run_date} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, next_run_date: event.target.value })} />
+        </label>
+        <label>
+          Frequency
+          <select value={recurringInvoiceForm.frequency} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, frequency: event.target.value as RecurringInvoiceTemplate["frequency"] })}>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </label>
+        <input type="number" min="0" placeholder="Due days" value={recurringInvoiceForm.due_days} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, due_days: Number(event.target.value) })} />
+        <AccountSelect label="Accounts receivable" accounts={accounts} value={recurringInvoiceForm.accounts_receivable_id} onChange={(value) => setRecurringInvoiceForm({ ...recurringInvoiceForm, accounts_receivable_id: value })} />
+        <input placeholder="Line description" value={recurringInvoiceForm.description} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, description: event.target.value })} required />
+        <input type="number" min="1" placeholder="Quantity millis" value={recurringInvoiceForm.quantity_millis} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, quantity_millis: Number(event.target.value) })} />
+        <input type="number" min="0" placeholder="Unit price minor" value={recurringInvoiceForm.unit_price_minor} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, unit_price_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Income account" accounts={accounts} value={recurringInvoiceForm.income_account_id} onChange={(value) => setRecurringInvoiceForm({ ...recurringInvoiceForm, income_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={recurringInvoiceForm.tax_target} onChange={(event) => setRecurringInvoiceForm({ ...recurringInvoiceForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreateRecurringInvoice || loading === "create-recurring-invoice"}>
+          {loading === "create-recurring-invoice" ? "Creating..." : "Create recurring template"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Automation</p>
+            <h3>Recurring invoices</h3>
+            <p>Generate-due creates draft invoices; posting still stays explicit for audit control.</p>
+          </div>
+          <strong>{recurringInvoices.length}</strong>
+        </div>
+        <DataTable
+          headers={["Template", "Customer", "Frequency", "Next run", "Due days", "Total", "Active"]}
+          rows={recurringInvoices.map((template) => [
+            template.name,
+            customerName(template.customer_id),
+            template.frequency,
+            template.next_run_date.slice(0, 10),
+            String(template.due_days),
+            formatMinorAsInr(template.total_minor),
+            template.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+
+      <form className="panel form-grid" onSubmit={createEstimate}>
+        <label>
+          Customer
+          <select value={estimateForm.customer_id} onChange={(event) => setEstimateForm({ ...estimateForm, customer_id: event.target.value })} required>
+            <option value="">Select customer</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Estimate number" value={estimateForm.estimate_number} onChange={(event) => setEstimateForm({ ...estimateForm, estimate_number: event.target.value })} required />
+        <label>
+          Issue date
+          <input type="date" value={estimateForm.issue_date} onChange={(event) => setEstimateForm({ ...estimateForm, issue_date: event.target.value })} required />
+        </label>
+        <label>
+          Expiry date
+          <input type="date" value={estimateForm.expiry_date} onChange={(event) => setEstimateForm({ ...estimateForm, expiry_date: event.target.value })} required />
+        </label>
+        <input placeholder="Currency" value={estimateForm.currency} onChange={(event) => setEstimateForm({ ...estimateForm, currency: event.target.value })} />
+        <label>
+          Pricing mode
+          <select value={estimateForm.tax_inclusive ? "inclusive" : "exclusive"} onChange={(event) => setEstimateForm({ ...estimateForm, tax_inclusive: event.target.value === "inclusive" })}>
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <input placeholder="Line description" value={estimateForm.description} onChange={(event) => setEstimateForm({ ...estimateForm, description: event.target.value })} required />
+        <input type="number" min="1" placeholder="Quantity millis" value={estimateForm.quantity_millis} onChange={(event) => setEstimateForm({ ...estimateForm, quantity_millis: Number(event.target.value) })} />
+        <input type="number" min="0" placeholder="Unit price minor" value={estimateForm.unit_price_minor} onChange={(event) => setEstimateForm({ ...estimateForm, unit_price_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Income account" accounts={accounts} value={estimateForm.income_account_id} onChange={(value) => setEstimateForm({ ...estimateForm, income_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={estimateForm.tax_target} onChange={(event) => setEstimateForm({ ...estimateForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreateEstimate || loading === "create-estimate"}>
+          {loading === "create-estimate" ? "Creating..." : "Create estimate"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Quotes</p>
+            <h3>Estimates</h3>
+            <p>Estimates are non-posting commercial documents and do not affect the ledger.</p>
+          </div>
+          <strong>{estimates.length}</strong>
+        </div>
+        <DataTable
+          headers={["Estimate", "Customer", "Issue", "Expiry", "Status", "Total", "Action"]}
+          rows={estimates.map((estimate) => [
+            estimate.estimate_number,
+            customerName(estimate.customer_id),
+            estimate.issue_date.slice(0, 10),
+            estimate.expiry_date.slice(0, 10),
+            estimate.status,
+            formatMinorAsInr(estimate.total_minor),
+            estimate.status === "converted" || estimate.status === "void" ? "" : "Convert available"
+          ])}
+        />
+        <div className="button-row">
+          {estimates.filter((estimate) => estimate.status !== "converted" && estimate.status !== "void").slice(0, 5).map((estimate) => (
+            <span key={estimate.id} className="button-row">
+              {estimate.status === "draft" && (
+                <button className="secondary compact" disabled={loading === `${estimate.id}-sent`} onClick={() => void updateEstimateStatus(estimate, "sent")}>
+                  {loading === `${estimate.id}-sent` ? "Sending..." : `Send ${estimate.estimate_number}`}
+                </button>
+              )}
+              {(estimate.status === "draft" || estimate.status === "sent") && (
+                <button className="secondary compact" disabled={loading === `${estimate.id}-accepted`} onClick={() => void updateEstimateStatus(estimate, "accepted")}>
+                  {loading === `${estimate.id}-accepted` ? "Accepting..." : "Accept"}
+                </button>
+              )}
+              <button className="secondary compact" disabled={loading === estimate.id} onClick={() => void convertEstimateToInvoice(estimate)}>
+                {loading === estimate.id ? "Converting..." : `Convert ${estimate.estimate_number}`}
+              </button>
+              <button className="secondary compact" disabled={loading === `${estimate.id}-void`} onClick={() => void updateEstimateStatus(estimate, "void")}>
+                {loading === `${estimate.id}-void` ? "Voiding..." : "Void"}
+              </button>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <form className="panel form-grid" onSubmit={createCreditNote}>
+        <label>
+          Customer
+          <select value={creditNoteForm.customer_id} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, customer_id: event.target.value })} required>
+            <option value="">Select customer</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Related invoice
+          <select value={creditNoteForm.invoice_id} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, invoice_id: event.target.value })}>
+            <option value="">No specific invoice</option>
+            {invoices.map((invoice) => (
+              <option key={invoice.id} value={invoice.id}>{invoice.invoice_number}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Credit note number" value={creditNoteForm.credit_note_number} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, credit_note_number: event.target.value })} required />
+        <label>
+          Issue date
+          <input type="date" value={creditNoteForm.issue_date} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, issue_date: event.target.value })} required />
+        </label>
+        <input placeholder="Currency" value={creditNoteForm.currency} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, currency: event.target.value })} />
+        <label>
+          Pricing mode
+          <select value={creditNoteForm.tax_inclusive ? "inclusive" : "exclusive"} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, tax_inclusive: event.target.value === "inclusive" })}>
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <AccountSelect label="Accounts receivable" accounts={accounts} value={creditNoteForm.accounts_receivable_id} onChange={(value) => setCreditNoteForm({ ...creditNoteForm, accounts_receivable_id: value })} />
+        <input placeholder="Line description" value={creditNoteForm.description} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, description: event.target.value })} required />
+        <input type="number" min="1" placeholder="Quantity millis" value={creditNoteForm.quantity_millis} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, quantity_millis: Number(event.target.value) })} />
+        <input type="number" min="0" placeholder="Unit price minor" value={creditNoteForm.unit_price_minor} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, unit_price_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Income account" accounts={accounts} value={creditNoteForm.income_account_id} onChange={(value) => setCreditNoteForm({ ...creditNoteForm, income_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={creditNoteForm.tax_target} onChange={(event) => setCreditNoteForm({ ...creditNoteForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreateCreditNote || loading === "create-credit-note"}>
+          {loading === "create-credit-note" ? "Creating..." : "Create credit note"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Credits</p>
+            <h3>Credit notes</h3>
+            <p>Posting a credit note reduces revenue/output GST and credits accounts receivable.</p>
+          </div>
+          <strong>{creditNotes.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Credit note</th>
+                <th>Customer</th>
+                <th>Issue</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {creditNotes.map((creditNote) => (
+                <tr key={creditNote.id}>
+                  <td>{creditNote.credit_note_number}</td>
+                  <td>{customerName(creditNote.customer_id)}</td>
+                  <td>{creditNote.issue_date.slice(0, 10)}</td>
+                  <td>{creditNote.status}</td>
+                  <td>{formatMinorAsInr(creditNote.total_minor)}</td>
+                  <td>
+                    <button className="secondary compact" disabled={creditNote.status !== "draft" || loading === creditNote.id} onClick={() => void postCreditNote(creditNote.id)}>
+                      {loading === creditNote.id ? "Posting..." : "Post"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+
+      <form className="panel form-grid" onSubmit={recordCustomerPayment}>
+        <label>
+          Invoice
+          <select value={paymentForm.invoice_id} onChange={(event) => setPaymentForm({ ...paymentForm, invoice_id: event.target.value })} required>
+            <option value="">Select posted invoice</option>
+            {invoices.filter((invoice) => invoice.status === "posted" || invoice.status === "paid").map((invoice) => (
+              <option key={invoice.id} value={invoice.id}>{invoice.invoice_number} · {customerName(invoice.customer_id)} · {formatMinorAsInr(invoice.total_minor)}</option>
+            ))}
+          </select>
+        </label>
+        <input
+          placeholder="Receipt number"
+          value={paymentForm.payment_number}
+          onChange={(event) => setPaymentForm({ ...paymentForm, payment_number: event.target.value })}
+          required
+        />
+        <label>
+          Payment date
+          <input type="date" value={paymentForm.payment_date} onChange={(event) => setPaymentForm({ ...paymentForm, payment_date: event.target.value })} required />
+        </label>
+        <input
+          placeholder="Method"
+          value={paymentForm.payment_method}
+          onChange={(event) => setPaymentForm({ ...paymentForm, payment_method: event.target.value })}
+        />
+        <input
+          placeholder="Reference"
+          value={paymentForm.reference}
+          onChange={(event) => setPaymentForm({ ...paymentForm, reference: event.target.value })}
+        />
+        <input
+          placeholder="Currency"
+          value={paymentForm.currency}
+          onChange={(event) => setPaymentForm({ ...paymentForm, currency: event.target.value })}
+        />
+        <input
+          type="number"
+          min="1"
+          placeholder="Amount minor"
+          value={paymentForm.amount_minor}
+          onChange={(event) => setPaymentForm({ ...paymentForm, amount_minor: Number(event.target.value) })}
+          required
+        />
+        <AccountSelect label="Deposit account" accounts={accounts} value={paymentForm.payment_account_id} onChange={(value) => setPaymentForm({ ...paymentForm, payment_account_id: value })} />
+        <button disabled={!canRecordPayment || loading === "record-payment"}>
+          {loading === "record-payment" ? "Recording..." : "Record receipt"}
+        </button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={createInvoice}>
+        <label>
+          Customer
+          <select value={invoiceForm.customer_id} onChange={(event) => setInvoiceForm({ ...invoiceForm, customer_id: event.target.value })} required>
+            <option value="">Select customer</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input
+          placeholder="Invoice number"
+          value={invoiceForm.invoice_number}
+          onChange={(event) => setInvoiceForm({ ...invoiceForm, invoice_number: event.target.value })}
+          required
+        />
+        <label>
+          Issue date
+          <input type="date" value={invoiceForm.issue_date} onChange={(event) => setInvoiceForm({ ...invoiceForm, issue_date: event.target.value })} required />
+        </label>
+        <label>
+          Due date
+          <input type="date" value={invoiceForm.due_date} onChange={(event) => setInvoiceForm({ ...invoiceForm, due_date: event.target.value })} required />
+        </label>
+        <input
+          placeholder="Currency"
+          value={invoiceForm.currency}
+          onChange={(event) => setInvoiceForm({ ...invoiceForm, currency: event.target.value })}
+        />
+        <label>
+          Pricing mode
+          <select
+            value={invoiceForm.tax_inclusive ? "inclusive" : "exclusive"}
+            onChange={(event) => setInvoiceForm({ ...invoiceForm, tax_inclusive: event.target.value === "inclusive" })}
+          >
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <AccountSelect
+          label="Accounts receivable"
+          accounts={accounts}
+          value={invoiceForm.accounts_receivable_id}
+          onChange={(value) => setInvoiceForm({ ...invoiceForm, accounts_receivable_id: value })}
+        />
+        <input
+          placeholder="Line description"
+          value={invoiceForm.description}
+          onChange={(event) => setInvoiceForm({ ...invoiceForm, description: event.target.value })}
+          required
+        />
+        <input
+          type="number"
+          min="1"
+          placeholder="Quantity millis"
+          value={invoiceForm.quantity_millis}
+          onChange={(event) => setInvoiceForm({ ...invoiceForm, quantity_millis: Number(event.target.value) })}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Unit price minor"
+          value={invoiceForm.unit_price_minor}
+          onChange={(event) => setInvoiceForm({ ...invoiceForm, unit_price_minor: Number(event.target.value) })}
+          required
+        />
+        <AccountSelect
+          label="Income account"
+          accounts={accounts}
+          value={invoiceForm.income_account_id}
+          onChange={(value) => setInvoiceForm({ ...invoiceForm, income_account_id: value })}
+        />
+        <label>
+          GST rate/group
+          <select value={invoiceForm.tax_target} onChange={(event) => setInvoiceForm({ ...invoiceForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreateInvoice || loading === "create-invoice"}>
+          {loading === "create-invoice" ? "Creating..." : "Create draft invoice"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Accounts receivable</p>
+            <h3>Invoices</h3>
+            <p>Draft invoices post to AR/revenue/GST. Posted invoices can receive payments, and paid invoices drop out of AR aging.</p>
+          </div>
+          <strong>{invoices.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Customer</th>
+                <th>Issue</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Subtotal</th>
+                <th>Tax</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((invoice) => (
+                <tr key={invoice.id}>
+                  <td>{invoice.invoice_number}</td>
+                  <td>{customerName(invoice.customer_id)}</td>
+                  <td>{invoice.issue_date?.slice(0, 10) ?? ""}</td>
+                  <td>{invoice.due_date?.slice(0, 10) ?? ""}</td>
+                  <td>{invoice.status}</td>
+                  <td>{formatMinorAsInr(invoice.subtotal_minor)}</td>
+                  <td>{formatMinorAsInr(invoice.tax_total_minor)}</td>
+                  <td>{formatMinorAsInr(invoice.total_minor)}</td>
+                  <td>
+                    <button
+                      className="secondary compact"
+                      disabled={invoice.status !== "draft" || loading === invoice.id}
+                      onClick={() => void postInvoice(invoice.id)}
+                    >
+                      {loading === invoice.id ? "Posting..." : "Post"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function ExpensesPage({
+  api,
+  accounts,
+  vendors,
+  expenses,
+  bills,
+  purchaseOrders,
+  taxRates,
+  taxGroups,
+  onVendorsChanged,
+  onExpensesChanged,
+  onBillsChanged,
+  onPurchaseOrdersChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  vendors: Vendor[];
+  expenses: Expense[];
+  bills: Bill[];
+  purchaseOrders: PurchaseOrder[];
+  taxRates: TaxRate[];
+  taxGroups: TaxGroup[];
+  onVendorsChanged: (vendors: Vendor[]) => void;
+  onExpensesChanged: (expenses: Expense[]) => void;
+  onBillsChanged: (bills: Bill[]) => void;
+  onPurchaseOrdersChanged: (purchaseOrders: PurchaseOrder[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [expenseError, setExpenseError] = useState("");
+  const [expenseNotice, setExpenseNotice] = useState("");
+  const [loading, setLoading] = useState<"vendors" | "expenses" | "create-vendor" | "create-expense" | string | null>(null);
+  const [vendorForm, setVendorForm] = useState({
+    display_name: "",
+    email: "",
+    phone: "",
+    billing_address: "",
+    gstin: ""
+  });
+  const [expenseForm, setExpenseForm] = useState({
+    vendor_id: "",
+    expense_number: "",
+    expense_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    tax_inclusive: false,
+    amount_minor: 0,
+    expense_account_id: "",
+    payment_account_id: "",
+    tax_target: "",
+    reimbursable: false
+  });
+  const [billForm, setBillForm] = useState({
+    vendor_id: "",
+    bill_number: "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    due_date: new Date().toISOString().slice(0, 10),
+    currency: "INR",
+    tax_inclusive: false,
+    accounts_payable_id: "",
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    expense_account_id: "",
+    tax_target: ""
+  });
+  const [vendorPaymentForm, setVendorPaymentForm] = useState({
+    bill_id: "",
+    payment_number: "",
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: "bank_transfer",
+    reference: "",
+    currency: "INR",
+    amount_minor: 0,
+    payment_account_id: ""
+  });
+  const [purchaseOrderForm, setPurchaseOrderForm] = useState({
+    vendor_id: "",
+    purchase_order_number: "",
+    issue_date: new Date().toISOString().slice(0, 10),
+    expected_date: "",
+    currency: "INR",
+    tax_inclusive: false,
+    description: "",
+    quantity_millis: 1000,
+    unit_price_minor: 0,
+    expense_account_id: "",
+    tax_target: ""
+  });
+  const draftExpenses = expenses.filter((expense) => expense.status === "draft").length;
+  const postedExpenses = expenses.filter((expense) => expense.status === "posted").length;
+  const draftBills = bills.filter((bill) => bill.status === "draft").length;
+  const postedBills = bills.filter((bill) => bill.status === "posted").length;
+  const draftPurchaseOrders = purchaseOrders.filter((purchaseOrder) => purchaseOrder.status === "draft").length;
+  const canCreateVendor = Boolean(vendorForm.display_name.trim());
+  const canCreateExpense = Boolean(
+    expenseForm.expense_number.trim() &&
+    expenseForm.amount_minor >= 0 &&
+    expenseForm.expense_account_id &&
+    expenseForm.payment_account_id
+  );
+  const canCreateBill = Boolean(
+    billForm.vendor_id &&
+    billForm.bill_number.trim() &&
+    billForm.accounts_payable_id &&
+    billForm.expense_account_id &&
+    billForm.description.trim() &&
+    billForm.unit_price_minor > 0
+  );
+  const canRecordVendorPayment = Boolean(
+    vendorPaymentForm.bill_id &&
+    vendorPaymentForm.payment_number.trim() &&
+    vendorPaymentForm.amount_minor > 0 &&
+    vendorPaymentForm.payment_account_id
+  );
+  const canCreatePurchaseOrder = Boolean(
+    purchaseOrderForm.vendor_id &&
+    purchaseOrderForm.purchase_order_number.trim() &&
+    purchaseOrderForm.description.trim() &&
+    purchaseOrderForm.expense_account_id &&
+    purchaseOrderForm.unit_price_minor >= 0
+  );
+
+  async function refreshVendors() {
+    setLoading("vendors");
+    setExpenseError("");
+    try {
+      const nextVendors = await api.listVendors();
+      onVendorsChanged(nextVendors);
+      setExpenseNotice(`Loaded ${nextVendors.length} vendors.`);
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshExpenses() {
+    setLoading("expenses");
+    setExpenseError("");
+    try {
+      const nextExpenses = await api.listExpenses();
+      onExpensesChanged(nextExpenses);
+      setExpenseNotice(`Loaded ${nextExpenses.length} expenses.`);
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshBills() {
+    setLoading("bills");
+    setExpenseError("");
+    try {
+      const nextBills = await api.listBills();
+      onBillsChanged(nextBills);
+      setExpenseNotice(`Loaded ${nextBills.length} bills.`);
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function refreshPurchaseOrders() {
+    setLoading("purchase-orders");
+    setExpenseError("");
+    try {
+      const nextPurchaseOrders = await api.listPurchaseOrders();
+      onPurchaseOrdersChanged(nextPurchaseOrders);
+      setExpenseNotice(`Loaded ${nextPurchaseOrders.length} purchase orders.`);
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createVendor(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateVendor) {
+      return;
+    }
+
+    setLoading("create-vendor");
+    setExpenseError("");
+    try {
+      const vendor = await api.createVendor(toVendorInput(vendorForm));
+      onVendorsChanged([vendor, ...vendors]);
+      setVendorForm({
+        display_name: "",
+        email: "",
+        phone: "",
+        billing_address: "",
+        gstin: ""
+      });
+      setExpenseNotice(`Created vendor ${vendor.display_name}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createExpense(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateExpense) {
+      return;
+    }
+
+    setLoading("create-expense");
+    setExpenseError("");
+    try {
+      const expense = await api.createExpense(toExpenseInput(expenseForm));
+      onExpensesChanged([expense, ...expenses]);
+      setExpenseForm({
+        ...expenseForm,
+        vendor_id: "",
+        expense_number: "",
+        amount_minor: 0,
+        tax_target: "",
+        reimbursable: false
+      });
+      setExpenseNotice(`Created expense ${expense.expense_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function postExpense(expenseId: string) {
+    setLoading(expenseId);
+    setExpenseError("");
+    try {
+      const postedExpense = await api.postExpense(expenseId);
+      onExpensesChanged(expenses.map((expense) => expense.id === postedExpense.id ? postedExpense : expense));
+      setExpenseNotice(`Posted expense ${postedExpense.expense_number} to the ledger.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createBill(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateBill) {
+      return;
+    }
+    setLoading("create-bill");
+    setExpenseError("");
+    try {
+      const bill = await api.createBill(toBillInput(billForm));
+      onBillsChanged([bill, ...bills]);
+      setBillForm({ ...billForm, bill_number: "", description: "", unit_price_minor: 0, tax_target: "" });
+      setExpenseNotice(`Created bill ${bill.bill_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function createPurchaseOrder(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreatePurchaseOrder) {
+      return;
+    }
+    setLoading("create-purchase-order");
+    setExpenseError("");
+    try {
+      const purchaseOrder = await api.createPurchaseOrder(toPurchaseOrderInput(purchaseOrderForm));
+      onPurchaseOrdersChanged([purchaseOrder, ...purchaseOrders]);
+      setPurchaseOrderForm({ ...purchaseOrderForm, purchase_order_number: "", description: "", unit_price_minor: 0, tax_target: "" });
+      setExpenseNotice(`Created purchase order ${purchaseOrder.purchase_order_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function postBill(billId: string) {
+    setLoading(billId);
+    setExpenseError("");
+    try {
+      const postedBill = await api.postBill(billId);
+      onBillsChanged(bills.map((bill) => bill.id === postedBill.id ? postedBill : bill));
+      setExpenseNotice(`Posted bill ${postedBill.bill_number} to accounts payable.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function recordVendorPayment(event: FormEvent) {
+    event.preventDefault();
+    if (!canRecordVendorPayment) {
+      return;
+    }
+    setLoading("record-vendor-payment");
+    setExpenseError("");
+    try {
+      await api.recordVendorPayment(vendorPaymentForm.bill_id, toRecordPaymentInput(vendorPaymentForm));
+      const nextBills = await api.listBills();
+      onBillsChanged(nextBills);
+      setVendorPaymentForm({
+        ...vendorPaymentForm,
+        bill_id: "",
+        payment_number: "",
+        reference: "",
+        amount_minor: 0
+      });
+      setExpenseNotice("Recorded vendor payment and updated AP status.");
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function convertPurchaseOrderToBill(purchaseOrder: PurchaseOrder) {
+    const accountsPayable = defaultAccountsPayableAccount(accounts);
+    if (!accountsPayable) {
+      setExpenseError("Create or seed an accounts payable account before converting purchase orders.");
+      return;
+    }
+    const billNumber = window.prompt("Bill number", purchaseOrder.purchase_order_number.replace(/^PO/i, "BILL"));
+    if (!billNumber) {
+      return;
+    }
+    const issueDate = new Date().toISOString().slice(0, 10);
+    const dueDate = addDays(issueDate, 30);
+    setLoading(purchaseOrder.id);
+    setExpenseError("");
+    try {
+      const bill = await api.convertPurchaseOrderToBill(purchaseOrder.id, {
+        bill_number: billNumber.trim(),
+        issue_date: issueDate,
+        due_date: dueDate,
+        accounts_payable_id: accountsPayable.id
+      });
+      onBillsChanged([bill, ...bills]);
+      const nextPurchaseOrders = await api.listPurchaseOrders();
+      onPurchaseOrdersChanged(nextPurchaseOrders);
+      setExpenseNotice(`Converted purchase order ${purchaseOrder.purchase_order_number} to draft bill ${bill.bill_number}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function updatePurchaseOrderStatus(purchaseOrder: PurchaseOrder, status: PurchaseOrder["status"]) {
+    setLoading(`${purchaseOrder.id}-${status}`);
+    setExpenseError("");
+    try {
+      const updated = await api.updatePurchaseOrderStatus(purchaseOrder.id, status);
+      onPurchaseOrdersChanged(purchaseOrders.map((candidate) => candidate.id === updated.id ? updated : candidate));
+      setExpenseNotice(`Updated purchase order ${updated.purchase_order_number} to ${updated.status}.`);
+      await onRefresh();
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function vendorName(vendorId?: string | null) {
+    return vendors.find((vendor) => vendor.id === vendorId)?.display_name ?? vendorId ?? "";
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Expenses</p>
+          <h3>Vendor and expense control</h3>
+          <p>
+            Cached locally: {vendors.length} vendors, {expenses.length} paid/spend records, and {bills.length} AP bills.
+            Expenses: {draftExpenses} draft/{postedExpenses} posted. Bills: {draftBills} draft/{postedBills} posted.
+            Purchase orders: {purchaseOrders.length} total/{draftPurchaseOrders} draft.
+          </p>
+        </div>
+        <div className="button-row">
+          <button className="secondary" disabled={loading === "vendors"} onClick={() => void refreshVendors()}>
+            {loading === "vendors" ? "Loading..." : "Refresh vendors"}
+          </button>
+          <button className="secondary" disabled={loading === "expenses"} onClick={() => void refreshExpenses()}>
+            {loading === "expenses" ? "Loading..." : "Refresh expenses"}
+          </button>
+          <button className="secondary" disabled={loading === "bills"} onClick={() => void refreshBills()}>
+            {loading === "bills" ? "Loading..." : "Refresh bills"}
+          </button>
+          <button className="secondary" disabled={loading === "purchase-orders"} onClick={() => void refreshPurchaseOrders()}>
+            {loading === "purchase-orders" ? "Loading..." : "Refresh POs"}
+          </button>
+        </div>
+      </section>
+
+      {expenseError && <div className="alert error">{expenseError}</div>}
+      {expenseNotice && <div className="alert success">{expenseNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={createVendor}>
+        <input placeholder="Display name" value={vendorForm.display_name} onChange={(event) => setVendorForm({ ...vendorForm, display_name: event.target.value })} required />
+        <input placeholder="Email" value={vendorForm.email} onChange={(event) => setVendorForm({ ...vendorForm, email: event.target.value })} />
+        <input placeholder="Phone" value={vendorForm.phone} onChange={(event) => setVendorForm({ ...vendorForm, phone: event.target.value })} />
+        <input placeholder="GSTIN" value={vendorForm.gstin} onChange={(event) => setVendorForm({ ...vendorForm, gstin: event.target.value })} />
+        <input placeholder="Billing address" value={vendorForm.billing_address} onChange={(event) => setVendorForm({ ...vendorForm, billing_address: event.target.value })} />
+        <button disabled={!canCreateVendor || loading === "create-vendor"}>
+          {loading === "create-vendor" ? "Creating..." : "Create vendor"}
+        </button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={createPurchaseOrder}>
+        <label>
+          Vendor
+          <select value={purchaseOrderForm.vendor_id} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, vendor_id: event.target.value })} required>
+            <option value="">Select vendor</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>{vendor.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="PO number" value={purchaseOrderForm.purchase_order_number} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, purchase_order_number: event.target.value })} required />
+        <label>
+          Issue date
+          <input type="date" value={purchaseOrderForm.issue_date} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, issue_date: event.target.value })} required />
+        </label>
+        <label>
+          Expected date
+          <input type="date" value={purchaseOrderForm.expected_date} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, expected_date: event.target.value })} />
+        </label>
+        <input placeholder="Currency" value={purchaseOrderForm.currency} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, currency: event.target.value })} />
+        <label>
+          Pricing mode
+          <select value={purchaseOrderForm.tax_inclusive ? "inclusive" : "exclusive"} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, tax_inclusive: event.target.value === "inclusive" })}>
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <input placeholder="Line description" value={purchaseOrderForm.description} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, description: event.target.value })} required />
+        <input type="number" min="1" placeholder="Quantity millis" value={purchaseOrderForm.quantity_millis} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, quantity_millis: Number(event.target.value) })} />
+        <input type="number" min="0" placeholder="Unit price minor" value={purchaseOrderForm.unit_price_minor} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, unit_price_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Expense account" accounts={accounts} value={purchaseOrderForm.expense_account_id} onChange={(value) => setPurchaseOrderForm({ ...purchaseOrderForm, expense_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={purchaseOrderForm.tax_target} onChange={(event) => setPurchaseOrderForm({ ...purchaseOrderForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreatePurchaseOrder || loading === "create-purchase-order"}>
+          {loading === "create-purchase-order" ? "Creating..." : "Create purchase order"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Procurement</p>
+            <h3>Purchase orders</h3>
+            <p>Purchase orders are non-posting documents used before vendor bills.</p>
+          </div>
+          <strong>{purchaseOrders.length}</strong>
+        </div>
+        <DataTable
+          headers={["PO", "Vendor", "Issue", "Expected", "Status", "Total", "Action"]}
+          rows={purchaseOrders.map((purchaseOrder) => [
+            purchaseOrder.purchase_order_number,
+            vendorName(purchaseOrder.vendor_id),
+            purchaseOrder.issue_date.slice(0, 10),
+            purchaseOrder.expected_date?.slice(0, 10) ?? "",
+            purchaseOrder.status,
+            formatMinorAsInr(purchaseOrder.total_minor),
+            purchaseOrder.status === "converted" || purchaseOrder.status === "void" ? "" : "Convert available"
+          ])}
+        />
+        <div className="button-row">
+          {purchaseOrders.filter((purchaseOrder) => purchaseOrder.status !== "converted" && purchaseOrder.status !== "void").slice(0, 5).map((purchaseOrder) => (
+            <span key={purchaseOrder.id} className="button-row">
+              {purchaseOrder.status === "draft" && (
+                <button className="secondary compact" disabled={loading === `${purchaseOrder.id}-sent`} onClick={() => void updatePurchaseOrderStatus(purchaseOrder, "sent")}>
+                  {loading === `${purchaseOrder.id}-sent` ? "Sending..." : `Send ${purchaseOrder.purchase_order_number}`}
+                </button>
+              )}
+              {(purchaseOrder.status === "draft" || purchaseOrder.status === "sent") && (
+                <button className="secondary compact" disabled={loading === `${purchaseOrder.id}-approved`} onClick={() => void updatePurchaseOrderStatus(purchaseOrder, "approved")}>
+                  {loading === `${purchaseOrder.id}-approved` ? "Approving..." : "Approve"}
+                </button>
+              )}
+              <button className="secondary compact" disabled={loading === purchaseOrder.id} onClick={() => void convertPurchaseOrderToBill(purchaseOrder)}>
+                {loading === purchaseOrder.id ? "Converting..." : `Convert ${purchaseOrder.purchase_order_number}`}
+              </button>
+              <button className="secondary compact" disabled={loading === `${purchaseOrder.id}-void`} onClick={() => void updatePurchaseOrderStatus(purchaseOrder, "void")}>
+                {loading === `${purchaseOrder.id}-void` ? "Voiding..." : "Void"}
+              </button>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <form className="panel form-grid" onSubmit={createBill}>
+        <label>
+          Vendor
+          <select value={billForm.vendor_id} onChange={(event) => setBillForm({ ...billForm, vendor_id: event.target.value })} required>
+            <option value="">Select vendor</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>{vendor.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Bill number" value={billForm.bill_number} onChange={(event) => setBillForm({ ...billForm, bill_number: event.target.value })} required />
+        <label>
+          Issue date
+          <input type="date" value={billForm.issue_date} onChange={(event) => setBillForm({ ...billForm, issue_date: event.target.value })} required />
+        </label>
+        <label>
+          Due date
+          <input type="date" value={billForm.due_date} onChange={(event) => setBillForm({ ...billForm, due_date: event.target.value })} required />
+        </label>
+        <input placeholder="Currency" value={billForm.currency} onChange={(event) => setBillForm({ ...billForm, currency: event.target.value })} />
+        <label>
+          Pricing mode
+          <select value={billForm.tax_inclusive ? "inclusive" : "exclusive"} onChange={(event) => setBillForm({ ...billForm, tax_inclusive: event.target.value === "inclusive" })}>
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <AccountSelect label="Accounts payable" accounts={accounts} value={billForm.accounts_payable_id} onChange={(value) => setBillForm({ ...billForm, accounts_payable_id: value })} />
+        <input placeholder="Line description" value={billForm.description} onChange={(event) => setBillForm({ ...billForm, description: event.target.value })} required />
+        <input type="number" min="1" placeholder="Quantity millis" value={billForm.quantity_millis} onChange={(event) => setBillForm({ ...billForm, quantity_millis: Number(event.target.value) })} />
+        <input type="number" min="0" placeholder="Unit price minor" value={billForm.unit_price_minor} onChange={(event) => setBillForm({ ...billForm, unit_price_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Expense account" accounts={accounts} value={billForm.expense_account_id} onChange={(value) => setBillForm({ ...billForm, expense_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={billForm.tax_target} onChange={(event) => setBillForm({ ...billForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canCreateBill || loading === "create-bill"}>
+          {loading === "create-bill" ? "Creating..." : "Create draft bill"}
+        </button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={recordVendorPayment}>
+        <label>
+          Bill
+          <select value={vendorPaymentForm.bill_id} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, bill_id: event.target.value })} required>
+            <option value="">Select posted bill</option>
+            {bills.filter((bill) => bill.status === "posted" || bill.status === "paid").map((bill) => (
+              <option key={bill.id} value={bill.id}>{bill.bill_number} · {vendorName(bill.vendor_id)} · {formatMinorAsInr(bill.total_minor)}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Payment number" value={vendorPaymentForm.payment_number} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, payment_number: event.target.value })} required />
+        <label>
+          Payment date
+          <input type="date" value={vendorPaymentForm.payment_date} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, payment_date: event.target.value })} required />
+        </label>
+        <input placeholder="Method" value={vendorPaymentForm.payment_method} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, payment_method: event.target.value })} />
+        <input placeholder="Reference" value={vendorPaymentForm.reference} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, reference: event.target.value })} />
+        <input placeholder="Currency" value={vendorPaymentForm.currency} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, currency: event.target.value })} />
+        <input type="number" min="1" placeholder="Amount minor" value={vendorPaymentForm.amount_minor} onChange={(event) => setVendorPaymentForm({ ...vendorPaymentForm, amount_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Payment account" accounts={accounts} value={vendorPaymentForm.payment_account_id} onChange={(value) => setVendorPaymentForm({ ...vendorPaymentForm, payment_account_id: value })} />
+        <button disabled={!canRecordVendorPayment || loading === "record-vendor-payment"}>
+          {loading === "record-vendor-payment" ? "Recording..." : "Record vendor payment"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Accounts payable</p>
+            <h3>Bills</h3>
+            <p>Draft bills post to expense/input GST and accounts payable, then feed AP aging.</p>
+          </div>
+          <strong>{bills.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Bill</th>
+                <th>Vendor</th>
+                <th>Issue</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th>Subtotal</th>
+                <th>Tax</th>
+                <th>Total</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bills.map((bill) => (
+                <tr key={bill.id}>
+                  <td>{bill.bill_number}</td>
+                  <td>{vendorName(bill.vendor_id)}</td>
+                  <td>{bill.issue_date.slice(0, 10)}</td>
+                  <td>{bill.due_date.slice(0, 10)}</td>
+                  <td>{bill.status}</td>
+                  <td>{formatMinorAsInr(bill.subtotal_minor)}</td>
+                  <td>{formatMinorAsInr(bill.tax_total_minor)}</td>
+                  <td>{formatMinorAsInr(bill.total_minor)}</td>
+                  <td>
+                    <button
+                      className="secondary compact"
+                      disabled={bill.status !== "draft" || loading === bill.id}
+                      onClick={() => void postBill(bill.id)}
+                    >
+                      {loading === bill.id ? "Posting..." : "Post"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Vendors</p>
+            <h3>Vendor master</h3>
+            <p>Vendor GSTIN and billing details are cached locally after refresh for offline review.</p>
+          </div>
+          <strong>{vendors.length}</strong>
+        </div>
+        <DataTable
+          headers={["Name", "Email", "Phone", "GSTIN", "Active"]}
+          rows={vendors.map((vendor) => [
+            vendor.display_name,
+            vendor.email ?? "",
+            vendor.phone ?? "",
+            vendor.gstin ?? "",
+            vendor.is_active ? "Yes" : "No"
+          ])}
+        />
+      </section>
+
+      <form className="panel form-grid" onSubmit={createExpense}>
+        <label>
+          Vendor
+          <select value={expenseForm.vendor_id} onChange={(event) => setExpenseForm({ ...expenseForm, vendor_id: event.target.value })}>
+            <option value="">No vendor</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>{vendor.display_name}</option>
+            ))}
+          </select>
+        </label>
+        <input placeholder="Expense number" value={expenseForm.expense_number} onChange={(event) => setExpenseForm({ ...expenseForm, expense_number: event.target.value })} required />
+        <label>
+          Expense date
+          <input type="date" value={expenseForm.expense_date} onChange={(event) => setExpenseForm({ ...expenseForm, expense_date: event.target.value })} required />
+        </label>
+        <input placeholder="Currency" value={expenseForm.currency} onChange={(event) => setExpenseForm({ ...expenseForm, currency: event.target.value })} />
+        <label>
+          Pricing mode
+          <select value={expenseForm.tax_inclusive ? "inclusive" : "exclusive"} onChange={(event) => setExpenseForm({ ...expenseForm, tax_inclusive: event.target.value === "inclusive" })}>
+            <option value="exclusive">Tax exclusive</option>
+            <option value="inclusive">Tax inclusive</option>
+          </select>
+        </label>
+        <input type="number" min="0" placeholder="Amount minor" value={expenseForm.amount_minor} onChange={(event) => setExpenseForm({ ...expenseForm, amount_minor: Number(event.target.value) })} required />
+        <AccountSelect label="Expense account" accounts={accounts} value={expenseForm.expense_account_id} onChange={(value) => setExpenseForm({ ...expenseForm, expense_account_id: value })} />
+        <AccountSelect label="Payment account" accounts={accounts} value={expenseForm.payment_account_id} onChange={(value) => setExpenseForm({ ...expenseForm, payment_account_id: value })} />
+        <label>
+          GST rate/group
+          <select value={expenseForm.tax_target} onChange={(event) => setExpenseForm({ ...expenseForm, tax_target: event.target.value })}>
+            <option value="">No tax</option>
+            {taxGroups.map((group) => (
+              <option key={group.id} value={`group:${group.id}`}>Group: {group.name}</option>
+            ))}
+            {taxRates.map((rate) => (
+              <option key={rate.id} value={`rate:${rate.id}`}>Rate: {rate.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Reimbursable
+          <select value={expenseForm.reimbursable ? "yes" : "no"} onChange={(event) => setExpenseForm({ ...expenseForm, reimbursable: event.target.value === "yes" })}>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
+        <button disabled={!canCreateExpense || loading === "create-expense"}>
+          {loading === "create-expense" ? "Creating..." : "Create draft expense"}
+        </button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Spend</p>
+            <h3>Expenses</h3>
+            <p>Draft expenses can be posted from here to create expense/payment ledger entries.</p>
+          </div>
+          <strong>{expenses.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Expense</th>
+                <th>Vendor</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Subtotal</th>
+                <th>Tax</th>
+                <th>Total</th>
+                <th>Reimb.</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.map((expense) => (
+                <tr key={expense.id}>
+                  <td>{expense.expense_number}</td>
+                  <td>{vendorName(expense.vendor_id)}</td>
+                  <td>{expense.expense_date.slice(0, 10)}</td>
+                  <td>{expense.status}</td>
+                  <td>{formatMinorAsInr(expense.subtotal_minor)}</td>
+                  <td>{formatMinorAsInr(expense.tax_total_minor)}</td>
+                  <td>{formatMinorAsInr(expense.total_minor)}</td>
+                  <td>{expense.reimbursable ? "Yes" : "No"}</td>
+                  <td>
+                    <button
+                      className="secondary compact"
+                      disabled={expense.status !== "draft" || loading === expense.id}
+                      onClick={() => void postExpense(expense.id)}
+                    >
+                      {loading === expense.id ? "Posting..." : "Post"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function DocumentsPage({
+  api,
+  attachments,
+  onAttachmentsChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  attachments: Attachment[];
+  onAttachmentsChanged: (attachments: Attachment[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [metadataForm, setMetadataForm] = useState<CreateAttachmentInput>({
+    file_name: "",
+    content_type: "",
+    storage_driver: "local",
+    storage_key: "",
+    size_bytes: 0
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState("");
+  const [documentError, setDocumentError] = useState("");
+  const [documentNotice, setDocumentNotice] = useState("");
+  const canCreateMetadata = Boolean(metadataForm.file_name.trim() && metadataForm.storage_key.trim());
+  const canUpload = Boolean(selectedFile);
+
+  async function refreshAttachments() {
+    setLoading("refresh");
+    setDocumentError("");
+    try {
+      const nextAttachments = await api.listAttachments();
+      onAttachmentsChanged(nextAttachments);
+      setDocumentNotice(`Loaded ${nextAttachments.length} attachment metadata record(s).`);
+    } catch (error) {
+      setDocumentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createAttachment(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateMetadata) {
+      return;
+    }
+    setLoading("create-metadata");
+    setDocumentError("");
+    try {
+      const attachment = await api.createAttachment(toAttachmentInput(metadataForm));
+      onAttachmentsChanged([attachment, ...attachments]);
+      setMetadataForm({ file_name: "", content_type: "", storage_driver: "local", storage_key: "", size_bytes: 0 });
+      setDocumentNotice(`Attachment metadata saved for ${attachment.file_name}.`);
+      await onRefresh();
+    } catch (error) {
+      setDocumentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function uploadAttachment(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedFile) {
+      return;
+    }
+    setLoading("upload");
+    setDocumentError("");
+    try {
+      const attachment = await api.uploadAttachment(selectedFile);
+      onAttachmentsChanged([attachment, ...attachments]);
+      setSelectedFile(null);
+      setDocumentNotice(`Uploaded ${attachment.file_name}.`);
+      await onRefresh();
+    } catch (error) {
+      setDocumentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Documents</p>
+          <h3>Receipts, invoices, and generated files</h3>
+          <p>Create attachment metadata for external storage workflows or upload local files to the backend storage driver.</p>
+        </div>
+        <button className="secondary" disabled={loading === "refresh"} onClick={() => void refreshAttachments()}>
+          {loading === "refresh" ? "Refreshing..." : "Refresh attachments"}
+        </button>
+      </section>
+
+      {documentError && <div className="alert error">{documentError}</div>}
+      {documentNotice && <div className="alert success">{documentNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={uploadAttachment}>
+        <label>
+          Upload local file
+          <input type="file" onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} />
+        </label>
+        <div className="metric-card">
+          <span>Selected file</span>
+          <strong>{selectedFile ? selectedFile.name : "None"}</strong>
+        </div>
+        <button disabled={!canUpload || loading === "upload"}>{loading === "upload" ? "Uploading..." : "Upload file"}</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={createAttachment}>
+        <input placeholder="File name" value={metadataForm.file_name} onChange={(event) => setMetadataForm({ ...metadataForm, file_name: event.target.value })} />
+        <input placeholder="Content type" value={metadataForm.content_type ?? ""} onChange={(event) => setMetadataForm({ ...metadataForm, content_type: event.target.value })} />
+        <input placeholder="Storage driver" value={metadataForm.storage_driver ?? ""} onChange={(event) => setMetadataForm({ ...metadataForm, storage_driver: event.target.value })} />
+        <input placeholder="Storage key" value={metadataForm.storage_key} onChange={(event) => setMetadataForm({ ...metadataForm, storage_key: event.target.value })} />
+        <label>
+          Size bytes
+          <input type="number" min={0} value={metadataForm.size_bytes ?? 0} onChange={(event) => setMetadataForm({ ...metadataForm, size_bytes: Number(event.target.value) })} />
+        </label>
+        <button disabled={!canCreateMetadata || loading === "create-metadata"}>{loading === "create-metadata" ? "Saving..." : "Create metadata"}</button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Attachment catalog</p>
+            <h3>Stored documents</h3>
+            <p>Metadata is cached locally for offline lookup. Download requires a live authenticated API session.</p>
+          </div>
+          <strong>{attachments.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Type</th>
+                <th>Driver</th>
+                <th>Storage key</th>
+                <th>Size</th>
+                <th>Download</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attachments.map((attachment) => (
+                <tr key={attachment.id}>
+                  <td>{attachment.file_name}</td>
+                  <td>{attachment.content_type || "-"}</td>
+                  <td>{attachment.storage_driver}</td>
+                  <td>{attachment.storage_key}</td>
+                  <td>{formatBytes(attachment.size_bytes)}</td>
+                  <td>
+                    <a href={api.attachmentDownloadUrl(attachment.id)} target="_blank" rel="noreferrer">Download</a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function ReconciliationPage({
+  api,
+  accounts,
+  transactions,
+  statementLines,
+  onStatementLinesChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  transactions: JournalTransaction[];
+  statementLines: BankStatementLine[];
+  onStatementLinesChanged: (lines: BankStatementLine[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const defaultBankAccountId = accounts.find((account) => account.subtype === "bank" || account.subtype === "cash" || account.type === "asset")?.id ?? "";
+  const [accountId, setAccountId] = useState(defaultBankAccountId);
+  const [importForm, setImportForm] = useState({ file_name: "manual-bank-import.csv", format: "csv" });
+  const [qifForm, setQifForm] = useState({ file_name: "bank-statement.qif", qif_content: "" });
+  const [ofxForm, setOfxForm] = useState({ file_name: "bank-statement.ofx", ofx_content: "" });
+  const [lineForm, setLineForm] = useState({ posted_date: new Date().toISOString().slice(0, 10), description: "", amount_minor: 0, reference: "" });
+  const [draftLines, setDraftLines] = useState<ImportBankStatementInput["lines"]>([]);
+  const [matchForm, setMatchForm] = useState({ statement_line_id: "", ledger_split_id: "" });
+  const [loading, setLoading] = useState("");
+  const [reconciliationError, setReconciliationError] = useState("");
+  const [reconciliationNotice, setReconciliationNotice] = useState("");
+  const accountStatementLines = statementLines.filter((line) => !accountId || line.account_id === accountId);
+  const unmatchedLines = accountStatementLines.filter((line) => !line.matched_split_id);
+  const candidateSplits = transactions.flatMap((transaction) => (
+    transaction.splits
+      .filter((split) => split.account_id === accountId)
+      .map((split) => ({ transaction, split }))
+  ));
+  const unreconciledSplits = candidateSplits.filter(({ split }) => !split.reconciled);
+  const canAddLine = Boolean(lineForm.posted_date && lineForm.amount_minor !== 0);
+  const canImport = Boolean(accountId && draftLines.length > 0);
+  const canImportQif = Boolean(accountId && qifForm.qif_content.trim());
+  const canImportOfx = Boolean(accountId && ofxForm.ofx_content.trim());
+  const canMatch = Boolean(matchForm.statement_line_id && matchForm.ledger_split_id);
+
+  async function loadLines(selectedAccountId = accountId) {
+    if (!selectedAccountId) {
+      setReconciliationError("Select a bank/cash account before loading statement lines.");
+      return;
+    }
+    setLoading("load-lines");
+    setReconciliationError("");
+    try {
+      const nextLines = await api.listBankStatementLines(selectedAccountId);
+      const otherAccountLines = statementLines.filter((line) => line.account_id !== selectedAccountId);
+      onStatementLinesChanged([...nextLines, ...otherAccountLines]);
+      setReconciliationNotice(`Loaded ${nextLines.length} statement line(s).`);
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  function addDraftLine() {
+    if (!canAddLine) {
+      return;
+    }
+    setDraftLines([
+      ...draftLines,
+      {
+        posted_date: lineForm.posted_date,
+        description: lineForm.description.trim() || undefined,
+        amount_minor: lineForm.amount_minor,
+        reference: lineForm.reference.trim() || undefined
+      }
+    ]);
+    setLineForm({ posted_date: lineForm.posted_date, description: "", amount_minor: 0, reference: "" });
+    setReconciliationNotice("Statement line staged locally.");
+  }
+
+  function removeDraftLine(index: number) {
+    setDraftLines(draftLines.filter((_, draftIndex) => draftIndex !== index));
+    setReconciliationNotice("Staged statement line removed.");
+  }
+
+  async function importStatement(event: FormEvent) {
+    event.preventDefault();
+    if (!canImport) {
+      return;
+    }
+    setLoading("import");
+    setReconciliationError("");
+    try {
+      const result = await api.importBankStatement({
+        account_id: accountId,
+        file_name: importForm.file_name.trim() || undefined,
+        format: importForm.format.trim() || "csv",
+        lines: draftLines
+      });
+      const importedLines = result.lines ?? [];
+      const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
+      onStatementLinesChanged([...importedLines, ...otherAccountLines]);
+      setDraftLines([]);
+      setReconciliationNotice(`Imported ${result.line_count} statement line(s).`);
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function importQIFStatement(event: FormEvent) {
+    event.preventDefault();
+    if (!canImportQif) {
+      return;
+    }
+    setLoading("import-qif");
+    setReconciliationError("");
+    try {
+      const result = await api.importQIFBankStatement({
+        account_id: accountId,
+        file_name: qifForm.file_name.trim() || undefined,
+        qif_content: qifForm.qif_content
+      });
+      const importedLines = result.lines ?? [];
+      const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
+      onStatementLinesChanged([...importedLines, ...otherAccountLines]);
+      setQifForm({ ...qifForm, qif_content: "" });
+      setReconciliationNotice(`Imported ${result.line_count} QIF statement line(s).`);
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function importOFXStatement(event: FormEvent) {
+    event.preventDefault();
+    if (!canImportOfx) {
+      return;
+    }
+    setLoading("import-ofx");
+    setReconciliationError("");
+    try {
+      const result = await api.importOFXBankStatement({
+        account_id: accountId,
+        file_name: ofxForm.file_name.trim() || undefined,
+        ofx_content: ofxForm.ofx_content
+      });
+      const importedLines = result.lines ?? [];
+      const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
+      onStatementLinesChanged([...importedLines, ...otherAccountLines]);
+      setOfxForm({ ...ofxForm, ofx_content: "" });
+      setReconciliationNotice(`Imported ${result.line_count} OFX statement line(s).`);
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function matchStatementLine(event: FormEvent) {
+    event.preventDefault();
+    if (!canMatch) {
+      return;
+    }
+    setLoading("match");
+    setReconciliationError("");
+    try {
+      const matchedLine = await api.matchBankStatementLine(matchForm.statement_line_id, matchForm.ledger_split_id);
+      onStatementLinesChanged(statementLines.map((line) => line.id === matchedLine.id ? matchedLine : line));
+      setMatchForm({ statement_line_id: "", ledger_split_id: "" });
+      setReconciliationNotice("Statement line matched and ledger split reconciled.");
+      await onRefresh();
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  function updateAccount(nextAccountId: string) {
+    setAccountId(nextAccountId);
+    setMatchForm({ statement_line_id: "", ledger_split_id: "" });
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Bank reconciliation</p>
+          <h3>Import, review, and match statement lines</h3>
+          <p>Choose a bank/cash account, import structured statement lines, then match each line to an unreconciled ledger split.</p>
+        </div>
+        <button className="secondary" disabled={!accountId || loading === "load-lines"} onClick={() => void loadLines()}>
+          {loading === "load-lines" ? "Loading..." : "Load statement lines"}
+        </button>
+      </section>
+
+      {reconciliationError && <div className="alert error">{reconciliationError}</div>}
+      {reconciliationNotice && <div className="alert success">{reconciliationNotice}</div>}
+
+      <section className="panel form-grid">
+        <AccountSelect label="Bank or cash account" accounts={accounts.filter((account) => account.type === "asset")} value={accountId} onChange={updateAccount} />
+        <label>
+          Import file name
+          <input value={importForm.file_name} onChange={(event) => setImportForm({ ...importForm, file_name: event.target.value })} />
+        </label>
+        <label>
+          Format
+          <input value={importForm.format} onChange={(event) => setImportForm({ ...importForm, format: event.target.value })} />
+        </label>
+      </section>
+
+      <section className="panel form-grid">
+        <label>
+          Posted date
+          <input type="date" value={lineForm.posted_date} onChange={(event) => setLineForm({ ...lineForm, posted_date: event.target.value })} />
+        </label>
+        <label>
+          Description
+          <input value={lineForm.description} onChange={(event) => setLineForm({ ...lineForm, description: event.target.value })} placeholder="UPI receipt, bank charge, deposit" />
+        </label>
+        <label>
+          Amount minor
+          <input type="number" value={lineForm.amount_minor} onChange={(event) => setLineForm({ ...lineForm, amount_minor: Number(event.target.value) })} />
+        </label>
+        <label>
+          Reference
+          <input value={lineForm.reference} onChange={(event) => setLineForm({ ...lineForm, reference: event.target.value })} placeholder="UTR / cheque / narration ref" />
+        </label>
+        <button type="button" disabled={!canAddLine} onClick={addDraftLine}>Stage line</button>
+      </section>
+
+      <form className="panel queue-panel" onSubmit={importStatement}>
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Structured import</p>
+            <h3>Staged statement lines</h3>
+            <p>Positive amounts are inflows to the selected asset account; negative amounts are outflows.</p>
+          </div>
+          <strong>{draftLines.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Reference</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draftLines.map((line, index) => (
+                <tr key={`${line.posted_date}-${index}`}>
+                  <td>{line.posted_date}</td>
+                  <td>{line.description ?? "Unlabeled line"}</td>
+                  <td>{formatMinorAsInr(line.amount_minor)}</td>
+                  <td>{line.reference ?? "-"}</td>
+                  <td><button className="danger compact" type="button" onClick={() => removeDraftLine(index)}>Remove</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <button disabled={!canImport || loading === "import"}>{loading === "import" ? "Importing..." : "Import staged lines"}</button>
+      </form>
+
+      <form className="panel queue-panel" onSubmit={importQIFStatement}>
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">QIF import</p>
+            <h3>Paste bank-export QIF</h3>
+            <p>Supports common bank QIF records using D date, T amount, P/M description, and N reference fields.</p>
+          </div>
+          <strong>{qifForm.qif_content.trim() ? "Ready" : "Empty"}</strong>
+        </div>
+        <div className="form-grid">
+          <label>
+            QIF file name
+            <input value={qifForm.file_name} onChange={(event) => setQifForm({ ...qifForm, file_name: event.target.value })} />
+          </label>
+        </div>
+        <label className="full-span">
+          QIF content
+          <textarea
+            rows={8}
+            value={qifForm.qif_content}
+            onChange={(event) => setQifForm({ ...qifForm, qif_content: event.target.value })}
+            placeholder={"!Type:Bank\nD13/07/2026\nT1250.00\nPClient receipt\nNUPI-123\n^"}
+          />
+        </label>
+        <button disabled={!canImportQif || loading === "import-qif"}>{loading === "import-qif" ? "Importing..." : "Import QIF"}</button>
+      </form>
+
+      <form className="panel queue-panel" onSubmit={importOFXStatement}>
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">OFX import</p>
+            <h3>Paste bank-export OFX</h3>
+            <p>Supports common OFX statement transactions using DTPOSTED, TRNAMT, NAME/MEMO, and FITID fields.</p>
+          </div>
+          <strong>{ofxForm.ofx_content.trim() ? "Ready" : "Empty"}</strong>
+        </div>
+        <div className="form-grid">
+          <label>
+            OFX file name
+            <input value={ofxForm.file_name} onChange={(event) => setOfxForm({ ...ofxForm, file_name: event.target.value })} />
+          </label>
+        </div>
+        <label className="full-span">
+          OFX content
+          <textarea
+            rows={8}
+            value={ofxForm.ofx_content}
+            onChange={(event) => setOfxForm({ ...ofxForm, ofx_content: event.target.value })}
+            placeholder={"<OFX>\n<STMTTRN>\n<DTPOSTED>20260713\n<TRNAMT>1250.00\n<FITID>OFX-123\n<NAME>Client receipt\n</STMTTRN>\n</OFX>"}
+          />
+        </label>
+        <button disabled={!canImportOfx || loading === "import-ofx"}>{loading === "import-ofx" ? "Importing..." : "Import OFX"}</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={matchStatementLine}>
+        <label>
+          Unmatched statement line
+          <select value={matchForm.statement_line_id} onChange={(event) => setMatchForm({ ...matchForm, statement_line_id: event.target.value })}>
+            <option value="">Select statement line</option>
+            {unmatchedLines.map((line) => (
+              <option key={line.id} value={line.id}>
+                {line.posted_date.slice(0, 10)} · {formatMinorAsInr(line.amount_minor)} · {line.description || line.reference || line.id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Ledger split
+          <select value={matchForm.ledger_split_id} onChange={(event) => setMatchForm({ ...matchForm, ledger_split_id: event.target.value })}>
+            <option value="">Select ledger split</option>
+            {unreconciledSplits.map(({ transaction, split }) => (
+              <option key={split.id} value={split.id}>
+                {transaction.transaction_date.slice(0, 10)} · {transaction.memo || transaction.source_module} · {formatMinorAsInr(split.debit_minor - split.credit_minor)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button disabled={!canMatch || loading === "match"}>{loading === "match" ? "Matching..." : "Match and reconcile"}</button>
+      </form>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Review</p>
+            <h3>Statement lines</h3>
+            <p>Cached locally after load/import for offline review.</p>
+          </div>
+          <strong>{accountStatementLines.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Reference</th>
+                <th>Status</th>
+                <th>Split</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accountStatementLines.map((line) => (
+                <tr key={line.id}>
+                  <td>{line.posted_date.slice(0, 10)}</td>
+                  <td>{line.description || "Unlabeled line"}</td>
+                  <td>{formatMinorAsInr(line.amount_minor)}</td>
+                  <td>{line.reference || "-"}</td>
+                  <td>{line.matched_split_id ? "Matched" : "Open"}</td>
+                  <td>{line.matched_split_id ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function AdminPage({
+  api,
+  accounts,
+  exchangeRates,
+  fiscalCloses,
+  auditLogs,
+  organizationUsers,
+  onExchangeRatesChanged,
+  onFiscalClosesChanged,
+  onAuditLogsChanged,
+  onOrganizationUsersChanged,
+  onRefresh
+}: {
+  api: ApiClient;
+  accounts: Account[];
+  exchangeRates: ExchangeRate[];
+  fiscalCloses: FiscalClose[];
+  auditLogs: AuditLog[];
+  organizationUsers: OrganizationUser[];
+  onExchangeRatesChanged: (rates: ExchangeRate[]) => void;
+  onFiscalClosesChanged: (closes: FiscalClose[]) => void;
+  onAuditLogsChanged: (logs: AuditLog[]) => void;
+  onOrganizationUsersChanged: (users: OrganizationUser[]) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const retainedEarningsAccountId = accounts.find((account) => account.type === "equity")?.id ?? "";
+  const [rateForm, setRateForm] = useState<CreateExchangeRateInput>({
+    from_currency: "USD",
+    to_currency: "INR",
+    rate_date: new Date().toISOString().slice(0, 10),
+    numerator: 8350,
+    denominator: 100,
+    source: "manual"
+  });
+  const [closeForm, setCloseForm] = useState<CloseFiscalYearInput>({
+    fiscal_year_start: `${new Date().getFullYear() - 1}-04-01`,
+    fiscal_year_end: `${new Date().getFullYear()}-03-31`,
+    retained_earnings_account_id: retainedEarningsAccountId
+  });
+  const gainLossAccountId = accounts.find((account) => account.type === "income" || account.type === "expense")?.id ?? "";
+  const [revaluationForm, setRevaluationForm] = useState<PostRevaluationInput>({
+    as_of_date: new Date().toISOString().slice(0, 10),
+    gain_loss_account_id: gainLossAccountId
+  });
+  const [revaluationPreview, setRevaluationPreview] = useState<RevaluationPreview | null>(null);
+  const [userForm, setUserForm] = useState<CreateOrganizationUserInput>({
+    name: "",
+    email: "",
+    password: "",
+    role: "viewer"
+  });
+  const [loading, setLoading] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [adminNotice, setAdminNotice] = useState("");
+  const canCreateRate = Boolean(rateForm.from_currency.trim().length === 3 && rateForm.to_currency.trim().length === 3 && rateForm.rate_date && rateForm.numerator > 0 && rateForm.denominator > 0);
+  const canCloseYear = Boolean(closeForm.fiscal_year_start && closeForm.fiscal_year_end && closeForm.retained_earnings_account_id);
+  const canPostRevaluation = Boolean(revaluationForm.as_of_date && revaluationForm.gain_loss_account_id && revaluationPreview && revaluationPreview.rows.length > 0);
+  const canCreateUser = Boolean(userForm.name.trim() && userForm.email.trim() && userForm.password.length >= 12 && userForm.role);
+
+  async function loadAdminData() {
+    setLoading("refresh-admin");
+    setAdminError("");
+    try {
+      const [nextRates, nextCloses, nextAuditLogs, nextUsers] = await Promise.all([
+        api.listExchangeRates(),
+        api.listFiscalCloses(),
+        api.listAuditLogs(),
+        api.listOrganizationUsers()
+      ]);
+      onExchangeRatesChanged(nextRates);
+      onFiscalClosesChanged(nextCloses);
+      onAuditLogsChanged(nextAuditLogs);
+      onOrganizationUsersChanged(nextUsers);
+      setAdminNotice("Admin data refreshed.");
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createExchangeRate(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateRate) {
+      return;
+    }
+    setLoading("create-rate");
+    setAdminError("");
+    try {
+      const rate = await api.createExchangeRate(toExchangeRateInput(rateForm));
+      onExchangeRatesChanged([rate, ...exchangeRates]);
+      setAdminNotice(`Exchange rate ${rate.from_currency}/${rate.to_currency} saved.`);
+      await onRefresh();
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function closeFiscalYear(event: FormEvent) {
+    event.preventDefault();
+    if (!canCloseYear) {
+      return;
+    }
+    setLoading("close-year");
+    setAdminError("");
+    try {
+      const close = await api.closeFiscalYear(closeForm);
+      onFiscalClosesChanged([close, ...fiscalCloses]);
+      setAdminNotice(`Fiscal year closed with net income ${formatMinorAsInr(close.net_income_minor)}.`);
+      await onRefresh();
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function previewRevaluation() {
+    if (!revaluationForm.as_of_date) {
+      return;
+    }
+    setLoading("preview-revaluation");
+    setAdminError("");
+    try {
+      const preview = await api.previewRevaluation(revaluationForm.as_of_date);
+      setRevaluationPreview(preview);
+      setAdminNotice(preview.rows.length > 0 ? `Found ${preview.rows.length} FX balance(s) to revalue.` : "No foreign currency adjustments found for that date.");
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function postRevaluation(event: FormEvent) {
+    event.preventDefault();
+    if (!canPostRevaluation) {
+      return;
+    }
+    setLoading("post-revaluation");
+    setAdminError("");
+    try {
+      const transaction = await api.postRevaluation(toPostRevaluationInput(revaluationForm));
+      setAdminNotice(`Revaluation journal ${transaction.id.slice(0, 8)} posted.`);
+      setRevaluationPreview(null);
+      await onRefresh();
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createOrganizationUser(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateUser) {
+      return;
+    }
+    setLoading("create-user");
+    setAdminError("");
+    try {
+      const user = await api.createOrganizationUser(toOrganizationUserInput(userForm));
+      onOrganizationUsersChanged([user, ...organizationUsers]);
+      setUserForm({ name: "", email: "", password: "", role: "viewer" });
+      setAdminNotice(`User ${user.email} added as ${user.role}.`);
+      await onRefresh();
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="panel offline-panel">
+        <div>
+          <p className="eyebrow">Operations</p>
+          <h3>Admin controls</h3>
+          <p>Manage currency rates, fiscal close records, organization users, and the audit trail from one guarded surface.</p>
+        </div>
+        <button className="secondary" disabled={loading === "refresh-admin"} onClick={() => void loadAdminData()}>
+          {loading === "refresh-admin" ? "Refreshing..." : "Refresh admin data"}
+        </button>
+      </section>
+
+      {adminError && <div className="alert error">{adminError}</div>}
+      {adminNotice && <div className="alert success">{adminNotice}</div>}
+
+      <form className="panel form-grid" onSubmit={createExchangeRate}>
+        <label>
+          From currency
+          <input maxLength={3} value={rateForm.from_currency} onChange={(event) => setRateForm({ ...rateForm, from_currency: event.target.value.toUpperCase() })} />
+        </label>
+        <label>
+          To currency
+          <input maxLength={3} value={rateForm.to_currency} onChange={(event) => setRateForm({ ...rateForm, to_currency: event.target.value.toUpperCase() })} />
+        </label>
+        <label>
+          Rate date
+          <input type="date" value={rateForm.rate_date} onChange={(event) => setRateForm({ ...rateForm, rate_date: event.target.value })} />
+        </label>
+        <label>
+          Numerator
+          <input type="number" min={1} value={rateForm.numerator} onChange={(event) => setRateForm({ ...rateForm, numerator: Number(event.target.value) })} />
+        </label>
+        <label>
+          Denominator
+          <input type="number" min={1} value={rateForm.denominator} onChange={(event) => setRateForm({ ...rateForm, denominator: Number(event.target.value) })} />
+        </label>
+        <label>
+          Source
+          <input value={rateForm.source ?? ""} onChange={(event) => setRateForm({ ...rateForm, source: event.target.value })} />
+        </label>
+        <button disabled={!canCreateRate || loading === "create-rate"}>{loading === "create-rate" ? "Saving..." : "Save exchange rate"}</button>
+      </form>
+
+      <DataTable
+        headers={["Pair", "Date", "Ratio", "Source"]}
+        rows={exchangeRates.map((rate) => [
+          `${rate.from_currency}/${rate.to_currency}`,
+          rate.rate_date.slice(0, 10),
+          `${rate.numerator}/${rate.denominator}`,
+          rate.source ?? "-"
+        ])}
+      />
+
+      <form className="panel form-grid" onSubmit={postRevaluation}>
+        <label>
+          Revalue as of
+          <input type="date" value={revaluationForm.as_of_date} onChange={(event) => {
+            setRevaluationForm({ ...revaluationForm, as_of_date: event.target.value });
+            setRevaluationPreview(null);
+          }} />
+        </label>
+        <AccountSelect label="FX gain/loss account" accounts={accounts.filter((account) => account.type === "income" || account.type === "expense")} value={revaluationForm.gain_loss_account_id} onChange={(value) => setRevaluationForm({ ...revaluationForm, gain_loss_account_id: value })} />
+        <button type="button" className="secondary" disabled={!revaluationForm.as_of_date || loading === "preview-revaluation"} onClick={() => void previewRevaluation()}>
+          {loading === "preview-revaluation" ? "Previewing..." : "Preview revaluation"}
+        </button>
+        <button disabled={!canPostRevaluation || loading === "post-revaluation"}>{loading === "post-revaluation" ? "Posting..." : "Post revaluation journal"}</button>
+      </form>
+
+      {revaluationPreview && (
+        <section className="panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Advanced accounting</p>
+              <h3>Unrealized FX revaluation</h3>
+              <p>Total adjustment: {formatMinorAsInr(revaluationPreview.total_adjustment_minor)} in {revaluationPreview.base_currency}.</p>
+            </div>
+          </div>
+          <DataTable
+            headers={["Account", "Currency", "Foreign balance", "Carrying", "Revalued", "Adjustment", "Rate"]}
+            rows={revaluationPreview.rows.map((row) => [
+              `${row.account_code} ${row.account_name}`,
+              row.currency,
+              `${row.currency} minor ${row.foreign_balance_minor}`,
+              formatMinorAsInr(row.carrying_base_minor),
+              formatMinorAsInr(row.revalued_base_minor),
+              formatMinorAsInr(row.adjustment_minor),
+              `${row.exchange_rate_numerator}/${row.exchange_rate_denominator}`
+            ])}
+          />
+        </section>
+      )}
+
+      <form className="panel form-grid" onSubmit={closeFiscalYear}>
+        <label>
+          Fiscal year start
+          <input type="date" value={closeForm.fiscal_year_start} onChange={(event) => setCloseForm({ ...closeForm, fiscal_year_start: event.target.value })} />
+        </label>
+        <label>
+          Fiscal year end
+          <input type="date" value={closeForm.fiscal_year_end} onChange={(event) => setCloseForm({ ...closeForm, fiscal_year_end: event.target.value })} />
+        </label>
+        <AccountSelect label="Retained earnings account" accounts={accounts.filter((account) => account.type === "equity")} value={closeForm.retained_earnings_account_id} onChange={(value) => setCloseForm({ ...closeForm, retained_earnings_account_id: value })} />
+        <button disabled={!canCloseYear || loading === "close-year"}>{loading === "close-year" ? "Closing..." : "Close fiscal year"}</button>
+      </form>
+
+      <DataTable
+        headers={["Start", "End", "Net income", "Status", "Journal transaction"]}
+        rows={fiscalCloses.map((close) => [
+          close.fiscal_year_start.slice(0, 10),
+          close.fiscal_year_end.slice(0, 10),
+          formatMinorAsInr(close.net_income_minor),
+          close.status,
+          close.journal_transaction_id
+        ])}
+      />
+
+      <form className="panel form-grid" onSubmit={createOrganizationUser}>
+        <input placeholder="Name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} />
+        <input placeholder="Email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} />
+        <input placeholder="Temporary password" type="password" value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} />
+        <label>
+          Role
+          <select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value as Role })}>
+            {roleOptions.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
+          </select>
+        </label>
+        <button disabled={!canCreateUser || loading === "create-user"}>{loading === "create-user" ? "Creating..." : "Create user"}</button>
+      </form>
+
+      <DataTable
+        headers={["Name", "Email", "Role", "Active"]}
+        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No"])}
+      />
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Audit trail</p>
+            <h3>Recent audit logs</h3>
+            <p>Immutable trail for posting, matching, closing, and admin workflows.</p>
+          </div>
+          <strong>{auditLogs.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Entity</th>
+                <th>Action</th>
+                <th>Actor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditLogs.slice(0, 50).map((log) => (
+                <tr key={log.id}>
+                  <td>{new Date(log.created_at).toLocaleString()}</td>
+                  <td>{log.entity_type} · {log.entity_id}</td>
+                  <td>{log.action}</td>
+                  <td>{log.actor_user_id ?? "system"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function AccountsPage({
+  accounts,
+  queuedAccountDrafts,
+  api,
+  onChanged,
+  onQueueDraft,
+  onUpdateQueuedDraft,
+  onDeleteQueuedDraft,
+  onClearQueuedDraftError,
+  onClearQueuedDrafts,
+  onSyncQueuedDrafts
+}: {
+  accounts: Account[];
+  queuedAccountDrafts: QueuedAccountDraft[];
+  api: ApiClient;
+  onChanged: () => Promise<void>;
+  onQueueDraft: (input: AccountInput) => void;
+  onUpdateQueuedDraft: (draftId: string, input: AccountInput) => void;
+  onDeleteQueuedDraft: (draftId: string) => void;
+  onClearQueuedDraftError: (draftId: string) => void;
+  onClearQueuedDrafts: () => void;
+  onSyncQueuedDrafts: () => Promise<void>;
+}) {
+  const [form, setForm] = useState({ code: "", name: "", type: "asset" as Account["type"], subtype: "", currency: "INR" });
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const canSaveDraft = Boolean(form.code.trim() && form.name.trim());
+
+  function toInput(): AccountInput {
+    return {
+      code: form.code.trim(),
+      name: form.name.trim(),
+      type: form.type,
+      subtype: form.subtype.trim() || undefined,
+      currency: form.currency.trim() || "INR"
+    };
+  }
+
+  function resetForm() {
+    setForm({ code: "", name: "", type: "asset", subtype: "", currency: "INR" });
+    setEditingDraftId(null);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await api.createAccount(toInput());
+    resetForm();
+    await onChanged();
+  }
+
+  function queueDraft() {
+    if (!canSaveDraft) {
+      return;
+    }
+    if (editingDraftId) {
+      onUpdateQueuedDraft(editingDraftId, toInput());
+      resetForm();
+      return;
+    }
+    onQueueDraft(toInput());
+    resetForm();
+  }
+
+  function editQueuedDraft(draft: QueuedAccountDraft) {
+    setEditingDraftId(draft.id);
+    setForm({
+      code: draft.input.code,
+      name: draft.input.name,
+      type: draft.input.type,
+      subtype: draft.input.subtype ?? "",
+      currency: draft.input.currency ?? "INR"
+    });
+  }
+
+  return (
+    <div className="stack">
+      <form className="panel form-grid" onSubmit={submit}>
+        <input placeholder="Code" value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} required />
+        <input placeholder="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
+        <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as Account["type"] })}>
+          <option value="asset">Asset</option>
+          <option value="liability">Liability</option>
+          <option value="equity">Equity</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <input placeholder="Subtype" value={form.subtype} onChange={(event) => setForm({ ...form, subtype: event.target.value })} />
+        <input placeholder="Currency" value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })} />
+        <button>Create account</button>
+        <button className="secondary" type="button" disabled={!canSaveDraft} onClick={queueDraft}>
+          {editingDraftId ? "Save queued account" : "Queue offline account"}
+        </button>
+        {editingDraftId && (
+          <button className="secondary" type="button" onClick={resetForm}>Cancel edit</button>
+        )}
+      </form>
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Browser queue</p>
+            <h3>Offline account drafts</h3>
+            <p>{queuedAccountDrafts.length} account drafts are stored in this browser for reconnect sync.</p>
+          </div>
+          <strong>{queuedAccountDrafts.length}</strong>
+        </div>
+        <div className="button-row">
+          <button className="secondary" disabled={queuedAccountDrafts.length === 0} onClick={() => void onSyncQueuedDrafts()}>Sync queued accounts</button>
+          <button className="danger" disabled={queuedAccountDrafts.length === 0} onClick={onClearQueuedDrafts}>Clear account drafts</button>
+        </div>
+        {queuedAccountDrafts.length > 0 && (
+          <QueuedAccountDraftTable
+            drafts={queuedAccountDrafts}
+            onClearDraftError={onClearQueuedDraftError}
+            onDeleteDraft={onDeleteQueuedDraft}
+            onEditDraft={editQueuedDraft}
+          />
+        )}
+      </section>
+      <DataTable headers={["Code", "Name", "Type", "Subtype", "Currency"]} rows={accounts.map((account) => [account.code, account.name, account.type, account.subtype ?? "", account.currency])} />
+    </div>
+  );
+}
+
+function QueuedAccountDraftTable({
+  drafts,
+  onClearDraftError,
+  onDeleteDraft,
+  onEditDraft
+}: {
+  drafts: QueuedAccountDraft[];
+  onClearDraftError: (draftId: string) => void;
+  onDeleteDraft: (draftId: string) => void;
+  onEditDraft: (draft: QueuedAccountDraft) => void;
+}) {
+  return (
+    <section className="table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Currency</th>
+            <th>Last error</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drafts.map((draft) => (
+            <tr key={draft.id}>
+              <td>{new Date(draft.createdAt).toLocaleString()}</td>
+              <td>{draft.input.code}</td>
+              <td>{draft.input.name}</td>
+              <td>{draft.input.type}</td>
+              <td>{draft.input.currency ?? "INR"}</td>
+              <td>{draft.lastError ?? ""}</td>
+              <td>
+                <button className="secondary compact" onClick={() => onEditDraft(draft)}>Edit</button>
+                {draft.lastError && (
+                  <button className="secondary compact" onClick={() => onClearDraftError(draft.id)}>Clear error</button>
+                )}
+                <button className="danger compact" onClick={() => onDeleteDraft(draft.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function LedgerPage({
+  accounts,
+  transactions,
+  accountRegisterAccountId,
+  accountRegisterSplits,
+  queuedJournalDrafts,
+  api,
+  onChanged,
+  onAccountRegisterChanged,
+  onQueueDraft,
+  onUpdateQueuedDraft,
+  onDeleteQueuedDraft,
+  onClearQueuedDraftError,
+  onClearQueuedDrafts,
+  onSyncQueuedDrafts
+}: {
+  accounts: Account[];
+  transactions: JournalTransaction[];
+  accountRegisterAccountId: string;
+  accountRegisterSplits: LedgerSplit[];
+  queuedJournalDrafts: QueuedJournalDraft[];
+  api: ApiClient;
+  onChanged: () => Promise<void>;
+  onAccountRegisterChanged: (accountId: string, splits: LedgerSplit[]) => void;
+  onQueueDraft: (input: JournalTransactionInput) => void;
+  onUpdateQueuedDraft: (draftId: string, input: JournalTransactionInput) => void;
+  onDeleteQueuedDraft: (draftId: string) => void;
+  onClearQueuedDraftError: (draftId: string) => void;
+  onClearQueuedDrafts: () => void;
+  onSyncQueuedDrafts: () => Promise<void>;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({
+    transaction_date: today,
+    memo: "",
+    debit_account_id: "",
+    credit_account_id: "",
+    amount_minor: 0
+  });
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [registerAccountId, setRegisterAccountId] = useState(accountRegisterAccountId || accounts[0]?.id || "");
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+  const canSaveDraft = Boolean(form.debit_account_id && form.credit_account_id && form.amount_minor > 0);
+  const registerRows = accountRegisterSplits.map((split, index) => ({
+    split,
+    runningBalanceMinor: accountRegisterSplits
+      .slice(0, index + 1)
+      .reduce((total, current) => total + current.debit_minor - current.credit_minor, 0)
+  }));
+
+  function toInput(): JournalTransactionInput {
+    return {
+      transaction_date: form.transaction_date,
+      memo: form.memo,
+      splits: [
+        { account_id: form.debit_account_id, debit_minor: form.amount_minor, credit_minor: 0, currency: "INR" },
+        { account_id: form.credit_account_id, debit_minor: 0, credit_minor: form.amount_minor, currency: "INR" }
+      ]
+    };
+  }
+
+  function resetForm() {
+    setForm({
+      transaction_date: today,
+      memo: "",
+      debit_account_id: "",
+      credit_account_id: "",
+      amount_minor: 0
+    });
+    setEditingDraftId(null);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await api.postJournalTransaction(toInput());
+    resetForm();
+    await onChanged();
+  }
+
+  function queueDraft() {
+    if (!canSaveDraft) {
+      return;
+    }
+    if (editingDraftId) {
+      onUpdateQueuedDraft(editingDraftId, toInput());
+      resetForm();
+      return;
+    }
+    onQueueDraft(toInput());
+    resetForm();
+  }
+
+  function editQueuedDraft(draft: QueuedJournalDraft) {
+    const debitSplit = draft.input.splits.find((split) => split.debit_minor > 0);
+    const creditSplit = draft.input.splits.find((split) => split.credit_minor > 0);
+    setEditingDraftId(draft.id);
+    setForm({
+      transaction_date: draft.input.transaction_date,
+      memo: draft.input.memo ?? "",
+      debit_account_id: debitSplit?.account_id ?? "",
+      credit_account_id: creditSplit?.account_id ?? "",
+      amount_minor: debitSplit?.debit_minor ?? creditSplit?.credit_minor ?? 0
+    });
+  }
+
+  async function loadAccountRegister(event?: FormEvent) {
+    event?.preventDefault();
+    if (!registerAccountId) {
+      return;
+    }
+    setRegisterLoading(true);
+    setRegisterError("");
+    try {
+      const splits = await api.getAccountRegister(registerAccountId);
+      onAccountRegisterChanged(registerAccountId, splits);
+    } catch (error) {
+      setRegisterError(errorMessage(error));
+    } finally {
+      setRegisterLoading(false);
+    }
+  }
+
+  function accountName(accountId: string) {
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    return account ? `${account.code} · ${account.name}` : accountId;
+  }
+
+  return (
+    <div className="stack">
+      <form className="panel form-grid" onSubmit={submit}>
+        <input type="date" value={form.transaction_date} onChange={(event) => setForm({ ...form, transaction_date: event.target.value })} />
+        <input placeholder="Memo" value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+        <AccountSelect label="Debit account" accounts={accounts} value={form.debit_account_id} onChange={(value) => setForm({ ...form, debit_account_id: value })} />
+        <AccountSelect label="Credit account" accounts={accounts} value={form.credit_account_id} onChange={(value) => setForm({ ...form, credit_account_id: value })} />
+        <input type="number" min="1" placeholder="Amount minor" value={form.amount_minor} onChange={(event) => setForm({ ...form, amount_minor: Number(event.target.value) })} />
+        <button>Post journal</button>
+        <button className="secondary" type="button" disabled={!canSaveDraft} onClick={queueDraft}>
+          {editingDraftId ? "Save queued draft" : "Queue offline draft"}
+        </button>
+        {editingDraftId && (
+          <button className="secondary" type="button" onClick={resetForm}>Cancel edit</button>
+        )}
+      </form>
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Browser queue</p>
+            <h3>Offline journal drafts</h3>
+            <p>{queuedJournalDrafts.length} manual journal drafts are stored in this browser for reconnect sync.</p>
+          </div>
+          <strong>{queuedJournalDrafts.length}</strong>
+        </div>
+        <div className="button-row">
+          <button className="secondary" disabled={queuedJournalDrafts.length === 0} onClick={() => void onSyncQueuedDrafts()}>Sync queued drafts</button>
+          <button className="danger" disabled={queuedJournalDrafts.length === 0} onClick={onClearQueuedDrafts}>Clear all drafts</button>
+        </div>
+        {queuedJournalDrafts.length > 0 && (
+          <QueuedDraftTable
+            drafts={queuedJournalDrafts}
+            onClearDraftError={onClearQueuedDraftError}
+            onDeleteDraft={onDeleteQueuedDraft}
+            onEditDraft={editQueuedDraft}
+          />
+        )}
+      </section>
+      <form className="panel form-grid" onSubmit={loadAccountRegister}>
+        <AccountSelect label="Account register" accounts={accounts} value={registerAccountId} onChange={setRegisterAccountId} />
+        <button disabled={!registerAccountId || registerLoading}>{registerLoading ? "Loading..." : "Load register"}</button>
+      </form>
+      {registerError && <div className="alert error">{registerError}</div>}
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">Register</p>
+            <h3>{accountRegisterAccountId ? accountName(accountRegisterAccountId) : "Account register"}</h3>
+            <p>Posted split activity is cached locally after loading for offline review.</p>
+          </div>
+          <strong>{accountRegisterSplits.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Memo</th>
+                <th>Debit</th>
+                <th>Credit</th>
+                <th>Balance</th>
+                <th>Currency</th>
+                <th>Cleared</th>
+                <th>Reconciled</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registerRows.map(({ split, runningBalanceMinor }) => (
+                <tr key={split.id}>
+                  <td>{split.memo || split.id}</td>
+                  <td>{formatMinor(split.debit_minor, split.currency)}</td>
+                  <td>{formatMinor(split.credit_minor, split.currency)}</td>
+                  <td>{formatMinor(runningBalanceMinor, split.currency)}</td>
+                  <td>{split.currency}</td>
+                  <td>{split.cleared ? "Yes" : "No"}</td>
+                  <td>{split.reconciled ? "Yes" : "No"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      </section>
+      <DataTable headers={["Date", "Memo", "Status", "Splits"]} rows={transactions.map((transaction) => [transaction.transaction_date.slice(0, 10), transaction.memo ?? "", transaction.status, transaction.splits.length.toString()])} />
+    </div>
+  );
+}
+
+function QueuedDraftTable({
+  drafts,
+  onClearDraftError,
+  onDeleteDraft,
+  onEditDraft
+}: {
+  drafts: QueuedJournalDraft[];
+  onClearDraftError: (draftId: string) => void;
+  onDeleteDraft: (draftId: string) => void;
+  onEditDraft: (draft: QueuedJournalDraft) => void;
+}) {
+  return (
+    <section className="table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>Date</th>
+            <th>Memo</th>
+            <th>Amount</th>
+            <th>Splits</th>
+            <th>Last error</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {drafts.map((draft) => (
+            <tr key={draft.id}>
+              <td>{new Date(draft.createdAt).toLocaleString()}</td>
+              <td>{draft.input.transaction_date}</td>
+              <td>{draft.input.memo ?? ""}</td>
+              <td>{formatMinorAsInr(totalDebitMinor(draft.input))}</td>
+              <td>{draft.input.splits.length}</td>
+              <td>{draft.lastError ?? ""}</td>
+              <td>
+                <button className="secondary compact" onClick={() => onEditDraft(draft)}>Edit</button>
+                {draft.lastError && (
+                  <button className="secondary compact" onClick={() => onClearDraftError(draft.id)}>Clear error</button>
+                )}
+                <button className="danger compact" onClick={() => onDeleteDraft(draft.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function AccountSelect({ label, accounts, value, onChange }: { label: string; accounts: Account[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="select-label">
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)} required>
+        <option value="">Select account</option>
+        {accounts.map((account) => (
+          <option key={account.id} value={account.id}>{account.code} · {account.name}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  return (
+    <section className="panel table-panel">
+      <table>
+        <thead>
+          <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function titleFor(view: View) {
+  if (view === "accounts") return "Chart of accounts";
+  if (view === "ledger") return "Manual ledger entry";
+  if (view === "tax") return "GST tax catalog";
+  if (view === "reports") return "Financial reports";
+  if (view === "budgets") return "Budgets";
+  if (view === "investments") return "Investments";
+  if (view === "payroll") return "Payroll";
+  if (view === "invoices") return "Invoices";
+  if (view === "expenses") return "Expenses";
+  if (view === "documents") return "Documents";
+  if (view === "reconciliation") return "Bank reconciliation";
+  if (view === "admin") return "Admin";
+  return "Dashboard";
+}
+
+function createDraftId(prefix: string) {
+  if ("randomUUID" in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+type SyncableDraft = {
+  lastError?: string;
+};
+
+async function syncDraftQueue<TDraft extends SyncableDraft>(
+  drafts: TDraft[],
+  syncDraft: (draft: TDraft) => Promise<unknown>
+) {
+  const remaining: TDraft[] = [];
+  let synced = 0;
+
+  for (const draft of drafts) {
+    try {
+      await syncDraft(draft);
+      synced += 1;
+    } catch (error) {
+      remaining.push({
+        ...draft,
+        lastError: errorMessage(error)
+      });
+    }
+  }
+
+  return { synced, failed: remaining.length, remaining };
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Sync failed";
+}
+
+function totalDebitMinor(input: JournalTransactionInput) {
+  return input.splits.reduce((total, split) => total + split.debit_minor, 0);
+}
+
+function formatMinorAsInr(amountMinor: number) {
+  return `INR ${(amountMinor / 100).toFixed(2)}`;
+}
+
+function formatMinor(amountMinor: number, currency: string) {
+  return `${currency || "INR"} ${(amountMinor / 100).toFixed(2)}`;
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function defaultAccountsReceivableAccount(accounts: Account[]) {
+  return accounts.find((account) => account.subtype === "receivable") ??
+    accounts.find((account) => account.code === "1100") ??
+    accounts.find((account) => account.type === "asset" && account.name.toLowerCase().includes("receivable"));
+}
+
+function defaultAccountsPayableAccount(accounts: Account[]) {
+  return accounts.find((account) => account.subtype === "payable") ??
+    accounts.find((account) => account.code === "2000") ??
+    accounts.find((account) => account.type === "liability" && account.name.toLowerCase().includes("payable"));
+}
+
+function formatBytes(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatTaxBasis(percentageBasis: number) {
+  return `${(percentageBasis / 10000).toFixed(4)}%`;
+}
+
+function totalTaxGroupBasis(group: TaxGroup) {
+  return group.components.reduce((total, component) => total + (component.tax_rate?.percentage_basis ?? 0), 0);
+}
+
+function formatTaxGroupComponents(group: TaxGroup) {
+  if (group.components.length === 0) {
+    return "No components";
+  }
+  return group.components
+    .slice()
+    .sort((left, right) => left.sort_order - right.sort_order)
+    .map((component) => {
+      const rate = component.tax_rate;
+      if (!rate) {
+        return component.tax_rate_id;
+      }
+      return `${rate.name} (${formatTaxBasis(rate.percentage_basis)})`;
+    })
+    .join(" + ");
+}
+
+function defaultTaxTarget(taxGroups: TaxGroup[], taxRates: TaxRate[]) {
+  const activeGroup = taxGroups.find((group) => group.is_active);
+  if (activeGroup) {
+    return `group:${activeGroup.id}`;
+  }
+  const activeRate = taxRates.find((rate) => rate.is_active);
+  if (activeRate) {
+    return `rate:${activeRate.id}`;
+  }
+  return "";
+}
+
+function parseTaxTarget(target: string) {
+  const [kind, id] = target.split(":", 2);
+  return {
+    kind: kind === "rate" ? "rate" as const : "group" as const,
+    id
+  };
+}
+
+const roleOptions: Role[] = ["admin", "accountant", "bookkeeper", "payroll_manager", "viewer", "employee_self_service"];
+
+function roleLabel(role: Role) {
+  return role
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function toExchangeRateInput(form: CreateExchangeRateInput): CreateExchangeRateInput {
+  return {
+    from_currency: form.from_currency.trim().toUpperCase(),
+    to_currency: form.to_currency.trim().toUpperCase(),
+    rate_date: form.rate_date,
+    numerator: form.numerator,
+    denominator: form.denominator,
+    source: form.source?.trim() || undefined
+  };
+}
+
+function toPostRevaluationInput(form: PostRevaluationInput): PostRevaluationInput {
+  return {
+    as_of_date: form.as_of_date,
+    gain_loss_account_id: form.gain_loss_account_id
+  };
+}
+
+function toOrganizationUserInput(form: CreateOrganizationUserInput): CreateOrganizationUserInput {
+  return {
+    name: form.name.trim(),
+    email: form.email.trim(),
+    password: form.password,
+    role: form.role
+  };
+}
+
+function toAttachmentInput(form: CreateAttachmentInput): CreateAttachmentInput {
+  return {
+    file_name: form.file_name.trim(),
+    content_type: form.content_type?.trim() || undefined,
+    storage_driver: form.storage_driver?.trim() || "local",
+    storage_key: form.storage_key.trim(),
+    size_bytes: form.size_bytes ?? 0
+  };
+}
+
+function toBudgetInput(form: { name: string; start_date: string; end_date: string; status: Budget["status"] }, lines: CreateBudgetInput["lines"]): CreateBudgetInput {
+  return {
+    name: form.name.trim(),
+    start_date: form.start_date,
+    end_date: form.end_date,
+    status: form.status,
+    lines
+  };
+}
+
+function toInvestmentLotInput(form: {
+  account_id: string;
+  symbol: string;
+  security_name: string;
+  acquisition_date: string;
+  quantity_millis: number;
+  cost_basis_minor: number;
+  currency: string;
+  cost_method: InvestmentLot["cost_method"];
+  notes: string;
+}): CreateInvestmentLotInput {
+  return {
+    account_id: form.account_id,
+    symbol: form.symbol.trim().toUpperCase(),
+    security_name: form.security_name.trim() || undefined,
+    acquisition_date: form.acquisition_date,
+    quantity_millis: form.quantity_millis,
+    cost_basis_minor: form.cost_basis_minor,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    cost_method: form.cost_method,
+    notes: form.notes.trim() || undefined
+  };
+}
+
+function toSellInvestmentLotInput(form: {
+  sale_date: string;
+  quantity_millis: number;
+  proceeds_minor: number;
+  proceeds_account_id: string;
+  gain_loss_account_id: string;
+  notes: string;
+}): SellInvestmentLotInput {
+  return {
+    sale_date: form.sale_date,
+    quantity_millis: form.quantity_millis,
+    proceeds_minor: form.proceeds_minor,
+    proceeds_account_id: form.proceeds_account_id || undefined,
+    gain_loss_account_id: form.gain_loss_account_id || undefined,
+    notes: form.notes.trim() || undefined
+  };
+}
+
+function toCreateOrganizationInput(form: CreateOrganizationInput): CreateOrganizationInput {
+  return {
+    name: form.name.trim(),
+    base_currency: form.base_currency.trim().toUpperCase() || "INR",
+    country_code: form.country_code?.trim().toUpperCase() || undefined
+  };
+}
+
+function toBootstrapFirstAdminInput(form: BootstrapFirstAdminInput): BootstrapFirstAdminInput {
+  return {
+    organization_name: form.organization_name.trim(),
+    admin_name: form.admin_name.trim(),
+    admin_email: form.admin_email.trim(),
+    admin_password: form.admin_password,
+    base_currency: form.base_currency?.trim().toUpperCase() || "INR",
+    country_code: form.country_code?.trim().toUpperCase() || undefined,
+    seed_india_defaults: form.seed_india_defaults
+  };
+}
+
+function toTaxAuthorityInput(form: CreateTaxAuthorityInput): CreateTaxAuthorityInput {
+  return {
+    name: form.name.trim(),
+    country_code: form.country_code?.trim().toUpperCase() || undefined,
+    region_code: form.region_code?.trim().toUpperCase() || undefined
+  };
+}
+
+function toTaxRateInput(form: CreateTaxRateInput): CreateTaxRateInput {
+  return {
+    tax_authority_id: form.tax_authority_id,
+    name: form.name.trim(),
+    percentage_basis: form.percentage_basis,
+    type: form.type,
+    output_account_id: form.output_account_id || undefined,
+    input_account_id: form.input_account_id || undefined,
+    effective_from: form.effective_from,
+    effective_to: form.effective_to || undefined,
+    is_compound: form.is_compound
+  };
+}
+
+function toTaxGroupInput(form: CreateTaxGroupInput): CreateTaxGroupInput {
+  return {
+    name: form.name.trim(),
+    description: form.description?.trim() || undefined,
+    tax_rate_ids: form.tax_rate_ids
+  };
+}
+
+function totalBudgetMinor(budget: Budget) {
+  return budget.lines?.reduce((total, line) => total + line.amount_minor, 0) ?? 0;
+}
+
+function toEmployeeInput(form: EmployeeInput): EmployeeInput {
+  return {
+    display_name: form.display_name.trim(),
+    email: form.email?.trim() || undefined,
+    phone: form.phone?.trim() || undefined,
+    employee_code: form.employee_code?.trim() || undefined,
+    pan: form.pan?.trim() || undefined,
+    uan: form.uan?.trim() || undefined
+  };
+}
+
+function toCustomerInput(form: CustomerInput): CustomerInput {
+  return {
+    display_name: form.display_name.trim(),
+    email: form.email?.trim() || undefined,
+    phone: form.phone?.trim() || undefined,
+    billing_address: form.billing_address?.trim() || undefined,
+    gstin: form.gstin?.trim() || undefined
+  };
+}
+
+function toVendorInput(form: VendorInput): VendorInput {
+  return {
+    display_name: form.display_name.trim(),
+    email: form.email?.trim() || undefined,
+    phone: form.phone?.trim() || undefined,
+    billing_address: form.billing_address?.trim() || undefined,
+    gstin: form.gstin?.trim() || undefined
+  };
+}
+
+function toExpenseInput(form: {
+  vendor_id: string;
+  expense_number: string;
+  expense_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  amount_minor: number;
+  expense_account_id: string;
+  payment_account_id: string;
+  tax_target: string;
+  reimbursable: boolean;
+}): CreateExpenseInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    vendor_id: form.vendor_id || undefined,
+    expense_number: form.expense_number.trim(),
+    expense_date: form.expense_date,
+    currency: form.currency.trim() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    amount_minor: form.amount_minor,
+    expense_account_id: form.expense_account_id,
+    payment_account_id: form.payment_account_id,
+    tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+    tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined,
+    reimbursable: form.reimbursable
+  };
+}
+
+function toRecordPaymentInput(form: {
+  payment_number: string;
+  payment_date: string;
+  payment_method: string;
+  reference: string;
+  currency: string;
+  amount_minor: number;
+  payment_account_id: string;
+}): RecordPaymentInput {
+  return {
+    payment_number: form.payment_number.trim(),
+    payment_date: form.payment_date,
+    payment_method: form.payment_method.trim() || undefined,
+    reference: form.reference.trim() || undefined,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    amount_minor: form.amount_minor,
+    payment_account_id: form.payment_account_id
+  };
+}
+
+function toEstimateInput(form: {
+  customer_id: string;
+  estimate_number: string;
+  issue_date: string;
+  expiry_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  income_account_id: string;
+  tax_target: string;
+}): CreateEstimateInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    customer_id: form.customer_id,
+    estimate_number: form.estimate_number.trim(),
+    issue_date: form.issue_date,
+    expiry_date: form.expiry_date,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    lines: [{
+      description: form.description.trim(),
+      quantity_millis: form.quantity_millis,
+      unit_price_minor: form.unit_price_minor,
+      income_account_id: form.income_account_id,
+      tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+      tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+    }]
+  };
+}
+
+function toRecurringInvoiceInput(form: {
+  customer_id: string;
+  name: string;
+  invoice_number_prefix: string;
+  start_date: string;
+  next_run_date: string;
+  frequency: RecurringInvoiceTemplate["frequency"];
+  due_days: number;
+  currency: string;
+  tax_inclusive: boolean;
+  accounts_receivable_id: string;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  income_account_id: string;
+  tax_target: string;
+}): CreateRecurringInvoiceTemplateInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    customer_id: form.customer_id,
+    name: form.name.trim(),
+    invoice_number_prefix: form.invoice_number_prefix.trim(),
+    start_date: form.start_date,
+    next_run_date: form.next_run_date || undefined,
+    frequency: form.frequency,
+    due_days: form.due_days,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    accounts_receivable_id: form.accounts_receivable_id,
+    lines: [{
+      description: form.description.trim(),
+      quantity_millis: form.quantity_millis,
+      unit_price_minor: form.unit_price_minor,
+      income_account_id: form.income_account_id,
+      tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+      tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+    }]
+  };
+}
+
+function toCreditNoteInput(form: {
+  customer_id: string;
+  invoice_id: string;
+  credit_note_number: string;
+  issue_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  accounts_receivable_id: string;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  income_account_id: string;
+  tax_target: string;
+}): CreateCreditNoteInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    customer_id: form.customer_id,
+    invoice_id: form.invoice_id || undefined,
+    credit_note_number: form.credit_note_number.trim(),
+    issue_date: form.issue_date,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    accounts_receivable_id: form.accounts_receivable_id,
+    lines: [{
+      description: form.description.trim(),
+      quantity_millis: form.quantity_millis,
+      unit_price_minor: form.unit_price_minor,
+      income_account_id: form.income_account_id,
+      tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+      tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+    }]
+  };
+}
+
+function toBillInput(form: {
+  vendor_id: string;
+  bill_number: string;
+  issue_date: string;
+  due_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  accounts_payable_id: string;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  expense_account_id: string;
+  tax_target: string;
+}): CreateBillInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    vendor_id: form.vendor_id,
+    bill_number: form.bill_number.trim(),
+    issue_date: form.issue_date,
+    due_date: form.due_date,
+    currency: form.currency.trim() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    accounts_payable_id: form.accounts_payable_id,
+    lines: [
+      {
+        description: form.description.trim(),
+        quantity_millis: form.quantity_millis,
+        unit_price_minor: form.unit_price_minor,
+        expense_account_id: form.expense_account_id,
+        tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+        tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+      }
+    ]
+  };
+}
+
+function toPurchaseOrderInput(form: {
+  vendor_id: string;
+  purchase_order_number: string;
+  issue_date: string;
+  expected_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  expense_account_id: string;
+  tax_target: string;
+}): CreatePurchaseOrderInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    vendor_id: form.vendor_id,
+    purchase_order_number: form.purchase_order_number.trim(),
+    issue_date: form.issue_date,
+    expected_date: form.expected_date || undefined,
+    currency: form.currency.trim().toUpperCase() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    lines: [{
+      description: form.description.trim(),
+      quantity_millis: form.quantity_millis,
+      unit_price_minor: form.unit_price_minor,
+      expense_account_id: form.expense_account_id,
+      tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+      tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+    }]
+  };
+}
+
+function toInvoiceInput(form: {
+  customer_id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string;
+  currency: string;
+  tax_inclusive: boolean;
+  accounts_receivable_id: string;
+  description: string;
+  quantity_millis: number;
+  unit_price_minor: number;
+  income_account_id: string;
+  tax_target: string;
+}): CreateInvoiceInput {
+  const taxTarget = form.tax_target ? parseTaxTarget(form.tax_target) : null;
+  return {
+    customer_id: form.customer_id,
+    invoice_number: form.invoice_number.trim(),
+    issue_date: form.issue_date,
+    due_date: form.due_date,
+    currency: form.currency.trim() || "INR",
+    tax_inclusive: form.tax_inclusive,
+    accounts_receivable_id: form.accounts_receivable_id,
+    lines: [
+      {
+        description: form.description.trim(),
+        quantity_millis: form.quantity_millis,
+        unit_price_minor: form.unit_price_minor,
+        income_account_id: form.income_account_id,
+        tax_rate_id: taxTarget?.kind === "rate" ? taxTarget.id : undefined,
+        tax_group_id: taxTarget?.kind === "group" ? taxTarget.id : undefined
+      }
+    ]
+  };
+}
+
+function toPayrollRunInput(form: {
+  run_number: string;
+  period_start: string;
+  period_end: string;
+  pay_date: string;
+  currency: string;
+  employee_id: string;
+  gross_pay_minor: number;
+  deductions_minor: number;
+  basic_pay_minor: number;
+  hra_minor: number;
+  special_minor: number;
+  bonus_minor: number;
+  reimbursement_minor: number;
+  professional_tax_minor: number;
+  tds_minor: number;
+  preview_components: CreatePayrollComponentInput[];
+  payslip_key: string;
+  payroll_expense_account_id: string;
+  payroll_liability_account_id: string;
+  deduction_liability_account_id: string;
+}): CreatePayrollRunInput {
+  const manualComponents = [
+    form.basic_pay_minor > 0 ? { code: "BASIC", name: "Basic Pay", type: "earning" as const, amount_minor: form.basic_pay_minor } : null,
+    form.hra_minor > 0 ? { code: "HRA", name: "House Rent Allowance", type: "earning" as const, amount_minor: form.hra_minor } : null,
+    form.special_minor > 0 ? { code: "SPECIAL", name: "Special Allowance", type: "earning" as const, amount_minor: form.special_minor } : null,
+    form.bonus_minor > 0 ? { code: "BONUS", name: "Bonus", type: "earning" as const, amount_minor: form.bonus_minor } : null,
+    form.reimbursement_minor > 0 ? { code: "REIMB", name: "Reimbursement", type: "earning" as const, amount_minor: form.reimbursement_minor } : null,
+    form.professional_tax_minor > 0 ? { code: "PT", name: "Professional Tax", type: "deduction" as const, amount_minor: form.professional_tax_minor, is_statutory: true } : null,
+    form.tds_minor > 0 ? { code: "TDS", name: "Tax Deducted at Source", type: "deduction" as const, amount_minor: form.tds_minor, is_statutory: true } : null
+  ].filter((component) => component !== null);
+  const components = form.preview_components.length > 0 ? form.preview_components : manualComponents;
+  const componentGross = components
+    .filter((component) => component.type === "earning")
+    .reduce((total, component) => total + component.amount_minor, 0);
+  const componentDeductions = components
+    .filter((component) => component.type === "deduction")
+    .reduce((total, component) => total + component.amount_minor, 0);
+  return {
+    run_number: form.run_number.trim(),
+    period_start: form.period_start,
+    period_end: form.period_end,
+    pay_date: form.pay_date,
+    currency: form.currency.trim() || "INR",
+    payroll_expense_account_id: form.payroll_expense_account_id,
+    payroll_liability_account_id: form.payroll_liability_account_id,
+    deduction_liability_account_id: form.deduction_liability_account_id,
+    items: [
+      {
+        employee_id: form.employee_id,
+        gross_pay_minor: componentGross > 0 ? componentGross : form.gross_pay_minor,
+        deductions_minor: componentDeductions > 0 ? componentDeductions : form.deductions_minor,
+        components: components.length > 0 ? components : undefined,
+        payslip_key: form.payslip_key.trim() || undefined
+      }
+    ]
+  };
+}
+
+function exportTrialBalance(report: TrialBalanceReport) {
+  downloadCsv(
+    `trial-balance-${report.as_of_date.slice(0, 10)}.csv`,
+    [["Code", "Account", "Type", "Debit minor", "Credit minor", "Balance minor"]],
+    report.rows.map(reportRowCsv)
+  );
+}
+
+function exportProfitAndLoss(report: ProfitAndLossReport) {
+  downloadCsv(
+    `profit-and-loss-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Section", "Code", "Account", "Amount minor"]],
+    [
+      ...report.income_rows.map((row) => ["Income", row.account_code, row.account_name, row.balance_minor]),
+      ...report.expense_rows.map((row) => ["Expense", row.account_code, row.account_name, row.balance_minor]),
+      ["Total income", "", "", report.total_income_minor],
+      ["Total expense", "", "", report.total_expense_minor],
+      ["Net income", "", "", report.net_income_minor]
+    ]
+  );
+}
+
+function exportBalanceSheet(report: BalanceSheetReport) {
+  downloadCsv(
+    `balance-sheet-${report.as_of_date.slice(0, 10)}.csv`,
+    [["Section", "Code", "Account", "Balance minor"]],
+    [
+      ...report.asset_rows.map((row) => ["Assets", row.account_code, row.account_name, row.balance_minor]),
+      ...report.liability_rows.map((row) => ["Liabilities", row.account_code, row.account_name, row.balance_minor]),
+      ...report.equity_rows.map((row) => ["Equity", row.account_code, row.account_name, row.balance_minor]),
+      ["Total assets", "", "", report.total_assets_minor],
+      ["Total liabilities", "", "", report.total_liabilities_minor],
+      ["Total equity", "", "", report.total_equity_minor],
+      ["Balanced", "", "", report.balanced ? "yes" : "no"]
+    ]
+  );
+}
+
+function exportCashFlow(report: CashFlowReport) {
+  downloadCsv(
+    `cash-flow-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Code", "Cash account", "Source", "Inflows minor", "Outflows minor", "Net cash flow minor"]],
+    [
+      ...report.rows.map((row) => [
+        row.account_code,
+        row.account_name,
+        row.source_module,
+        row.inflow_minor,
+        row.outflow_minor,
+        row.net_cash_flow_minor
+      ]),
+      ["Opening cash", "", "", "", "", report.opening_cash_minor],
+      ["Total inflows", "", "", report.total_inflows_minor, "", ""],
+      ["Total outflows", "", "", "", report.total_outflows_minor, ""],
+      ["Net cash flow", "", "", "", "", report.net_cash_flow_minor],
+      ["Closing cash", "", "", "", "", report.closing_cash_minor]
+    ]
+  );
+}
+
+function exportARAging(report: ARAgingReport) {
+  downloadCsv(
+    `ar-aging-${report.as_of_date.slice(0, 10)}.csv`,
+    [["Customer", "Invoice", "Due date", "Days overdue", "Current minor", "1-30 minor", "31-60 minor", "61-90 minor", "90+ minor", "Outstanding minor"]],
+    [
+      ...report.rows.map((row) => [
+        row.customer_name,
+        row.invoice_number,
+        row.due_date.slice(0, 10),
+        row.days_overdue,
+        row.current_minor,
+        row.one_to_thirty_minor,
+        row.thirty_one_to_sixty_minor,
+        row.sixty_one_to_ninety_minor,
+        row.over_ninety_minor,
+        row.outstanding_minor
+      ]),
+      ["Total", "", "", "", report.total_current_minor, report.total_one_to_thirty_minor, report.total_thirty_one_to_sixty_minor, report.total_sixty_one_to_ninety_minor, report.total_over_ninety_minor, report.total_outstanding_minor]
+    ]
+  );
+}
+
+function exportAPAging(report: APAgingReport) {
+  downloadCsv(
+    `ap-aging-${report.as_of_date.slice(0, 10)}.csv`,
+    [["Vendor", "Bill", "Due date", "Days overdue", "Current minor", "1-30 minor", "31-60 minor", "61-90 minor", "90+ minor", "Outstanding minor"]],
+    [
+      ...report.rows.map((row) => [
+        row.vendor_name,
+        row.bill_number,
+        row.due_date.slice(0, 10),
+        row.days_overdue,
+        row.current_minor,
+        row.one_to_thirty_minor,
+        row.thirty_one_to_sixty_minor,
+        row.sixty_one_to_ninety_minor,
+        row.over_ninety_minor,
+        row.outstanding_minor
+      ]),
+      ["Total", "", "", "", report.total_current_minor, report.total_one_to_thirty_minor, report.total_thirty_one_to_sixty_minor, report.total_sixty_one_to_ninety_minor, report.total_over_ninety_minor, report.total_outstanding_minor]
+    ]
+  );
+}
+
+function exportTaxLiability(report: TaxLiabilityReport) {
+  downloadCsv(
+    `gst-liability-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Tax", "Output tax minor", "Input tax minor", "Net payable minor"]],
+    [
+      ...report.rows.map(taxReportRowCsv),
+      ["Total", report.output_tax_minor, report.input_tax_minor, report.net_payable_minor]
+    ]
+  );
+}
+
+function exportTaxSummary(report: TaxSummaryReport) {
+  downloadCsv(
+    `gst-summary-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Tax", "Output tax minor", "Input tax minor", "Net payable minor"]],
+    report.rows.map(taxReportRowCsv)
+  );
+}
+
+function exportBudgetVsActual(report: BudgetVsActualReport) {
+  downloadCsv(
+    `budget-vs-actual-${report.budget_id}.csv`,
+    [["Code", "Account", "Period start", "Period end", "Budget minor", "Actual minor", "Variance minor", "Variance percent"]],
+    report.rows.map(budgetVsActualRowCsv)
+  );
+}
+
+function exportRealizedGains(report: RealizedGainsReport) {
+  downloadCsv(
+    `realized-gains-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Sale date", "Lot ID", "Quantity", "Proceeds minor", "Cost basis minor", "Gain/loss minor", "Currency"]],
+    [
+      ...report.rows.map((row) => [
+        row.sale_date.slice(0, 10),
+        row.investment_lot_id,
+        formatQuantityMillis(row.quantity_millis),
+        row.proceeds_minor,
+        row.allocated_cost_basis_minor,
+        row.realized_gain_loss_minor,
+        row.currency
+      ]),
+      ["Total", "", "", report.total_proceeds_minor, report.total_cost_basis_minor, report.total_gain_loss_minor, ""]
+    ]
+  );
+}
+
+function exportPayslipPreview(preview: PayslipPreview) {
+  downloadCsv(
+    `payslip-${safeFilenamePart(preview.run_number)}-${safeFilenamePart(preview.employee.employee_code || preview.employee.display_name)}.csv`,
+    [
+      ["Run", preview.run_number],
+      ["Employee", preview.employee.display_name],
+      ["Employee code", preview.employee.employee_code ?? ""],
+      ["PAN", preview.employee.pan ?? ""],
+      ["UAN", preview.employee.uan ?? ""],
+      ["Period", `${preview.period_start.slice(0, 10)} to ${preview.period_end.slice(0, 10)}`],
+      ["Pay date", preview.pay_date.slice(0, 10)],
+      ["Currency", preview.currency],
+      ["Status", preview.status],
+      ["Gross pay minor", preview.gross_pay_minor],
+      ["Deductions minor", preview.deductions_minor],
+      ["Net pay minor", preview.net_pay_minor],
+      [],
+      ["Section", "Code", "Component", "Amount minor", "Statutory"]
+    ],
+    [
+      ...preview.earnings.map((component) => [
+        "Earning",
+        component.code,
+        component.name,
+        component.amount_minor,
+        component.is_statutory ? "yes" : "no"
+      ]),
+      ...preview.deductions.map((component) => [
+        "Deduction",
+        component.code,
+        component.name,
+        component.amount_minor,
+        component.is_statutory ? "yes" : "no"
+      ])
+    ]
+  );
+}
+
+function reportRowCsv(row: ReportRow) {
+  return [
+    row.account_code,
+    row.account_name,
+    row.account_type,
+    row.debit_minor,
+    row.credit_minor,
+    row.balance_minor
+  ];
+}
+
+function taxReportRowCsv(row: TaxReportRow) {
+  return [
+    row.name,
+    row.output_tax_minor,
+    row.input_tax_minor,
+    row.net_payable_minor
+  ];
+}
+
+function budgetVsActualRowCsv(row: BudgetVsActualReportRow) {
+  return [
+    row.account_code,
+    row.account_name,
+    row.period_start.slice(0, 10),
+    row.period_end.slice(0, 10),
+    row.budget_minor,
+    row.actual_minor,
+    row.variance_minor,
+    formatBasisPercent(row.variance_percent_basis)
+  ];
+}
+
+function totalBudgetVarianceMinor(report: BudgetVsActualReport) {
+  return report.rows.reduce((total, row) => total + row.variance_minor, 0);
+}
+
+function formatBasisPercent(value: number) {
+  return `${(value / 10000).toFixed(2)}%`;
+}
+
+function formatQuantityMillis(value: number) {
+  return (value / 1000).toLocaleString("en-IN", { maximumFractionDigits: 3 });
+}
+
+function titleCase(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function safeFilenamePart(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "employee";
+}
+
+function downloadCsv(filename: string, headerRows: CsvCell[][], dataRows: CsvCell[][]) {
+  const csv = [...headerRows, ...dataRows]
+    .map((row) => row.map(escapeCsvCell).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+type CsvCell = string | number | boolean;
+
+function escapeCsvCell(cell: CsvCell) {
+  const value = String(cell);
+  if (!/[",\n\r]/.test(value)) {
+    return value;
+  }
+  return `"${value.replace(/"/g, "\"\"")}"`;
+}

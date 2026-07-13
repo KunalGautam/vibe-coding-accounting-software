@@ -1,0 +1,5336 @@
+openapi: 3.0.3
+info:
+  title: Accounting Platform API
+  version: 0.1.0
+  description: >
+    REST API for the AbhashTech multi-tenant accounting and bookkeeping
+    platform with double-entry ledger, invoicing, expenses, payroll, tax,
+    reporting, imports, backups, and investment accounting.
+  contact:
+    name: AbhashTech Accounting
+    url: https://accounting.abhashtech.com
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.accounting.abhashtech.com/api/v1
+    description: Production placeholder
+externalDocs:
+  description: REST API and Swagger documentation workflow
+  url: ./API_DOCUMENTATION.md
+tags:
+  - name: Auth
+  - name: Organizations
+  - name: Accounts
+  - name: Ledger
+  - name: Invoices
+  - name: Expenses
+  - name: Attachments
+  - name: Payroll
+  - name: Tax
+  - name: Reports
+  - name: Imports
+  - name: Investments
+  - name: System
+security:
+  - bearerAuth: []
+paths:
+  /bootstrap/first-admin:
+    post:
+      tags: [System]
+      security: []
+      summary: Create the first admin user and organization
+      description: Only succeeds when no users exist in the system.
+      operationId: bootstrapFirstAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapFirstAdminRequest'
+      responses:
+        '201':
+          description: Bootstrap completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapFirstAdminResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Authenticate a user
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh an access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/request:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Request a password reset token
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestPasswordResetRequest'
+      responses:
+        '200':
+          description: Password reset requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestPasswordResetResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password-reset/confirm:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Confirm a password reset
+      operationId: confirmPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPasswordResetRequest'
+      responses:
+        '200':
+          description: Password reset confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmPasswordResetResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations:
+    get:
+      tags: [Organizations]
+      summary: List organizations available to the current user
+      operationId: listOrganizations
+      responses:
+        '200':
+          description: Organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Organizations]
+      summary: Create an organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Created organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/accounts:
+    get:
+      tags: [Accounts]
+      summary: List chart of accounts
+      operationId: listAccounts
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Accounts]
+      summary: Create an account
+      operationId: createAccount
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Created account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/ledger/transactions:
+    get:
+      tags: [Ledger]
+      summary: List journal transactions
+      operationId: listJournalTransactions
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Journal transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JournalTransaction'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Ledger]
+      summary: Post a balanced journal transaction
+      operationId: postJournalTransaction
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostJournalTransactionRequest'
+      responses:
+        '201':
+          description: Posted journal transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalTransaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/ledger/accounts/{accountId}/register:
+    get:
+      tags: [Ledger]
+      summary: Get account register
+      operationId: getAccountRegister
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Account register
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LedgerSplit'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/customers:
+    get:
+      tags: [Invoices]
+      summary: List customers
+      operationId: listCustomers
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Customer'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices]
+      summary: Create a customer
+      operationId: createCustomer
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      operationId: listInvoices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices]
+      summary: Create an invoice
+      operationId: createInvoice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Created invoice
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/invoices/{invoiceId}/post:
+    post:
+      tags: [Invoices, Ledger]
+      summary: Post an invoice to the general ledger
+      operationId: postInvoice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Posted invoice
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/recurring-invoices:
+    get:
+      tags: [Invoices]
+      summary: List recurring invoice templates
+      operationId: listRecurringInvoices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Recurring invoice templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecurringInvoiceTemplate'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices]
+      summary: Create a recurring invoice template
+      operationId: createRecurringInvoice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecurringInvoiceTemplateRequest'
+      responses:
+        '201':
+          description: Created recurring invoice template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecurringInvoiceTemplate'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/recurring-invoices/generate-due:
+    post:
+      tags: [Invoices]
+      summary: Generate due recurring invoices as drafts
+      operationId: generateDueRecurringInvoices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: as_of
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '201':
+          description: Generated draft invoices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateDueRecurringInvoicesResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/invoices/{invoiceId}/payments:
+    get:
+      tags: [Invoices]
+      summary: List customer payments applied to an invoice
+      operationId: listCustomerPayments
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerPayment'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices, Ledger]
+      summary: Record a customer payment against an invoice
+      operationId: recordCustomerPayment
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+      responses:
+        '201':
+          description: Recorded customer payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerPayment'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/estimates:
+    get:
+      tags: [Invoices]
+      summary: List estimates
+      operationId: listEstimates
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Estimates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Estimate'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices]
+      summary: Create an estimate
+      operationId: createEstimate
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEstimateRequest'
+      responses:
+        '201':
+          description: Created estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/estimates/{estimateId}/convert-to-invoice:
+    post:
+      tags: [Invoices]
+      summary: Convert an estimate into a draft invoice
+      operationId: convertEstimateToInvoice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: estimateId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertEstimateToInvoiceRequest'
+      responses:
+        '201':
+          description: Draft invoice created from estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/estimates/{estimateId}/status:
+    post:
+      tags: [Invoices]
+      summary: Update an estimate lifecycle status
+      operationId: updateEstimateStatus
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: estimateId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEstimateStatusRequest'
+      responses:
+        '200':
+          description: Updated estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estimate'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/credit-notes:
+    get:
+      tags: [Invoices]
+      summary: List credit notes
+      operationId: listCreditNotes
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Credit notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreditNote'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invoices]
+      summary: Create a credit note
+      operationId: createCreditNote
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCreditNoteRequest'
+      responses:
+        '201':
+          description: Created credit note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditNote'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/credit-notes/{creditNoteId}/post:
+    post:
+      tags: [Invoices, Ledger]
+      summary: Post a credit note to the general ledger
+      operationId: postCreditNote
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: creditNoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Posted credit note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditNote'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/attachments:
+    get:
+      tags: [Attachments]
+      summary: List attachment metadata records
+      operationId: listAttachments
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Attachments]
+      summary: Create an attachment metadata record
+      description: Stores metadata and storage location for a file that was uploaded or generated by an external storage workflow.
+      operationId: createAttachment
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAttachmentRequest'
+      responses:
+        '201':
+          description: Created attachment metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/attachments/upload:
+    post:
+      tags: [Attachments]
+      summary: Upload a local attachment file
+      description: Creates an attachment metadata record and stores the uploaded binary using the configured local attachment storage path.
+      operationId: uploadAttachment
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Uploaded attachment metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/attachments/{attachmentId}/download:
+    get:
+      tags: [Attachments]
+      summary: Download a local attachment file
+      operationId: downloadAttachment
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Attachment binary
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/vendors:
+    get:
+      tags: [Expenses]
+      summary: List vendors
+      operationId: listVendors
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Vendors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vendor'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Expenses]
+      summary: Create a vendor
+      operationId: createVendor
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVendorRequest'
+      responses:
+        '201':
+          description: Created vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vendor'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/expenses:
+    get:
+      tags: [Expenses]
+      summary: List expenses
+      operationId: listExpenses
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Expenses]
+      summary: Create an expense
+      operationId: createExpense
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Created expense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/expenses/{expenseId}/post:
+    post:
+      tags: [Expenses, Ledger]
+      summary: Post an expense to the general ledger
+      operationId: postExpense
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: expenseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Posted expense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bills:
+    get:
+      tags: [Expenses]
+      summary: List vendor bills
+      operationId: listBills
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Bills
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bill'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Expenses]
+      summary: Create a vendor bill
+      operationId: createBill
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBillRequest'
+      responses:
+        '201':
+          description: Created bill
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bill'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bills/{billId}/post:
+    post:
+      tags: [Expenses, Ledger]
+      summary: Post a vendor bill to accounts payable
+      operationId: postBill
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: billId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Posted bill
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bill'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bills/{billId}/payments:
+    get:
+      tags: [Expenses]
+      summary: List vendor payments applied to a bill
+      operationId: listVendorPayments
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: billId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Vendor payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorPayment'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Expenses, Ledger]
+      summary: Record a vendor payment against a bill
+      operationId: recordVendorPayment
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: billId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+      responses:
+        '201':
+          description: Recorded vendor payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorPayment'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/purchase-orders:
+    get:
+      tags: [Expenses]
+      summary: List purchase orders
+      operationId: listPurchaseOrders
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Purchase orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PurchaseOrder'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Expenses]
+      summary: Create a purchase order
+      operationId: createPurchaseOrder
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePurchaseOrderRequest'
+      responses:
+        '201':
+          description: Created purchase order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/convert-to-bill:
+    post:
+      tags: [Expenses]
+      summary: Convert a purchase order into a draft vendor bill
+      operationId: convertPurchaseOrderToBill
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertPurchaseOrderToBillRequest'
+      responses:
+        '201':
+          description: Draft bill created from purchase order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bill'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/status:
+    post:
+      tags: [Expenses]
+      summary: Update a purchase order lifecycle status
+      operationId: updatePurchaseOrderStatus
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: purchaseOrderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePurchaseOrderStatusRequest'
+      responses:
+        '200':
+          description: Updated purchase order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/runs:
+    get:
+      tags: [Payroll]
+      summary: List payroll runs
+      operationId: listPayrollRuns
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Payroll runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PayrollRun'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Payroll]
+      summary: Create a payroll run
+      operationId: createPayrollRun
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePayrollRunRequest'
+      responses:
+        '201':
+          description: Created payroll run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRun'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/runs/{payrollRunId}/items/{payrollItemId}/payslip:
+    get:
+      tags: [Payroll]
+      summary: Preview a payroll item payslip
+      description: Returns printable payslip data for one employee item in a payroll run. PDF rendering can be layered on top of this stable data contract.
+      operationId: getPayslipPreview
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: payrollRunId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: payrollItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payslip preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayslipPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/runs/{payrollRunId}/post:
+    post:
+      tags: [Payroll, Ledger]
+      summary: Post a payroll run to the general ledger
+      operationId: postPayrollRun
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: payrollRunId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Posted payroll run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollRun'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/india-preview:
+    post:
+      tags: [Payroll]
+      summary: Preview India payroll earnings and statutory deductions
+      description: >
+        Calculates a configurable India payroll component breakdown for PF, ESI,
+        professional tax, and TDS. Defaults are starter values only; admins
+        should override rates, wage ceilings, and fixed deductions to match the
+        organization's active payroll policy before creating payroll runs.
+      operationId: previewIndiaPayroll
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewIndiaPayrollRequest'
+      responses:
+        '200':
+          description: India payroll component preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndiaPayrollPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/employees:
+    get:
+      tags: [Payroll]
+      summary: List employees
+      operationId: listEmployees
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Payroll]
+      summary: Create an employee
+      operationId: createEmployee
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmployeeRequest'
+      responses:
+        '201':
+          description: Created employee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/tax/rates:
+    get:
+      tags: [Tax]
+      summary: List tax rates
+      operationId: listTaxRates
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Tax rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxRate'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Tax]
+      summary: Create a tax rate
+      operationId: createTaxRate
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxRateRequest'
+      responses:
+        '201':
+          description: Created tax rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRate'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/tax/authorities:
+    get:
+      tags: [Tax]
+      summary: List tax authorities
+      operationId: listTaxAuthorities
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Tax authorities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxAuthority'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Tax]
+      summary: Create a tax authority
+      operationId: createTaxAuthority
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxAuthorityRequest'
+      responses:
+        '201':
+          description: Created tax authority
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxAuthority'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/tax/groups:
+    get:
+      tags: [Tax]
+      summary: List tax groups
+      operationId: listTaxGroups
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Tax groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxGroup'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Tax]
+      summary: Create a tax group
+      operationId: createTaxGroup
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxGroupRequest'
+      responses:
+        '201':
+          description: Created tax group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxGroup'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/tax/calculate:
+    post:
+      tags: [Tax]
+      summary: Calculate tax for a line amount
+      operationId: calculateTax
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateTaxRequest'
+      responses:
+        '200':
+          description: Tax calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateTaxResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/seed/india-defaults:
+    post:
+      tags: [Tax, Accounts, System]
+      summary: Seed India default chart of accounts and GST presets
+      operationId: seedIndiaDefaults
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Seed result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndiaSeedResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/trial-balance:
+    get:
+      tags: [Reports]
+      summary: Generate trial balance
+      operationId: getTrialBalance
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Trial balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrialBalanceReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/profit-and-loss:
+    get:
+      tags: [Reports]
+      summary: Generate profit and loss report
+      operationId: getProfitAndLoss
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Profit and loss report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfitAndLossReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/balance-sheet:
+    get:
+      tags: [Reports]
+      summary: Generate balance sheet report
+      operationId: getBalanceSheet
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Balance sheet report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceSheetReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/cash-flow:
+    get:
+      tags: [Reports]
+      summary: Generate cash flow statement
+      operationId: getCashFlow
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Cash flow statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashFlowReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ar-aging:
+    get:
+      tags: [Reports, Invoices]
+      summary: Generate accounts receivable aging report
+      operationId: getARAging
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts receivable aging report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ARAgingReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ap-aging:
+    get:
+      tags: [Reports, Expenses]
+      summary: Generate accounts payable aging report
+      operationId: getAPAging
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts payable aging report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APAgingReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-liability:
+    get:
+      tags: [Reports, Tax]
+      summary: Generate tax liability report
+      operationId: getTaxLiability
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax liability report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxLiabilityReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-summary:
+    get:
+      tags: [Reports, Tax]
+      summary: Generate tax summary by rate or group
+      operationId: getTaxSummary
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax summary report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxSummaryReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/budgets:
+    get:
+      tags: [Reports]
+      summary: List budgets
+      operationId: listBudgets
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Budgets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Budget'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Reports]
+      summary: Create a budget
+      operationId: createBudget
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetRequest'
+      responses:
+        '201':
+          description: Created budget
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/budgets/{budgetId}/vs-actual:
+    get:
+      tags: [Reports]
+      summary: Generate budget vs actual report
+      operationId: getBudgetVsActual
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: budgetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Budget vs actual report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetVsActualReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/exchange-rates:
+    get:
+      tags: [Ledger]
+      summary: List exchange rates
+      operationId: listExchangeRates
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Exchange rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExchangeRate'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Ledger]
+      summary: Create an exchange rate
+      operationId: createExchangeRate
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExchangeRateRequest'
+      responses:
+        '201':
+          description: Created exchange rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRate'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/revaluations/preview:
+    get:
+      tags: [Ledger]
+      summary: Preview unrealized foreign currency revaluation
+      operationId: previewRevaluation
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Revaluation preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevaluationPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/revaluations:
+    post:
+      tags: [Ledger]
+      summary: Post unrealized foreign currency revaluation
+      operationId: postRevaluation
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostRevaluationRequest'
+      responses:
+        '201':
+          description: Posted revaluation journal transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JournalTransaction'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/lots:
+    get:
+      tags: [Investments]
+      summary: List investment lots
+      operationId: listInvestmentLots
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Investment lots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentLot'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Investments]
+      summary: Create an investment lot
+      operationId: createInvestmentLot
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentLotRequest'
+      responses:
+        '201':
+          description: Created investment lot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentLot'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/lots/{lotId}/sell:
+    post:
+      tags: [Investments]
+      summary: Record an investment lot disposition
+      operationId: sellInvestmentLot
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: lotId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellInvestmentLotRequest'
+      responses:
+        '201':
+          description: Recorded disposition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentDisposition'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/average-cost-sales:
+    post:
+      tags: [Investments]
+      summary: Record an average-cost pooled investment sale
+      operationId: sellAverageCost
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellAverageCostRequest'
+      responses:
+        '201':
+          description: Recorded average-cost sale
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AverageCostSaleResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices:
+    get:
+      tags: [Investments]
+      summary: List investment market prices
+      operationId: listInvestmentPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Investment prices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentPrice'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Investments]
+      summary: Create an investment market price
+      operationId: createInvestmentPrice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentPriceRequest'
+      responses:
+        '201':
+          description: Created investment price
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPrice'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/realized-gains:
+    get:
+      tags: [Reports, Investments]
+      summary: Get realized capital gains report
+      operationId: getRealizedGains
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Realized gains report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealizedGainsReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-valuation:
+    get:
+      tags: [Reports, Investments]
+      summary: Get investment portfolio valuation report
+      operationId: getInvestmentValuation
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Investment valuation report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentValuationReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/closing/fiscal-years:
+    get:
+      tags: [Ledger]
+      summary: List fiscal year closes
+      operationId: listFiscalCloses
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Fiscal closes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FiscalClose'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Ledger]
+      summary: Close a fiscal year
+      operationId: closeFiscalYear
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseFiscalYearRequest'
+      responses:
+        '201':
+          description: Fiscal year closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiscalClose'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/audit-logs:
+    get:
+      tags: [System]
+      summary: List organization audit logs
+      operationId: listAuditLogs
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/data/export:
+    get:
+      tags: [System]
+      summary: Export organization data as JSON
+      description: Admin/Accountant-only tenant-scoped backup export containing accounting, tax, payroll, document metadata, import, budget, and investment records.
+      operationId: exportOrganizationData
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Organization data export
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: Suggested backup filename.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationDataExport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/data/backups:
+    get:
+      tags: [System]
+      summary: List backup snapshots
+      operationId: listBackupSnapshots
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Backup snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupSnapshot'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [System]
+      summary: Create a backup snapshot
+      operationId: createBackupSnapshot
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBackupSnapshotRequest'
+      responses:
+        '201':
+          description: Created backup snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupSnapshot'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/users:
+    get:
+      tags: [Organizations]
+      summary: List organization users
+      operationId: listOrganizationUsers
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Organization users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganizationUser'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Organizations]
+      summary: Create an organization user and membership
+      operationId: createOrganizationUser
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationUserRequest'
+      responses:
+        '201':
+          description: Created organization user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationUser'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/imports/bank-statements:
+    post:
+      tags: [Imports]
+      summary: Import structured bank statement lines through the legacy import path
+      description: Deprecated alias for `/organizations/{organizationId}/bank-statements/import`. Use the canonical bank statement import path for new clients.
+      deprecated: true
+      operationId: importBankStatementLegacy
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBankStatementRequest'
+      responses:
+        '201':
+          description: Imported bank statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementImport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bank-statements/import:
+    post:
+      tags: [Imports]
+      summary: Import structured bank statement lines
+      operationId: importStructuredBankStatement
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBankStatementRequest'
+      responses:
+        '201':
+          description: Imported bank statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementImport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bank-statements/import/qif:
+    post:
+      tags: [Imports]
+      summary: Import QIF bank statement content
+      operationId: importQIFBankStatement
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportQIFBankStatementRequest'
+      responses:
+        '201':
+          description: Imported QIF bank statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementImport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bank-statements/import/ofx:
+    post:
+      tags: [Imports]
+      summary: Import OFX bank statement content
+      operationId: importOFXBankStatement
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportOFXBankStatementRequest'
+      responses:
+        '201':
+          description: Imported OFX bank statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementImport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bank-statement-lines:
+    get:
+      tags: [Imports]
+      summary: List imported bank statement lines for an account
+      operationId: listBankStatementLines
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bank statement lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BankStatementLine'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/bank-statement-lines/{statementLineId}/match:
+    post:
+      tags: [Imports, Ledger]
+      summary: Match a bank statement line to a ledger split
+      operationId: matchBankStatementLine
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: statementLineId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchBankStatementLineRequest'
+      responses:
+        '200':
+          description: Matched bank statement line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatementLine'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/ledger/splits/{splitId}/reconcile:
+    post:
+      tags: [Ledger]
+      summary: Mark a ledger split as cleared and reconciled
+      operationId: reconcileLedgerSplit
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: splitId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reconciled ledger split
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedgerSplit'
+        default:
+          $ref: '#/components/responses/Error'
+  /health:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local root health endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production root health endpoint placeholder
+      summary: Root health check
+      operationId: rootHealthCheck
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/health:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local API health endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production API health endpoint placeholder
+      summary: Versioned API health check
+      operationId: apiHealthCheck
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FromDate:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    ToDate:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    AsOfDate:
+      name: as_of
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: validation_error
+            message:
+              type: string
+              example: Request validation failed
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    BootstrapFirstAdminRequest:
+      type: object
+      required: [organization_name, admin_name, admin_email, admin_password]
+      properties:
+        organization_name:
+          type: string
+          example: Acme India
+        admin_name:
+          type: string
+          example: Admin User
+        admin_email:
+          type: string
+          format: email
+        admin_password:
+          type: string
+          format: password
+          minLength: 12
+        base_currency:
+          type: string
+          example: INR
+        country_code:
+          type: string
+          example: IN
+        seed_india_defaults:
+          type: boolean
+          default: true
+    BootstrapFirstAdminResponse:
+      type: object
+      properties:
+        organization:
+          $ref: '#/components/schemas/Organization'
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            is_active:
+              type: boolean
+        membership:
+          type: object
+          properties:
+            organization_id:
+              type: string
+              format: uuid
+            user_id:
+              type: string
+              format: uuid
+            role:
+              type: string
+        india_seed:
+          $ref: '#/components/schemas/IndiaSeedResult'
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    RequestPasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    RequestPasswordResetResponse:
+      type: object
+      required: [requested]
+      properties:
+        requested:
+          type: boolean
+        reset_token:
+          type: string
+          description: Development/staging reset token for local delivery until email transport is configured.
+        reset_token_expires_at:
+          type: string
+          format: date-time
+    ConfirmPasswordResetRequest:
+      type: object
+      required: [reset_token, new_password]
+      properties:
+        reset_token:
+          type: string
+        new_password:
+          type: string
+          minLength: 12
+    ConfirmPasswordResetResponse:
+      type: object
+      required: [reset]
+      properties:
+        reset:
+          type: boolean
+    AuthTokenResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          example: 900
+    Organization:
+      type: object
+      required: [id, name, base_currency, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        base_currency:
+          type: string
+          example: USD
+        created_at:
+          type: string
+          format: date-time
+    CreateOrganizationRequest:
+      type: object
+      required: [name, base_currency]
+      properties:
+        name:
+          type: string
+        base_currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+    OrganizationDataExport:
+      type: object
+      required: [exported_at, organization]
+      additionalProperties: true
+      properties:
+        exported_at:
+          type: string
+          format: date-time
+        organization:
+          $ref: '#/components/schemas/Organization'
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+        journal_transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalTransaction'
+        audit_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Expense'
+        tax_rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxRate'
+    BackupSnapshot:
+      type: object
+      required: [id, organization_id, file_name, storage_path, size_bytes, sha256, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        storage_path:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+        status:
+          type: string
+          example: completed
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    CreateBackupSnapshotRequest:
+      type: object
+      properties:
+        storage_path:
+          type: string
+          description: Optional local backup directory. Defaults to server backup storage configuration.
+        retention_count:
+          type: integer
+          description: Optional count of newest snapshots to retain for this organization.
+    Account:
+      type: object
+      required: [id, organization_id, name, code, type, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        subtype:
+          type: string
+          example: bank
+        currency:
+          type: string
+          example: USD
+        is_active:
+          type: boolean
+    CreateAccountRequest:
+      type: object
+      required: [code, name, type]
+      properties:
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        subtype:
+          type: string
+        currency:
+          type: string
+    JournalTransaction:
+      type: object
+      required: [id, organization_id, transaction_date, status, splits]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        transaction_date:
+          type: string
+          format: date
+        memo:
+          type: string
+        source_module:
+          type: string
+          enum: [manual, invoice, credit_note, bill, expense, payroll, import, closing, payment]
+        status:
+          type: string
+          enum: [draft, posted, reversed]
+        splits:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerSplit'
+    LedgerSplit:
+      type: object
+      required: [id, account_id, debit, credit]
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        memo:
+          type: string
+        debit:
+          type: string
+          deprecated: true
+          example: '100.00'
+        credit:
+          type: string
+          deprecated: true
+          example: '0.00'
+        debit_minor:
+          type: integer
+          format: int64
+          example: 10000
+        credit_minor:
+          type: integer
+          format: int64
+          example: 0
+        base_debit_minor:
+          type: integer
+          format: int64
+          example: 835000
+        base_credit_minor:
+          type: integer
+          format: int64
+          example: 0
+        currency:
+          type: string
+          example: USD
+        exchange_rate_numerator:
+          type: integer
+          format: int64
+          example: 8350
+        exchange_rate_denominator:
+          type: integer
+          format: int64
+          example: 100
+        cleared:
+          type: boolean
+        reconciled:
+          type: boolean
+        reconciled_at:
+          type: string
+          format: date-time
+          nullable: true
+    PostJournalTransactionRequest:
+      type: object
+      required: [transaction_date, splits]
+      properties:
+        transaction_date:
+          type: string
+          format: date
+        memo:
+          type: string
+        source_module:
+          type: string
+          enum: [manual, invoice, credit_note, bill, expense, payroll, import, closing, payment]
+        splits:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [account_id]
+            properties:
+              account_id:
+                type: string
+                format: uuid
+              memo:
+                type: string
+              debit_minor:
+                type: integer
+                format: int64
+                example: 10000
+              credit_minor:
+                type: integer
+                format: int64
+                example: 0
+              base_debit_minor:
+                type: integer
+                format: int64
+                example: 835000
+              base_credit_minor:
+                type: integer
+                format: int64
+                example: 0
+              currency:
+                type: string
+                example: USD
+              exchange_rate_numerator:
+                type: integer
+                format: int64
+                example: 8350
+              exchange_rate_denominator:
+                type: integer
+                format: int64
+                example: 100
+    Customer:
+      type: object
+      required: [id, organization_id, display_name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        billing_address:
+          type: string
+        gstin:
+          type: string
+        is_active:
+          type: boolean
+    CreateCustomerRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        billing_address:
+          type: string
+        gstin:
+          type: string
+    Invoice:
+      type: object
+      required: [id, organization_id, invoice_number, status, subtotal_minor, tax_total_minor, total_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        invoice_number:
+          type: string
+        issue_date:
+          type: string
+          format: date-time
+        due_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, paid, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+          example: 10000
+        tax_total_minor:
+          type: integer
+          format: int64
+          example: 1800
+        total_minor:
+          type: integer
+          format: int64
+          example: 11800
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        pdf_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+    InvoiceLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        quantity_millis:
+          type: integer
+          format: int64
+          example: 1000
+        unit_price_minor:
+          type: integer
+          format: int64
+          example: 10000
+        line_subtotal_minor:
+          type: integer
+          format: int64
+        tax_amount_minor:
+          type: integer
+          format: int64
+        line_total_minor:
+          type: integer
+          format: int64
+        income_account_id:
+          type: string
+          format: uuid
+        tax_rate_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_group_id:
+          type: string
+          format: uuid
+          nullable: true
+    CreateInvoiceRequest:
+      type: object
+      required: [customer_id, invoice_number, issue_date, due_date, accounts_receivable_id, lines]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        invoice_number:
+          type: string
+          example: INV-001
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        pdf_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InvoiceLineInput'
+    InvoiceLineInput:
+      type: object
+      required: [description, unit_price_minor, income_account_id]
+      properties:
+        description:
+          type: string
+        quantity_millis:
+          type: integer
+          format: int64
+          example: 1000
+        unit_price_minor:
+          type: integer
+          format: int64
+          example: 10000
+        income_account_id:
+          type: string
+          format: uuid
+        tax_rate_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_group_id:
+          type: string
+          format: uuid
+          nullable: true
+    RecurringInvoiceTemplate:
+      type: object
+      required: [id, organization_id, customer_id, name, invoice_number_prefix, start_date, next_run_date, frequency, due_days, subtotal_minor, tax_total_minor, total_minor, accounts_receivable_id, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        invoice_number_prefix:
+          type: string
+          example: RET
+        start_date:
+          type: string
+          format: date-time
+        next_run_date:
+          type: string
+          format: date-time
+        frequency:
+          type: string
+          enum: [weekly, monthly, yearly]
+        due_days:
+          type: integer
+          example: 30
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+        tax_total_minor:
+          type: integer
+          format: int64
+        total_minor:
+          type: integer
+          format: int64
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+        last_generated_at:
+          type: string
+          format: date-time
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+    CreateRecurringInvoiceTemplateRequest:
+      type: object
+      required: [customer_id, name, invoice_number_prefix, start_date, frequency, accounts_receivable_id, lines]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        invoice_number_prefix:
+          type: string
+          example: RET
+        start_date:
+          type: string
+          format: date
+        next_run_date:
+          type: string
+          format: date
+        frequency:
+          type: string
+          enum: [weekly, monthly, yearly]
+        due_days:
+          type: integer
+          example: 30
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InvoiceLineInput'
+    GenerateDueRecurringInvoicesResponse:
+      type: object
+      required: [generated_invoices, generated_count]
+      properties:
+        generated_invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+        generated_count:
+          type: integer
+    Estimate:
+      type: object
+      required: [id, organization_id, customer_id, estimate_number, issue_date, expiry_date, status, subtotal_minor, tax_total_minor, total_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        estimate_number:
+          type: string
+        issue_date:
+          type: string
+          format: date-time
+        expiry_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, sent, accepted, converted, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+        tax_total_minor:
+          type: integer
+          format: int64
+        total_minor:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+    CreateEstimateRequest:
+      type: object
+      required: [customer_id, estimate_number, issue_date, expiry_date, lines]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        estimate_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        expiry_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InvoiceLineInput'
+    ConvertEstimateToInvoiceRequest:
+      type: object
+      required: [invoice_number, issue_date, due_date, accounts_receivable_id]
+      properties:
+        invoice_number:
+          type: string
+          example: INV-EST-001
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        pdf_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+    UpdateEstimateStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [draft, sent, accepted, void]
+    CreditNote:
+      type: object
+      required: [id, organization_id, customer_id, credit_note_number, issue_date, status, subtotal_minor, tax_total_minor, total_minor, accounts_receivable_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        invoice_id:
+          type: string
+          format: uuid
+          nullable: true
+        credit_note_number:
+          type: string
+        issue_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+        tax_total_minor:
+          type: integer
+          format: int64
+        total_minor:
+          type: integer
+          format: int64
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+    CreateCreditNoteRequest:
+      type: object
+      required: [customer_id, credit_note_number, issue_date, accounts_receivable_id, lines]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        invoice_id:
+          type: string
+          format: uuid
+          nullable: true
+        credit_note_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        accounts_receivable_id:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InvoiceLineInput'
+    CustomerPayment:
+      type: object
+      required: [id, organization_id, invoice_id, payment_number, payment_date, currency, amount_minor, payment_account_id, journal_transaction_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        invoice_id:
+          type: string
+          format: uuid
+        payment_number:
+          type: string
+          example: RCPT-001
+        payment_date:
+          type: string
+          format: date-time
+        payment_method:
+          type: string
+          example: bank_transfer
+        reference:
+          type: string
+          example: UTR123456
+        currency:
+          type: string
+          example: INR
+        amount_minor:
+          type: integer
+          format: int64
+          example: 11800
+        payment_account_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+    RecordPaymentRequest:
+      type: object
+      required: [payment_number, payment_date, amount_minor, payment_account_id]
+      properties:
+        payment_number:
+          type: string
+          example: RCPT-001
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          type: string
+          example: bank_transfer
+        reference:
+          type: string
+          example: UTR123456
+        currency:
+          type: string
+          example: INR
+        amount_minor:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 11800
+        payment_account_id:
+          type: string
+          format: uuid
+    Attachment:
+      type: object
+      required: [id, organization_id, file_name, storage_driver, storage_key, size_bytes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+          example: INV-001.pdf
+        content_type:
+          type: string
+          example: application/pdf
+        storage_driver:
+          type: string
+          example: local
+        storage_key:
+          type: string
+          example: invoices/INV-001.pdf
+        size_bytes:
+          type: integer
+          format: int64
+          example: 4096
+    CreateAttachmentRequest:
+      type: object
+      required: [file_name, storage_key]
+      properties:
+        file_name:
+          type: string
+          example: receipt.jpg
+        content_type:
+          type: string
+          example: image/jpeg
+        storage_driver:
+          type: string
+          default: local
+        storage_key:
+          type: string
+          example: receipts/receipt.jpg
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+    Vendor:
+      type: object
+      required: [id, organization_id, display_name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        billing_address:
+          type: string
+        gstin:
+          type: string
+        is_active:
+          type: boolean
+    CreateVendorRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        billing_address:
+          type: string
+        gstin:
+          type: string
+    Expense:
+      type: object
+      required: [id, organization_id, expense_number, expense_date, status, subtotal_minor, tax_total_minor, total_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        vendor_id:
+          type: string
+          format: uuid
+          nullable: true
+        expense_number:
+          type: string
+        expense_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+          example: 10000
+        tax_total_minor:
+          type: integer
+          format: int64
+          example: 1800
+        total_minor:
+          type: integer
+          format: int64
+          example: 11800
+        expense_account_id:
+          type: string
+          format: uuid
+        payment_account_id:
+          type: string
+          format: uuid
+        receipt_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        reimbursable:
+          type: boolean
+    CreateExpenseRequest:
+      type: object
+      required: [expense_number, expense_date, amount_minor, expense_account_id, payment_account_id]
+      properties:
+        vendor_id:
+          type: string
+          format: uuid
+          nullable: true
+        expense_number:
+          type: string
+          example: EXP-001
+        expense_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        amount_minor:
+          type: integer
+          format: int64
+          example: 10000
+        expense_account_id:
+          type: string
+          format: uuid
+        payment_account_id:
+          type: string
+          format: uuid
+        receipt_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_rate_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_group_id:
+          type: string
+          format: uuid
+          nullable: true
+        reimbursable:
+          type: boolean
+    Bill:
+      type: object
+      required: [id, organization_id, vendor_id, bill_number, issue_date, due_date, status, subtotal_minor, tax_total_minor, total_minor, accounts_payable_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        vendor_id:
+          type: string
+          format: uuid
+        bill_number:
+          type: string
+        issue_date:
+          type: string
+          format: date-time
+        due_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, paid, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+        tax_total_minor:
+          type: integer
+          format: int64
+        total_minor:
+          type: integer
+          format: int64
+        accounts_payable_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillLine'
+    BillLine:
+      type: object
+      required: [id, organization_id, bill_id, description, quantity_millis, unit_price_minor, line_subtotal_minor, tax_amount_minor, line_total_minor, expense_account_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        bill_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        quantity_millis:
+          type: integer
+          format: int64
+        unit_price_minor:
+          type: integer
+          format: int64
+        line_subtotal_minor:
+          type: integer
+          format: int64
+        tax_amount_minor:
+          type: integer
+          format: int64
+        line_total_minor:
+          type: integer
+          format: int64
+        expense_account_id:
+          type: string
+          format: uuid
+    CreateBillRequest:
+      type: object
+      required: [vendor_id, bill_number, issue_date, due_date, accounts_payable_id, lines]
+      properties:
+        vendor_id:
+          type: string
+          format: uuid
+        bill_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        accounts_payable_id:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateBillLineRequest'
+    CreateBillLineRequest:
+      type: object
+      required: [description, unit_price_minor, expense_account_id]
+      properties:
+        description:
+          type: string
+        quantity_millis:
+          type: integer
+          format: int64
+        unit_price_minor:
+          type: integer
+          format: int64
+        expense_account_id:
+          type: string
+          format: uuid
+        tax_rate_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_group_id:
+          type: string
+          format: uuid
+          nullable: true
+    PurchaseOrder:
+      type: object
+      required: [id, organization_id, vendor_id, purchase_order_number, issue_date, status, subtotal_minor, tax_total_minor, total_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        vendor_id:
+          type: string
+          format: uuid
+        purchase_order_number:
+          type: string
+        issue_date:
+          type: string
+          format: date-time
+        expected_date:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [draft, sent, approved, converted, void]
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        subtotal_minor:
+          type: integer
+          format: int64
+        tax_total_minor:
+          type: integer
+          format: int64
+        total_minor:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillLine'
+    CreatePurchaseOrderRequest:
+      type: object
+      required: [vendor_id, purchase_order_number, issue_date, lines]
+      properties:
+        vendor_id:
+          type: string
+          format: uuid
+        purchase_order_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        expected_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        tax_inclusive:
+          type: boolean
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateBillLineRequest'
+    ConvertPurchaseOrderToBillRequest:
+      type: object
+      required: [bill_number, issue_date, due_date, accounts_payable_id]
+      properties:
+        bill_number:
+          type: string
+          example: BILL-PO-001
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        accounts_payable_id:
+          type: string
+          format: uuid
+        document_attachment_id:
+          type: string
+          format: uuid
+          nullable: true
+    UpdatePurchaseOrderStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [draft, sent, approved, void]
+    VendorPayment:
+      type: object
+      required: [id, organization_id, bill_id, payment_number, payment_date, currency, amount_minor, payment_account_id, journal_transaction_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        bill_id:
+          type: string
+          format: uuid
+        payment_number:
+          type: string
+          example: VPAY-001
+        payment_date:
+          type: string
+          format: date-time
+        payment_method:
+          type: string
+          example: bank_transfer
+        reference:
+          type: string
+          example: UTR987654
+        currency:
+          type: string
+          example: INR
+        amount_minor:
+          type: integer
+          format: int64
+          example: 11800
+        payment_account_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+    Employee:
+      type: object
+      required: [id, organization_id, display_name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        employee_code:
+          type: string
+        pan:
+          type: string
+        uan:
+          type: string
+        is_active:
+          type: boolean
+    CreateEmployeeRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        employee_code:
+          type: string
+        pan:
+          type: string
+        uan:
+          type: string
+    PayrollRun:
+      type: object
+      required: [id, organization_id, run_number, period_start, period_end, pay_date, status, gross_pay_minor, deductions_minor, net_pay_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        run_number:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        pay_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, void]
+        currency:
+          type: string
+          example: INR
+        payroll_expense_account_id:
+          type: string
+          format: uuid
+        payroll_liability_account_id:
+          type: string
+          format: uuid
+        deduction_liability_account_id:
+          type: string
+          format: uuid
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        net_pay_minor:
+          type: integer
+          format: int64
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollItem'
+    PayrollItem:
+      type: object
+      properties:
+        employee_id:
+          type: string
+          format: uuid
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        net_pay_minor:
+          type: integer
+          format: int64
+        payslip_key:
+          type: string
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollComponent'
+    PayrollComponent:
+      type: object
+      required: [code, name, type, amount_minor, is_statutory]
+      properties:
+        code:
+          type: string
+          example: PF
+        name:
+          type: string
+          example: Provident Fund
+        type:
+          type: string
+          enum: [earning, deduction]
+        amount_minor:
+          type: integer
+          format: int64
+        is_statutory:
+          type: boolean
+    PayslipPreview:
+      type: object
+      required: [organization_id, payroll_run_id, payroll_item_id, run_number, period_start, period_end, pay_date, status, currency, employee, gross_pay_minor, deductions_minor, net_pay_minor, earnings, deductions, components]
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        payroll_run_id:
+          type: string
+          format: uuid
+        payroll_item_id:
+          type: string
+          format: uuid
+        run_number:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        pay_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, posted, void]
+        currency:
+          type: string
+          example: INR
+        employee:
+          $ref: '#/components/schemas/Employee'
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        net_pay_minor:
+          type: integer
+          format: int64
+        payslip_key:
+          type: string
+        earnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollComponent'
+        deductions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollComponent'
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollComponent'
+    PreviewIndiaPayrollRequest:
+      type: object
+      properties:
+        basic_minor:
+          type: integer
+          format: int64
+          description: Basic pay in minor currency units.
+          example: 2000000
+        hra_minor:
+          type: integer
+          format: int64
+          description: House rent allowance in minor currency units.
+          example: 500000
+        special_minor:
+          type: integer
+          format: int64
+          description: Special allowance in minor currency units.
+          example: 250000
+        bonus_minor:
+          type: integer
+          format: int64
+          example: 0
+        reimbursement_minor:
+          type: integer
+          format: int64
+          example: 0
+        employee_pf_enabled:
+          type: boolean
+          default: true
+        employee_pf_rate_bps:
+          type: integer
+          format: int64
+          description: Employee PF rate in basis points. Zero uses the API default starter value.
+          example: 1200
+        pf_wage_ceiling_minor:
+          type: integer
+          format: int64
+          description: PF wage ceiling in minor currency units. Zero uses the API default starter value.
+          example: 1500000
+        employee_esi_enabled:
+          type: boolean
+          default: true
+        employee_esi_rate_bps:
+          type: integer
+          format: int64
+          description: Employee ESI rate in basis points. Zero uses the API default starter value.
+          example: 75
+        esi_gross_limit_minor:
+          type: integer
+          format: int64
+          description: ESI gross wage eligibility ceiling in minor currency units. Zero uses the API default starter value.
+          example: 2100000
+        professional_tax_minor:
+          type: integer
+          format: int64
+          description: Fixed professional tax deduction in minor currency units.
+          example: 20000
+        tds_minor:
+          type: integer
+          format: int64
+          description: Fixed TDS deduction in minor currency units.
+          example: 150000
+    IndiaPayrollPreview:
+      type: object
+      required: [gross_pay_minor, deductions_minor, net_pay_minor, components, rule_summary]
+      properties:
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        net_pay_minor:
+          type: integer
+          format: int64
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreatePayrollComponentRequest'
+        rule_summary:
+          $ref: '#/components/schemas/IndiaPayrollRuleSummary'
+    IndiaPayrollRuleSummary:
+      type: object
+      required: [employee_pf_enabled, employee_pf_rate_bps, pf_wage_ceiling_minor, employee_esi_enabled, employee_esi_rate_bps, esi_gross_limit_minor, professional_tax_minor, tds_minor]
+      properties:
+        employee_pf_enabled:
+          type: boolean
+        employee_pf_rate_bps:
+          type: integer
+          format: int64
+        pf_wage_ceiling_minor:
+          type: integer
+          format: int64
+        employee_esi_enabled:
+          type: boolean
+        employee_esi_rate_bps:
+          type: integer
+          format: int64
+        esi_gross_limit_minor:
+          type: integer
+          format: int64
+        professional_tax_minor:
+          type: integer
+          format: int64
+        tds_minor:
+          type: integer
+          format: int64
+    CreatePayrollRunRequest:
+      type: object
+      required: [run_number, period_start, period_end, pay_date, payroll_expense_account_id, payroll_liability_account_id, deduction_liability_account_id, items]
+      properties:
+        run_number:
+          type: string
+          example: PAY-2026-07
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        pay_date:
+          type: string
+          format: date
+        currency:
+          type: string
+          example: INR
+        payroll_expense_account_id:
+          type: string
+          format: uuid
+        payroll_liability_account_id:
+          type: string
+          format: uuid
+        deduction_liability_account_id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreatePayrollItemRequest'
+    CreatePayrollItemRequest:
+      type: object
+      required: [employee_id]
+      properties:
+        employee_id:
+          type: string
+          format: uuid
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        payslip_key:
+          type: string
+        components:
+          type: array
+          description: Optional configurable earning/deduction breakdown. When supplied, earning and deduction totals must match gross_pay_minor and deductions_minor, or those totals can be derived when zero.
+          items:
+            $ref: '#/components/schemas/CreatePayrollComponentRequest'
+    CreatePayrollComponentRequest:
+      type: object
+      required: [code, name, type, amount_minor]
+      properties:
+        code:
+          type: string
+          example: BASIC
+        name:
+          type: string
+          example: Basic Pay
+        type:
+          type: string
+          enum: [earning, deduction]
+        amount_minor:
+          type: integer
+          format: int64
+        is_statutory:
+          type: boolean
+          default: false
+    TaxAuthority:
+      type: object
+      required: [id, organization_id, name, country_code, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Goods and Services Tax Network
+        country_code:
+          type: string
+          example: IN
+        region_code:
+          type: string
+          example: MH
+        is_active:
+          type: boolean
+    CreateTaxAuthorityRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        country_code:
+          type: string
+          example: IN
+        region_code:
+          type: string
+    TaxRate:
+      type: object
+      required: [id, name, percentage, type, effective_from, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tax_authority_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: GST 18%
+        percentage:
+          type: string
+          example: '18.0000'
+        percentage_basis:
+          type: integer
+          format: int64
+          description: Percentage stored in ten-thousandths of one percent; 90000 means 9.0000%.
+          example: 90000
+        type:
+          type: string
+          enum: [VAT, GST, Sales Tax, Withholding]
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+        is_compound:
+          type: boolean
+        is_active:
+          type: boolean
+    CreateTaxRateRequest:
+      type: object
+      required: [tax_authority_id, name, type, effective_from]
+      properties:
+        tax_authority_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        percentage:
+          type: string
+        percentage_basis:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [VAT, GST, Sales Tax, Withholding]
+        effective_from:
+          type: string
+          format: date
+        effective_to:
+          type: string
+          format: date
+          nullable: true
+        is_compound:
+          type: boolean
+          default: false
+    TaxGroup:
+      type: object
+      required: [id, organization_id, name, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: GST 18%
+        description:
+          type: string
+        is_active:
+          type: boolean
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxGroupComponent'
+    TaxGroupComponent:
+      type: object
+      required: [id, tax_group_id, tax_rate_id, sort_order]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tax_group_id:
+          type: string
+          format: uuid
+        tax_rate_id:
+          type: string
+          format: uuid
+        sort_order:
+          type: integer
+        tax_rate:
+          $ref: '#/components/schemas/TaxRate'
+    CreateTaxGroupRequest:
+      type: object
+      required: [name, tax_rate_ids]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tax_rate_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+    CalculateTaxRequest:
+      type: object
+      required: [base_amount_minor]
+      properties:
+        base_amount_minor:
+          type: integer
+          format: int64
+          example: 10000
+        tax_inclusive:
+          type: boolean
+          default: false
+        tax_rate_id:
+          type: string
+          format: uuid
+          nullable: true
+        tax_group_id:
+          type: string
+          format: uuid
+          nullable: true
+    CalculateTaxResponse:
+      type: object
+      required: [base_amount_minor, tax_amount_minor, total_amount_minor, components]
+      properties:
+        base_amount_minor:
+          type: integer
+          format: int64
+          example: 10000
+        tax_amount_minor:
+          type: integer
+          format: int64
+          example: 1800
+        total_amount_minor:
+          type: integer
+          format: int64
+          example: 11800
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxCalculationComponent'
+    TaxCalculationComponent:
+      type: object
+      required: [tax_rate_id, name, percentage_basis, tax_amount_minor]
+      properties:
+        tax_rate_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: CGST 9%
+        percentage_basis:
+          type: integer
+          format: int64
+          example: 90000
+        tax_amount_minor:
+          type: integer
+          format: int64
+          example: 900
+    IndiaSeedResult:
+      type: object
+      required: [accounts_created, tax_rates_created, tax_groups_created, tax_authority_created]
+      properties:
+        accounts_created:
+          type: integer
+        tax_rates_created:
+          type: integer
+        tax_groups_created:
+          type: integer
+        tax_authority_created:
+          type: boolean
+    TrialBalanceReport:
+      type: object
+      required: [as_of_date, rows, total_debit_minor, total_credit_minor, balanced]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        total_debit_minor:
+          type: integer
+          format: int64
+        total_credit_minor:
+          type: integer
+          format: int64
+        balanced:
+          type: boolean
+    ProfitAndLossReport:
+      type: object
+      required: [from_date, to_date, income_rows, expense_rows, total_income_minor, total_expense_minor, net_income_minor]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        income_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        expense_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        total_income_minor:
+          type: integer
+          format: int64
+        total_expense_minor:
+          type: integer
+          format: int64
+        net_income_minor:
+          type: integer
+          format: int64
+    BalanceSheetReport:
+      type: object
+      required: [as_of_date, asset_rows, liability_rows, equity_rows, total_assets_minor, total_liabilities_minor, total_equity_minor, balanced]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        asset_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        liability_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        equity_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportRow'
+        total_assets_minor:
+          type: integer
+          format: int64
+        total_liabilities_minor:
+          type: integer
+          format: int64
+        total_equity_minor:
+          type: integer
+          format: int64
+        balanced:
+          type: boolean
+    CashFlowReport:
+      type: object
+      required: [from_date, to_date, rows, total_inflows_minor, total_outflows_minor, net_cash_flow_minor, opening_cash_minor, closing_cash_minor, generated_from_subtypes]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashFlowRow'
+        total_inflows_minor:
+          type: integer
+          format: int64
+        total_outflows_minor:
+          type: integer
+          format: int64
+        net_cash_flow_minor:
+          type: integer
+          format: int64
+        opening_cash_minor:
+          type: integer
+          format: int64
+        closing_cash_minor:
+          type: integer
+          format: int64
+        generated_from_subtypes:
+          type: array
+          items:
+            type: string
+    CashFlowRow:
+      type: object
+      required: [account_id, account_code, account_name, source_module, inflow_minor, outflow_minor, net_cash_flow_minor]
+      properties:
+        account_id:
+          type: string
+        account_code:
+          type: string
+        account_name:
+          type: string
+        source_module:
+          type: string
+        inflow_minor:
+          type: integer
+          format: int64
+        outflow_minor:
+          type: integer
+          format: int64
+        net_cash_flow_minor:
+          type: integer
+          format: int64
+    ARAgingReport:
+      type: object
+      required: [as_of_date, rows, total_current_minor, total_one_to_thirty_minor, total_thirty_one_to_sixty_minor, total_sixty_one_to_ninety_minor, total_over_ninety_minor, total_outstanding_minor]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ARAgingRow'
+        total_current_minor:
+          type: integer
+          format: int64
+        total_one_to_thirty_minor:
+          type: integer
+          format: int64
+        total_thirty_one_to_sixty_minor:
+          type: integer
+          format: int64
+        total_sixty_one_to_ninety_minor:
+          type: integer
+          format: int64
+        total_over_ninety_minor:
+          type: integer
+          format: int64
+        total_outstanding_minor:
+          type: integer
+          format: int64
+    ARAgingRow:
+      type: object
+      required: [customer_id, customer_name, invoice_id, invoice_number, due_date, days_overdue, outstanding_minor, current_minor, one_to_thirty_minor, thirty_one_to_sixty_minor, sixty_one_to_ninety_minor, over_ninety_minor]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        customer_name:
+          type: string
+        invoice_id:
+          type: string
+          format: uuid
+        invoice_number:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        days_overdue:
+          type: integer
+        outstanding_minor:
+          type: integer
+          format: int64
+        current_minor:
+          type: integer
+          format: int64
+        one_to_thirty_minor:
+          type: integer
+          format: int64
+        thirty_one_to_sixty_minor:
+          type: integer
+          format: int64
+        sixty_one_to_ninety_minor:
+          type: integer
+          format: int64
+        over_ninety_minor:
+          type: integer
+          format: int64
+    APAgingReport:
+      type: object
+      required: [as_of_date, rows, total_current_minor, total_one_to_thirty_minor, total_thirty_one_to_sixty_minor, total_sixty_one_to_ninety_minor, total_over_ninety_minor, total_outstanding_minor]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/APAgingRow'
+        total_current_minor:
+          type: integer
+          format: int64
+        total_one_to_thirty_minor:
+          type: integer
+          format: int64
+        total_thirty_one_to_sixty_minor:
+          type: integer
+          format: int64
+        total_sixty_one_to_ninety_minor:
+          type: integer
+          format: int64
+        total_over_ninety_minor:
+          type: integer
+          format: int64
+        total_outstanding_minor:
+          type: integer
+          format: int64
+    APAgingRow:
+      type: object
+      required: [vendor_id, vendor_name, bill_id, bill_number, due_date, days_overdue, outstanding_minor, current_minor, one_to_thirty_minor, thirty_one_to_sixty_minor, sixty_one_to_ninety_minor, over_ninety_minor]
+      properties:
+        vendor_id:
+          type: string
+          format: uuid
+        vendor_name:
+          type: string
+        bill_id:
+          type: string
+          format: uuid
+        bill_number:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        days_overdue:
+          type: integer
+        outstanding_minor:
+          type: integer
+          format: int64
+        current_minor:
+          type: integer
+          format: int64
+        one_to_thirty_minor:
+          type: integer
+          format: int64
+        thirty_one_to_sixty_minor:
+          type: integer
+          format: int64
+        sixty_one_to_ninety_minor:
+          type: integer
+          format: int64
+        over_ninety_minor:
+          type: integer
+          format: int64
+    TaxLiabilityReport:
+      type: object
+      required: [from_date, to_date, output_tax_minor, input_tax_minor, net_payable_minor, rows]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        output_tax_minor:
+          type: integer
+          format: int64
+        input_tax_minor:
+          type: integer
+          format: int64
+        net_payable_minor:
+          type: integer
+          format: int64
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxReportRow'
+    TaxSummaryReport:
+      type: object
+      required: [from_date, to_date, rows]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxReportRow'
+    TaxReportRow:
+      type: object
+      required: [name, output_tax_minor, input_tax_minor, net_payable_minor]
+      properties:
+        tax_rate_id:
+          type: string
+          format: uuid
+        tax_group_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: GST 18%
+        output_tax_minor:
+          type: integer
+          format: int64
+        input_tax_minor:
+          type: integer
+          format: int64
+        net_payable_minor:
+          type: integer
+          format: int64
+    Budget:
+      type: object
+      required: [id, organization_id, name, start_date, end_date, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, active, closed]
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLine'
+    BudgetLine:
+      type: object
+      required: [id, account_id, period_start, period_end, amount_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        amount_minor:
+          type: integer
+          format: int64
+    CreateBudgetRequest:
+      type: object
+      required: [name, start_date, end_date, lines]
+      properties:
+        name:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [draft, active, closed]
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateBudgetLineRequest'
+    CreateBudgetLineRequest:
+      type: object
+      required: [account_id, period_start, period_end]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        amount_minor:
+          type: integer
+          format: int64
+    BudgetVsActualReport:
+      type: object
+      required: [budget_id, rows]
+      properties:
+        budget_id:
+          type: string
+          format: uuid
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetVsActualReportRow'
+    BudgetVsActualReportRow:
+      type: object
+      required: [account_id, account_code, account_name, period_start, period_end, budget_minor, actual_minor, variance_minor, variance_percent_basis]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        account_code:
+          type: string
+        account_name:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        budget_minor:
+          type: integer
+          format: int64
+        actual_minor:
+          type: integer
+          format: int64
+        variance_minor:
+          type: integer
+          format: int64
+        variance_percent_basis:
+          type: integer
+          format: int64
+    ExchangeRate:
+      type: object
+      required: [id, organization_id, from_currency, to_currency, rate_date, numerator, denominator]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        from_currency:
+          type: string
+          example: USD
+        to_currency:
+          type: string
+          example: INR
+        rate_date:
+          type: string
+          format: date-time
+        numerator:
+          type: integer
+          format: int64
+          example: 8350
+        denominator:
+          type: integer
+          format: int64
+          example: 100
+        source:
+          type: string
+          example: manual
+    CreateExchangeRateRequest:
+      type: object
+      required: [from_currency, to_currency, rate_date, numerator, denominator]
+      properties:
+        from_currency:
+          type: string
+          example: USD
+        to_currency:
+          type: string
+          example: INR
+        rate_date:
+          type: string
+          format: date
+        numerator:
+          type: integer
+          format: int64
+          example: 8350
+        denominator:
+          type: integer
+          format: int64
+          example: 100
+        source:
+          type: string
+          example: manual
+    RevaluationPreview:
+      type: object
+      required: [as_of_date, base_currency, rows, total_adjustment_minor]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        base_currency:
+          type: string
+          example: INR
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevaluationRow'
+        total_adjustment_minor:
+          type: integer
+          format: int64
+    RevaluationRow:
+      type: object
+      required: [account_id, account_code, account_name, currency, foreign_balance_minor, carrying_base_minor, revalued_base_minor, adjustment_minor, exchange_rate_numerator, exchange_rate_denominator]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        account_code:
+          type: string
+        account_name:
+          type: string
+        currency:
+          type: string
+          example: USD
+        foreign_balance_minor:
+          type: integer
+          format: int64
+        carrying_base_minor:
+          type: integer
+          format: int64
+        revalued_base_minor:
+          type: integer
+          format: int64
+        adjustment_minor:
+          type: integer
+          format: int64
+        exchange_rate_numerator:
+          type: integer
+          format: int64
+        exchange_rate_denominator:
+          type: integer
+          format: int64
+    PostRevaluationRequest:
+      type: object
+      required: [as_of_date, gain_loss_account_id]
+      properties:
+        as_of_date:
+          type: string
+          format: date
+        gain_loss_account_id:
+          type: string
+          format: uuid
+    InvestmentLot:
+      type: object
+      required: [id, organization_id, account_id, symbol, acquisition_date, quantity_millis, remaining_quantity_millis, cost_basis_minor, currency, cost_method]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        security_name:
+          type: string
+          example: Nippon India ETF Nifty BeES
+        acquisition_date:
+          type: string
+          format: date-time
+        quantity_millis:
+          type: integer
+          format: int64
+          description: Quantity scaled by 1000.
+        remaining_quantity_millis:
+          type: integer
+          format: int64
+          description: Unsold quantity scaled by 1000.
+        cost_basis_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        cost_method:
+          type: string
+          enum: [specific_lot, average_cost]
+        notes:
+          type: string
+    CreateInvestmentLotRequest:
+      type: object
+      required: [account_id, symbol, acquisition_date, quantity_millis, cost_basis_minor]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        security_name:
+          type: string
+        acquisition_date:
+          type: string
+          format: date
+        quantity_millis:
+          type: integer
+          format: int64
+        cost_basis_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        cost_method:
+          type: string
+          enum: [specific_lot, average_cost]
+          default: specific_lot
+        notes:
+          type: string
+    InvestmentDisposition:
+      type: object
+      required: [id, organization_id, investment_lot_id, sale_date, quantity_millis, proceeds_minor, allocated_cost_basis_minor, realized_gain_loss_minor, currency]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        investment_lot_id:
+          type: string
+          format: uuid
+        sale_date:
+          type: string
+          format: date-time
+        quantity_millis:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        allocated_cost_basis_minor:
+          type: integer
+          format: int64
+        realized_gain_loss_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+    SellInvestmentLotRequest:
+      type: object
+      required: [sale_date, quantity_millis, proceeds_minor]
+      properties:
+        sale_date:
+          type: string
+          format: date
+        quantity_millis:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        proceeds_account_id:
+          type: string
+          format: uuid
+          description: Optional account debited for proceeds when posting the sale to GL.
+        gain_loss_account_id:
+          type: string
+          format: uuid
+          description: Optional income/expense account used for realized gain or loss when posting the sale to GL.
+        notes:
+          type: string
+    SellAverageCostRequest:
+      type: object
+      required: [account_id, symbol, sale_date, quantity_millis, proceeds_minor]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: LIQUIDFUND
+        currency:
+          type: string
+          example: INR
+        sale_date:
+          type: string
+          format: date
+        quantity_millis:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        proceeds_account_id:
+          type: string
+          format: uuid
+          description: Optional account debited for proceeds when posting the sale to GL.
+        gain_loss_account_id:
+          type: string
+          format: uuid
+          description: Optional income/expense account used for realized gain or loss when posting the sale to GL.
+        notes:
+          type: string
+    AverageCostSaleResult:
+      type: object
+      required: [dispositions, quantity_millis, proceeds_minor, allocated_cost_basis_minor, realized_gain_loss_minor]
+      properties:
+        dispositions:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDisposition'
+        quantity_millis:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        allocated_cost_basis_minor:
+          type: integer
+          format: int64
+        realized_gain_loss_minor:
+          type: integer
+          format: int64
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+    InvestmentPrice:
+      type: object
+      required: [id, organization_id, symbol, price_date, price_minor, currency]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        price_date:
+          type: string
+          format: date-time
+        price_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        source:
+          type: string
+          example: manual
+    CreateInvestmentPriceRequest:
+      type: object
+      required: [symbol, price_date, price_minor]
+      properties:
+        symbol:
+          type: string
+          example: NIFTYBEES
+        price_date:
+          type: string
+          format: date
+        price_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        source:
+          type: string
+          example: manual
+    RealizedGainsReport:
+      type: object
+      required: [from_date, to_date, rows, total_proceeds_minor, total_cost_basis_minor, total_gain_loss_minor]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDisposition'
+        total_proceeds_minor:
+          type: integer
+          format: int64
+        total_cost_basis_minor:
+          type: integer
+          format: int64
+        total_gain_loss_minor:
+          type: integer
+          format: int64
+    InvestmentValuationReport:
+      type: object
+      required: [as_of_date, rows, total_cost_basis_minor, total_market_value_minor, total_unrealized_gain_loss_minor]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentValuationRow'
+        total_cost_basis_minor:
+          type: integer
+          format: int64
+        total_market_value_minor:
+          type: integer
+          format: int64
+        total_unrealized_gain_loss_minor:
+          type: integer
+          format: int64
+    InvestmentValuationRow:
+      type: object
+      required: [lot_id, account_id, symbol, acquisition_date, remaining_quantity_millis, remaining_cost_basis_minor, market_price_minor, market_value_minor, unrealized_gain_loss_minor, currency, price_date]
+      properties:
+        lot_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        security_name:
+          type: string
+        acquisition_date:
+          type: string
+          format: date-time
+        remaining_quantity_millis:
+          type: integer
+          format: int64
+        remaining_cost_basis_minor:
+          type: integer
+          format: int64
+        market_price_minor:
+          type: integer
+          format: int64
+        market_value_minor:
+          type: integer
+          format: int64
+        unrealized_gain_loss_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        price_date:
+          type: string
+          format: date-time
+    FiscalClose:
+      type: object
+      required: [id, organization_id, fiscal_year_start, fiscal_year_end, retained_earnings_account_id, net_income_minor, status, journal_transaction_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        fiscal_year_start:
+          type: string
+          format: date-time
+        fiscal_year_end:
+          type: string
+          format: date-time
+        retained_earnings_account_id:
+          type: string
+          format: uuid
+        net_income_minor:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [posted, reversed]
+        journal_transaction_id:
+          type: string
+          format: uuid
+    CloseFiscalYearRequest:
+      type: object
+      required: [fiscal_year_start, fiscal_year_end, retained_earnings_account_id]
+      properties:
+        fiscal_year_start:
+          type: string
+          format: date
+        fiscal_year_end:
+          type: string
+          format: date
+        retained_earnings_account_id:
+          type: string
+          format: uuid
+    AuditLog:
+      type: object
+      required: [id, entity_type, entity_id, action, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        actor_user_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          example: invoice
+        entity_id:
+          type: string
+          format: uuid
+        action:
+          type: string
+          example: post
+        before_json:
+          type: string
+        after_json:
+          type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    OrganizationUser:
+      type: object
+      required: [user_id, organization_id, name, email, role, is_active]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
+        is_active:
+          type: boolean
+    CreateOrganizationUserRequest:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 12
+        role:
+          type: string
+          enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
+    ReportRow:
+      type: object
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        account_code:
+          type: string
+        account_name:
+          type: string
+        account_type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        debit_minor:
+          type: integer
+          format: int64
+        credit_minor:
+          type: integer
+          format: int64
+        balance_minor:
+          type: integer
+          format: int64
+    ImportJob:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+    BankStatementImport:
+      type: object
+      required: [id, organization_id, account_id, format, status, line_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        format:
+          type: string
+          example: csv
+        status:
+          type: string
+          enum: [queued, completed, failed]
+        line_count:
+          type: integer
+        error_message:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/BankStatementLine'
+    BankStatementLine:
+      type: object
+      required: [id, organization_id, account_id, posted_date, amount_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        posted_date:
+          type: string
+          format: date-time
+        description:
+          type: string
+        amount_minor:
+          type: integer
+          format: int64
+        reference:
+          type: string
+        matched_split_id:
+          type: string
+          format: uuid
+          nullable: true
+        matched_at:
+          type: string
+          format: date-time
+          nullable: true
+    ImportBankStatementRequest:
+      type: object
+      required: [account_id, lines]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        format:
+          type: string
+          example: csv
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ImportBankStatementLineRequest'
+    ImportBankStatementLineRequest:
+      type: object
+      required: [posted_date]
+      properties:
+        posted_date:
+          type: string
+          format: date
+        description:
+          type: string
+        amount_minor:
+          type: integer
+          format: int64
+        reference:
+          type: string
+    ImportQIFBankStatementRequest:
+      type: object
+      required: [account_id, qif_content]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+          example: bank-statement.qif
+        qif_content:
+          type: string
+          description: Raw QIF bank statement text. Supports common D, T, P, M, N, and L fields separated by caret records.
+          example: |
+            !Type:Bank
+            D13/07/2026
+            T1250.00
+            PClient receipt
+            NUPI-123
+            ^
+    ImportOFXBankStatementRequest:
+      type: object
+      required: [account_id, ofx_content]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+          example: bank-statement.ofx
+        ofx_content:
+          type: string
+          description: Raw OFX bank statement text. Supports common STMTTRN records with DTPOSTED, TRNAMT, NAME, MEMO, and FITID fields.
+          example: |
+            <OFX>
+            <STMTTRN>
+            <DTPOSTED>20260713
+            <TRNAMT>1250.00
+            <FITID>OFX-123
+            <NAME>Client receipt
+            </STMTTRN>
+            </OFX>
+    MatchBankStatementLineRequest:
+      type: object
+      required: [ledger_split_id]
+      properties:
+        ledger_split_id:
+          type: string
+          format: uuid
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
