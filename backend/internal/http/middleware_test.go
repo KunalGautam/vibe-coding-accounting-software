@@ -1,6 +1,8 @@
 package http
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -47,6 +49,116 @@ func TestCORSMiddlewarePreflight(t *testing.T) {
 	}
 	if response.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
 		t.Fatalf("allow origin = %q", response.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestRateLimitMiddlewareLimitsByRouteAndClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(RateLimitMiddleware(2, time.Minute))
+	router.GET("/limited", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		request := httptest.NewRequest(http.MethodGet, "/limited", nil)
+		request.RemoteAddr = "192.0.2.10:1234"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("attempt %d status = %d, want %d", attempt, response.Code, http.StatusNoContent)
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/limited", nil)
+	request.RemoteAddr = "192.0.2.10:1234"
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusTooManyRequests)
+	}
+	if response.Header().Get("Retry-After") == "" {
+		t.Fatalf("expected Retry-After header")
+	}
+}
+
+func TestStructuredLoggerMiddlewareWritesRequestFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var buffer bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buffer, nil))
+	router := gin.New()
+	router.Use(RequestIDMiddleware(), StructuredLoggerMiddleware(logger))
+	router.GET("/logged", func(c *gin.Context) {
+		c.String(http.StatusAccepted, "ok")
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/logged", nil)
+	request.Header.Set("X-Request-ID", "req-log-1")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	output := buffer.String()
+	for _, expected := range []string{
+		`"msg":"http_request"`,
+		`"request_id":"req-log-1"`,
+		`"method":"GET"`,
+		`"path":"/logged"`,
+		`"status":202`,
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("structured log %q missing %s", output, expected)
+		}
+	}
+}
+
+func TestMetricsEndpointExposesRequestCounters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	metrics := NewHTTPMetrics()
+	router := gin.New()
+	router.Use(MetricsMiddleware(metrics))
+	router.GET("/ping", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	router.GET("/metrics", metrics.Handler())
+
+	ping := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	pingResponse := httptest.NewRecorder()
+	router.ServeHTTP(pingResponse, ping)
+
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	body := response.Body.String()
+	for _, expected := range []string{
+		"accounting_process_uptime_seconds",
+		`accounting_http_requests_total{method="GET",route="/ping",status="204"} 1`,
+		`accounting_http_request_duration_seconds_count{method="GET",route="/ping",status="204"} 1`,
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("metrics body missing %q:\n%s", expected, body)
+		}
+	}
+}
+
+func TestMetricsEndpointCanBeDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{
+		DB:                 routerTestDB(t),
+		CORSAllowedOrigins: "*",
+		Tokens:             auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour),
+		MetricsEnabled:     false,
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }
 

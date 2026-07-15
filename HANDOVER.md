@@ -24,16 +24,16 @@ Project identity:
 ## Current State
 Major backend modules are implemented and tested for:
 
-- Organizations, users, JWT auth, refresh tokens, password reset token flow, RBAC.
+- Organizations, users, JWT auth, optional TOTP MFA with one-time recovery codes, refresh tokens, password reset token flow with optional SMTP delivery, organization invitation emails, gated self-service registration, RBAC.
 - Chart of accounts, double-entry ledger, journal posting, account registers.
 - Invoicing, recurring invoices, estimates, credit notes, customer payments.
 - Vendors, expenses, bills, purchase orders, vendor payments.
 - Config-driven GST/VAT tax catalog, India GST seed data, tax calculation, tax reports.
-- Payroll employees, payroll runs, India payroll preview, payslip preview, payslip CSV export in React, payroll GL posting.
-- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment valuation.
-- Bank imports: structured lines, QIF, OFX, matching, reconciliation.
+- Payroll employees, payroll runs, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS and employer PF/ESI contribution cost, payroll summary report plus PF/ESI/PT/TDS statutory component CSV export, payslip preview, payslip CSV/PDF export in React, payroll GL posting including optional employer contribution expense/liability splits.
+- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment dividends, investment tax lots, investment valuation, core statement PDF exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
+- Bank imports: structured lines, browser CSV mapper, QIF, OFX, duplicate candidate detection, conservative matching-rule suggestions, reconciliation summaries, matching, reconciliation.
 - Budgeting, fiscal close, exchange rates, unrealized FX revaluation.
-- Investment lots, specific-lot sales, average-cost sales, realized gains, prices, valuation.
+- Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
 - Attachment metadata, local binary upload/download, organization JSON export, local backup snapshots.
 - Swagger UI and OpenAPI/Postman validation in CI.
 
@@ -57,10 +57,10 @@ Remote:
 origin git@github.com:KunalGautam/vibe-coding-accounting-software.git
 ```
 
-Current pushed commit:
+Check the latest pushed commit with:
 
-```text
-1e730fc Initial accounting platform scaffold
+```bash
+GIT_DIR=.gitrepo GIT_WORK_TREE=. git log --oneline -1
 ```
 
 When pushing over SSH in this environment, bypass the broken system SSH config:
@@ -95,7 +95,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `102` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `132` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.
@@ -107,27 +107,28 @@ Current API coverage: `102` OpenAPI route/method pairs, matched to Gin handlers 
 - Prefer database-agnostic GORM operations for SQLite/MySQL portability.
 - Keep OpenAPI and Postman updated in the same change as API behavior.
 - Preserve offline-first direction for React and Flutter.
+- Production Compose uses a one-shot `/app/migrate -direction=up` container; API/worker should run with `AUTO_MIGRATE=false` outside local development.
+- Backup restore is available with `backend/cmd/restore` or `/app/restore -file /app/storage/backups/<file>.json`; it refuses to overwrite an existing organization ID.
+- Public auth/bootstrap endpoints use configurable in-memory rate limiting (`RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_SECONDS`).
+- `APP_ENV=production` validates unsafe runtime defaults and rejects dev JWT secrets, wildcard CORS, Swagger, SQLite, missing MySQL DSN, and API/worker auto-migration.
+- TOTP MFA secrets are encrypted at rest with `MFA_ENCRYPTION_KEY`; set it to 32 random bytes encoded as base64, for example `openssl rand -base64 32`.
+- Password reset and organization invitation email delivery are available with `EMAIL_DELIVERY_ENABLED=true`, SMTP settings, `PASSWORD_RESET_BASE_URL`, and `INVITATION_BASE_URL`; reset tokens are hidden from API responses unless `EXPOSE_PASSWORD_RESET_TOKEN=true`.
+- Self-service organization registration is available at `POST /api/v1/auth/register` only when `SELF_SERVICE_REGISTRATION_ENABLED=true`; keep it disabled for invitation-only deployments.
+- Structured logging is implemented with `LOG_FORMAT=text|json` and `LOG_LEVEL=debug|info|warn|error`; Compose defaults to JSON logs.
+- Basic Prometheus metrics are exposed at `/metrics` when `METRICS_ENABLED=true`.
+- Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are in `ops/` and wired through the optional Compose `monitoring` profile.
 
 ## Highest-Value Remaining Work
-1. Payroll PDF generation for payslips.
-2. Payroll statutory depth: employer PF/ESI, PT state presets, TDS rule config, payroll reports, statutory CSV exports.
-3. Investment depth: dividends, stock splits/bonus issues, corporate actions, NAV/price imports, tax-lot reporting.
-4. Bank reconciliation polish: CSV column mapper, matching rules, duplicate detection, reconciliation summaries.
-5. Production deployment: Docker/compose, migrations, env hardening, logging/monitoring, backup restore flow.
-6. Security hardening: rate limiting, MFA/session revocation, tenant isolation tests, permission matrix tests.
-7. Email flows: password reset email delivery, invitations, self-service registration.
-8. Offline sync depth: conflict resolution, broader cached writes, Flutter SQLite persistence.
-9. Export/reporting polish: PDF/Excel exports, scheduled reports, comparative reports.
-10. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
+1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
+2. Production readiness: deeper operational monitoring runbooks and managed-cloud deployment notes.
+3. Security hardening polish: broader auth UX and account recovery flows.
+4. Email/account flows: richer onboarding and account-management polish.
+5. Offline sync depth: broader cached writes and Flutter SQLite persistence.
+6. Export/reporting polish: broader PDF/Excel exports and comparative reports.
+7. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
 
 ## Recommended Next Step
-Start with payroll PDF generation using the existing payslip preview API as the data contract:
-
-```text
-GET /api/v1/organizations/{organizationId}/payroll/runs/{payrollRunId}/items/{payrollItemId}/payslip
-```
-
-The backend already returns employee identity, period, pay date, earnings, deductions, statutory flags, gross, deductions, and net pay. React already displays and exports this preview to CSV. A PDF renderer should use this same data rather than recalculating payroll in the client.
+Continue offline depth by replacing Flutter file-backed repositories with SQLite-backed repositories and broadening queued offline writes beyond expense drafts. Keep the current conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract while migrating persistence.
 
 ## Files To Read First
 1. `PROJECT_CONTEXT.md`

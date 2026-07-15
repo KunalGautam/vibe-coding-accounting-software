@@ -45,3 +45,34 @@ func TestBootstrapServiceCreateFirstAdmin(t *testing.T) {
 		t.Fatalf("second bootstrap error = %v, want %v", err, ErrBootstrapAlreadyCompleted)
 	}
 }
+
+func TestBootstrapServiceRegisterOrganization(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	service := NewBootstrapService(db)
+
+	result, err := service.RegisterOrganization(ctx, BootstrapInput{
+		OrganizationName: "Self Serve India",
+		AdminName:        "Owner",
+		AdminEmail:       "owner@example.com",
+		AdminPassword:    "very-secret-password",
+		BaseCurrency:     "INR",
+		CountryCode:      "IN",
+	})
+	if err != nil {
+		t.Fatalf("RegisterOrganization() error = %v", err)
+	}
+	if result.Membership.Role != "admin" || result.Organization.Name != "Self Serve India" {
+		t.Fatalf("unexpected registration result: %+v", result)
+	}
+
+	_, err = service.RegisterOrganization(ctx, BootstrapInput{
+		OrganizationName: "Duplicate",
+		AdminName:        "Owner",
+		AdminEmail:       "owner@example.com",
+		AdminPassword:    "very-secret-password",
+	})
+	if !errors.Is(err, ErrRegistrationEmailExists) {
+		t.Fatalf("duplicate registration error = %v, want %v", err, ErrRegistrationEmailExists)
+	}
+}

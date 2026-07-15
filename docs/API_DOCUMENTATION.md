@@ -9,7 +9,7 @@ The generated/importable Postman collection is maintained at:
 docs/accounting-api.postman_collection.json
 ```
 
-Current API coverage is 102 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
+Current API coverage is 132 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
 
 Keep the OpenAPI file updated in the same change as any handler, request payload, response payload, or authorization behavior change.
 
@@ -68,18 +68,18 @@ Organization-scoped routes use `/organizations/{organizationId}/...` and enforce
 ## OpenAPI Tags
 The current OpenAPI groups are:
 
-- `Auth`: Login, token refresh, and password reset.
+- `Auth`: Login, token refresh, password reset, TOTP MFA, session revocation, and one-time MFA recovery codes.
 - `Organizations`: Organization access and user membership management.
 - `Accounts`: Chart of accounts.
 - `Ledger`: Journal posting, account registers, reconciliation, currency revaluation, and fiscal close.
 - `Invoices`: Customers, invoices, recurring invoices, estimates, credit notes, and customer payments.
 - `Expenses`: Vendors, expenses, bills, purchase orders, and vendor payments.
 - `Attachments`: Tenant-scoped attachment metadata and local binary upload/download.
-- `Payroll`: Employees, payroll runs, payroll posting, payslip previews, and configurable India payroll component previews.
+- `Payroll`: Employees, payroll runs, payroll posting with optional employer contribution splits, payslip previews/PDF downloads, configurable India payroll component previews, professional-tax starter presets, and PF/ESI/PT/TDS statutory component CSV exports.
 - `Tax`: Config-driven GST/VAT tax catalog, groups, calculation, and India seed data.
-- `Reports`: Financial, tax, budget, AR/AP aging, and investment reports.
+- `Reports`: Financial, tax, payroll, budget, AR/AP aging, and investment reports.
 - `Imports`: Bank statement import and matching.
-- `Investments`: Lots, disposals, average-cost sales, prices, and valuation support.
+- `Investments`: Lots, disposals, average-cost sales, dividends, corporate actions, tax lots, tax-adjustment candidates, prices, CSV/AMFI NAV imports, valuation, and CSV report exports.
 - `System`: Bootstrap, audit logs, backups, exports, and health checks.
 
 ## Import Endpoint Compatibility

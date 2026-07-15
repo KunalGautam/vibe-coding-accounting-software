@@ -2,11 +2,15 @@ package services
 
 import (
 	"context"
+	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"accounting.abhashtech.com/internal/domain"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestDataExportServiceExportOrganization(t *testing.T) {
@@ -77,6 +81,95 @@ func TestDataExportServiceExportOrganization(t *testing.T) {
 	if len(export.Invoices) != 1 || len(export.Invoices[0].Lines) != 1 {
 		t.Fatalf("exported invoices = %+v, want invoice with line", export.Invoices)
 	}
+}
+
+func TestDataExportServiceRestoreOrganization(t *testing.T) {
+	sourceDB := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Restore Co", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := sourceDB.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	cash := domain.Account{OrganizationID: org.ID, Code: "1000", Name: "Cash", Type: domain.AccountTypeAsset, Currency: "INR", IsActive: true}
+	revenue := domain.Account{OrganizationID: org.ID, Code: "4000", Name: "Revenue", Type: domain.AccountTypeIncome, Currency: "INR", IsActive: true}
+	if err := sourceDB.Create(&cash).Error; err != nil {
+		t.Fatalf("create cash account: %v", err)
+	}
+	if err := sourceDB.Create(&revenue).Error; err != nil {
+		t.Fatalf("create revenue account: %v", err)
+	}
+	customer := domain.Customer{OrganizationID: org.ID, DisplayName: "Restore Customer", IsActive: true}
+	if err := sourceDB.Create(&customer).Error; err != nil {
+		t.Fatalf("create customer: %v", err)
+	}
+	invoice := domain.Invoice{
+		OrganizationID:       org.ID,
+		CustomerID:           customer.ID,
+		InvoiceNumber:        "REST-001",
+		IssueDate:            time.Date(2026, 7, 13, 0, 0, 0, 0, time.UTC),
+		DueDate:              time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+		Status:               domain.InvoiceStatusDraft,
+		Currency:             "INR",
+		AccountsReceivableID: cash.ID,
+		SubtotalMinor:        15000,
+		TotalMinor:           15000,
+		Lines: []domain.InvoiceLine{
+			{
+				OrganizationID:    org.ID,
+				Description:       "Restore consulting",
+				QuantityMillis:    1000,
+				UnitPriceMinor:    15000,
+				LineSubtotalMinor: 15000,
+				LineTotalMinor:    15000,
+				IncomeAccountID:   revenue.ID,
+			},
+		},
+	}
+	if err := sourceDB.Create(&invoice).Error; err != nil {
+		t.Fatalf("create invoice: %v", err)
+	}
+
+	export, err := NewDataExportService(sourceDB).ExportOrganization(ctx, org.ID)
+	if err != nil {
+		t.Fatalf("ExportOrganization() error = %v", err)
+	}
+
+	targetDB := restoreTargetDB(t)
+	result, err := NewDataExportService(targetDB).RestoreOrganization(ctx, export)
+	if err != nil {
+		t.Fatalf("RestoreOrganization() error = %v", err)
+	}
+	if result.OrganizationID != org.ID || result.Accounts != 2 || result.Invoices != 1 {
+		t.Fatalf("unexpected restore result: %+v", result)
+	}
+
+	var restoredInvoice domain.Invoice
+	if err := targetDB.Preload("Lines").First(&restoredInvoice, "id = ?", invoice.ID).Error; err != nil {
+		t.Fatalf("load restored invoice: %v", err)
+	}
+	if restoredInvoice.OrganizationID != org.ID || len(restoredInvoice.Lines) != 1 || restoredInvoice.Lines[0].Description != "Restore consulting" {
+		t.Fatalf("unexpected restored invoice: %+v", restoredInvoice)
+	}
+
+	_, err = NewDataExportService(targetDB).RestoreOrganization(ctx, export)
+	if !errors.Is(err, ErrRestoreOrganizationExists) {
+		t.Fatalf("second restore error = %v, want ErrRestoreOrganizationExists", err)
+	}
+}
+
+func restoreTargetDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name() + "_target")
+	db, err := gorm.Open(sqlite.Open("file:"+name+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open restore target database: %v", err)
+	}
+	if err := db.AutoMigrate(domain.AllModels()...); err != nil {
+		t.Fatalf("auto migrate restore target database: %v", err)
+	}
+	return db
 }
 
 func TestDataExportServiceCreateBackupSnapshotPrunesRetention(t *testing.T) {

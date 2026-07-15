@@ -35,6 +35,10 @@ class SyncCoordinator {
           skipped += 1;
         }
       } on Object catch (error) {
+        final conflict = _isConflict(error);
+        _queue.updateOperation(
+          operation.markAttemptFailed(error: error, conflict: conflict),
+        );
         failed.add(SyncFailure(operationId: operation.id, error: error));
       }
     }
@@ -53,6 +57,13 @@ class SyncCoordinator {
   Future<void> _syncOperation(SyncOperation operation) async {
     await _apiClient.syncExpenseDraft(operation);
   }
+
+  bool _isConflict(Object error) {
+    if (error is AccountingApiException) {
+      return error.statusCode == 409 || error.statusCode == 412;
+    }
+    return false;
+  }
 }
 
 class SyncResult {
@@ -67,6 +78,8 @@ class SyncResult {
   final List<SyncFailure> failed;
 
   bool get hasFailures => failed.isNotEmpty;
+
+  int get conflicts => failed.where((failure) => failure.isConflict).length;
 }
 
 class SyncFailure {
@@ -74,4 +87,10 @@ class SyncFailure {
 
   final String operationId;
   final Object error;
+
+  bool get isConflict {
+    final error = this.error;
+    return error is AccountingApiException &&
+        (error.statusCode == 409 || error.statusCode == 412);
+  }
 }

@@ -1,4 +1,4 @@
-import type { Account, AccountInput, ApiConfig, APAgingReport, APAgingRow, ARAgingReport, ARAgingRow, Attachment, AuditLog, BalanceSheetReport, BankStatementLine, Bill, Budget, BudgetLine, BudgetVsActualReport, BudgetVsActualReportRow, CashFlowReport, CashFlowRow, CreditNote, Customer, Employee, Estimate, ExchangeRate, Expense, FiscalClose, InvestmentDisposition, InvestmentLot, Invoice, JournalTransaction, JournalTransactionInput, OrganizationUser, PayrollComponent, PayrollRun, PayslipPreview, ProfitAndLossReport, PurchaseOrder, RealizedGainsReport, RecurringInvoiceTemplate, ReportRow, TaxAuthority, TaxGroup, TaxLiabilityReport, TaxRate, TaxReportRow, TaxSummaryReport, TrialBalanceReport, Vendor } from "./client";
+import type { Account, AccountInput, ApiConfig, APAgingReport, APAgingRow, ARAgingReport, ARAgingRow, Attachment, AuditLog, BalanceSheetReport, BankStatementLine, Bill, Budget, BudgetLine, BudgetVsActualReport, BudgetVsActualReportRow, CashFlowReport, CashFlowRow, CreditNote, Customer, Employee, Estimate, ExchangeRate, Expense, FiscalClose, InvestmentCorporateAction, InvestmentDisposition, InvestmentDividend, InvestmentDividendReport, InvestmentLot, InvestmentTaxLotReport, InvestmentTaxLotRow, Invoice, JournalTransaction, JournalTransactionInput, OrganizationUser, PayrollComponent, PayrollRun, PayrollSummaryReport, PayslipPreview, ProfitAndLossReport, PurchaseOrder, RealizedGainsReport, RecurringInvoiceTemplate, ReportRow, TaxAuthority, TaxGroup, TaxLiabilityReport, TaxRate, TaxReportRow, TaxSummaryReport, TrialBalanceReport, Vendor } from "./client";
 
 const key = "accounting-web-config";
 const accountDraftKey = "accounting-web-account-drafts";
@@ -49,6 +49,8 @@ export type AccountingSnapshot = {
   attachments?: Attachment[];
   budgets?: Budget[];
   investmentLots?: InvestmentLot[];
+  investmentDividends?: InvestmentDividend[];
+  investmentCorporateActions?: InvestmentCorporateAction[];
 };
 
 export type ReportSnapshot = {
@@ -61,8 +63,11 @@ export type ReportSnapshot = {
   apAging?: APAgingReport;
   taxLiability?: TaxLiabilityReport;
   taxSummary?: TaxSummaryReport;
+  payrollSummary?: PayrollSummaryReport;
   budgetVsActual?: BudgetVsActualReport;
   realizedGains?: RealizedGainsReport;
+  investmentDividends?: InvestmentDividendReport;
+  investmentTaxLots?: InvestmentTaxLotReport;
 };
 
 export function loadConfig(): ApiConfig {
@@ -272,7 +277,9 @@ function isAccountingSnapshot(value: unknown): value is AccountingSnapshot {
     (snapshot.organizationUsers === undefined || (Array.isArray(snapshot.organizationUsers) && snapshot.organizationUsers.every(isOrganizationUser))) &&
     (snapshot.attachments === undefined || (Array.isArray(snapshot.attachments) && snapshot.attachments.every(isAttachment))) &&
     (snapshot.budgets === undefined || (Array.isArray(snapshot.budgets) && snapshot.budgets.every(isBudget))) &&
-    (snapshot.investmentLots === undefined || (Array.isArray(snapshot.investmentLots) && snapshot.investmentLots.every(isInvestmentLot)))
+    (snapshot.investmentLots === undefined || (Array.isArray(snapshot.investmentLots) && snapshot.investmentLots.every(isInvestmentLot))) &&
+    (snapshot.investmentDividends === undefined || (Array.isArray(snapshot.investmentDividends) && snapshot.investmentDividends.every(isInvestmentDividend))) &&
+    (snapshot.investmentCorporateActions === undefined || (Array.isArray(snapshot.investmentCorporateActions) && snapshot.investmentCorporateActions.every(isInvestmentCorporateAction)))
   );
 }
 
@@ -399,9 +406,13 @@ function isPayrollRun(value: unknown): value is PayrollRun {
     typeof run.pay_date === "string" &&
     ["draft", "posted", "void"].includes(run.status) &&
     (run.currency === undefined || typeof run.currency === "string") &&
+    (run.employer_expense_account_id === undefined || typeof run.employer_expense_account_id === "string") &&
+    (run.employer_liability_account_id === undefined || typeof run.employer_liability_account_id === "string") &&
     typeof run.gross_pay_minor === "number" &&
     typeof run.deductions_minor === "number" &&
     typeof run.net_pay_minor === "number" &&
+    (run.employer_contributions_minor === undefined || typeof run.employer_contributions_minor === "number") &&
+    (run.payroll_cost_minor === undefined || typeof run.payroll_cost_minor === "number") &&
     (run.journal_transaction_id === undefined || run.journal_transaction_id === null || typeof run.journal_transaction_id === "string") &&
     (run.items === undefined || Array.isArray(run.items))
   );
@@ -668,6 +679,8 @@ function isBankStatementLine(value: unknown): value is BankStatementLine {
     typeof line.amount_minor === "number" &&
     (line.description === undefined || typeof line.description === "string") &&
     (line.reference === undefined || typeof line.reference === "string") &&
+    typeof line.is_duplicate === "boolean" &&
+    (line.duplicate_of_id === undefined || line.duplicate_of_id === null || typeof line.duplicate_of_id === "string") &&
     (line.matched_split_id === undefined || line.matched_split_id === null || typeof line.matched_split_id === "string") &&
     (line.matched_at === undefined || line.matched_at === null || typeof line.matched_at === "string")
   );
@@ -809,6 +822,47 @@ function isInvestmentLot(value: unknown): value is InvestmentLot {
   );
 }
 
+function isInvestmentDividend(value: unknown): value is InvestmentDividend {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const dividend = value as InvestmentDividend;
+  return (
+    typeof dividend.id === "string" &&
+    typeof dividend.organization_id === "string" &&
+    typeof dividend.account_id === "string" &&
+    typeof dividend.symbol === "string" &&
+    typeof dividend.dividend_date === "string" &&
+    typeof dividend.amount_minor === "number" &&
+    typeof dividend.currency === "string" &&
+    (dividend.cash_account_id === undefined || typeof dividend.cash_account_id === "string") &&
+    (dividend.income_account_id === undefined || typeof dividend.income_account_id === "string") &&
+    (dividend.journal_transaction_id === undefined || dividend.journal_transaction_id === null || typeof dividend.journal_transaction_id === "string") &&
+    (dividend.notes === undefined || typeof dividend.notes === "string")
+  );
+}
+
+function isInvestmentCorporateAction(value: unknown): value is InvestmentCorporateAction {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const action = value as InvestmentCorporateAction;
+  return (
+    typeof action.id === "string" &&
+    typeof action.organization_id === "string" &&
+    typeof action.account_id === "string" &&
+    typeof action.symbol === "string" &&
+    ["split", "bonus"].includes(action.action_type) &&
+    typeof action.action_date === "string" &&
+    typeof action.ratio_numerator === "number" &&
+    typeof action.ratio_denominator === "number" &&
+    typeof action.affected_lots === "number" &&
+    typeof action.quantity_delta_millis === "number" &&
+    typeof action.cost_basis_delta_minor === "number" &&
+    (action.notes === undefined || typeof action.notes === "string")
+  );
+}
+
 function isReportSnapshot(value: unknown): value is ReportSnapshot {
   if (!value || typeof value !== "object") {
     return false;
@@ -824,8 +878,11 @@ function isReportSnapshot(value: unknown): value is ReportSnapshot {
     (snapshot.apAging === undefined || isAPAgingReport(snapshot.apAging)) &&
     (snapshot.taxLiability === undefined || isTaxLiabilityReport(snapshot.taxLiability)) &&
     (snapshot.taxSummary === undefined || isTaxSummaryReport(snapshot.taxSummary)) &&
+    (snapshot.payrollSummary === undefined || isPayrollSummaryReport(snapshot.payrollSummary)) &&
     (snapshot.budgetVsActual === undefined || isBudgetVsActualReport(snapshot.budgetVsActual)) &&
-    (snapshot.realizedGains === undefined || isRealizedGainsReport(snapshot.realizedGains))
+    (snapshot.realizedGains === undefined || isRealizedGainsReport(snapshot.realizedGains)) &&
+    (snapshot.investmentDividends === undefined || isInvestmentDividendReport(snapshot.investmentDividends)) &&
+    (snapshot.investmentTaxLots === undefined || isInvestmentTaxLotReport(snapshot.investmentTaxLots))
   );
 }
 
@@ -1025,6 +1082,25 @@ function isTaxSummaryReport(value: unknown): value is TaxSummaryReport {
   );
 }
 
+function isPayrollSummaryReport(value: unknown): value is PayrollSummaryReport {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const report = value as PayrollSummaryReport;
+  return (
+    typeof report.from_date === "string" &&
+    typeof report.to_date === "string" &&
+    Array.isArray(report.rows) &&
+    typeof report.total_runs === "number" &&
+    typeof report.total_employees === "number" &&
+    typeof report.total_gross_pay_minor === "number" &&
+    typeof report.total_deductions_minor === "number" &&
+    typeof report.total_net_pay_minor === "number" &&
+    typeof report.total_employer_contributions_minor === "number" &&
+    typeof report.total_payroll_cost_minor === "number"
+  );
+}
+
 function isReportRow(value: unknown): value is ReportRow {
   if (!value || typeof value !== "object") {
     return false;
@@ -1099,6 +1175,63 @@ function isRealizedGainsReport(value: unknown): value is RealizedGainsReport {
     typeof report.total_proceeds_minor === "number" &&
     typeof report.total_cost_basis_minor === "number" &&
     typeof report.total_gain_loss_minor === "number"
+  );
+}
+
+function isInvestmentDividendReport(value: unknown): value is InvestmentDividendReport {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const report = value as InvestmentDividendReport;
+  return (
+    typeof report.from_date === "string" &&
+    typeof report.to_date === "string" &&
+    Array.isArray(report.rows) &&
+    report.rows.every(isInvestmentDividend) &&
+    typeof report.total_amount_minor === "number"
+  );
+}
+
+function isInvestmentTaxLotReport(value: unknown): value is InvestmentTaxLotReport {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const report = value as InvestmentTaxLotReport;
+  return (
+    typeof report.as_of_date === "string" &&
+    Array.isArray(report.rows) &&
+    report.rows.every(isInvestmentTaxLotRow) &&
+    typeof report.total_quantity_millis === "number" &&
+    typeof report.total_remaining_quantity_millis === "number" &&
+    typeof report.total_cost_basis_minor === "number" &&
+    typeof report.total_remaining_cost_basis_minor === "number" &&
+    typeof report.total_proceeds_minor === "number" &&
+    typeof report.total_realized_gain_loss_minor === "number"
+  );
+}
+
+function isInvestmentTaxLotRow(value: unknown): value is InvestmentTaxLotRow {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const row = value as InvestmentTaxLotRow;
+  return (
+    typeof row.lot_id === "string" &&
+    typeof row.account_id === "string" &&
+    typeof row.symbol === "string" &&
+    (row.security_name === undefined || typeof row.security_name === "string") &&
+    typeof row.acquisition_date === "string" &&
+    typeof row.quantity_millis === "number" &&
+    typeof row.remaining_quantity_millis === "number" &&
+    typeof row.disposed_quantity_millis === "number" &&
+    typeof row.cost_basis_minor === "number" &&
+    typeof row.remaining_cost_basis_minor === "number" &&
+    typeof row.disposed_cost_basis_minor === "number" &&
+    typeof row.proceeds_minor === "number" &&
+    typeof row.realized_gain_loss_minor === "number" &&
+    typeof row.unit_cost_minor === "number" &&
+    typeof row.currency === "string" &&
+    ["specific_lot", "average_cost"].includes(row.cost_method)
   );
 }
 

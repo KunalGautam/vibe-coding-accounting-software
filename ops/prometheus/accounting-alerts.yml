@@ -1,0 +1,48 @@
+groups:
+  - name: accounting-api
+    rules:
+      - alert: AccountingAPIDown
+        expr: up{job="accounting-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Accounting API target is down
+          description: Prometheus has not been able to scrape the accounting API for more than 2 minutes.
+
+      - alert: AccountingHighHTTP5xxRate
+        expr: |
+          (
+            sum(rate(accounting_http_requests_total{job="accounting-api",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(accounting_http_requests_total{job="accounting-api"}[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Accounting API 5xx rate is above 5%
+          description: More than 5% of accounting API requests have returned 5xx responses for 10 minutes.
+
+      - alert: AccountingHighAverageLatency
+        expr: |
+          (
+            sum(rate(accounting_http_request_duration_seconds_sum{job="accounting-api"}[5m]))
+            /
+            clamp_min(sum(rate(accounting_http_request_duration_seconds_count{job="accounting-api"}[5m])), 1)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Accounting API average latency is above 2 seconds
+          description: Average accounting API request latency has stayed above 2 seconds for 10 minutes.
+
+      - alert: AccountingAPIRestartedRecently
+        expr: accounting_process_uptime_seconds{job="accounting-api"} < 600
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: Accounting API restarted recently
+          description: The accounting API process uptime has been below 10 minutes for at least 5 minutes.

@@ -47,6 +47,33 @@ void main() {
     expect(pending.single.payload['amount_minor'], 250000);
   });
 
+  test('file repository persists retry and conflict metadata', () async {
+    final directory = await Directory.systemTemp.createTemp('ledger-sync-test');
+    addTearDown(() => directory.delete(recursive: true));
+    final repository = FileSyncOperationRepository(
+      File('${directory.path}/pending-sync.json'),
+    );
+    final operation = SyncOperation(
+      id: 'expense-conflict',
+      module: 'expenses',
+      action: 'create_draft',
+      createdAt: DateTime.utc(2026, 7, 12, 9),
+      retryCount: 2,
+      lastAttemptAt: DateTime.utc(2026, 7, 12, 10),
+      lastError: 'duplicate expense number',
+      conflictReason: 'duplicate expense number',
+    );
+
+    await repository.savePending([operation]);
+
+    final pending = await repository.loadPending();
+    expect(pending.single.retryCount, 2);
+    expect(pending.single.lastAttemptAt, DateTime.utc(2026, 7, 12, 10));
+    expect(pending.single.lastError, 'duplicate expense number');
+    expect(pending.single.conflictReason, 'duplicate expense number');
+    expect(pending.single.hasConflict, true);
+  });
+
   test('file repository overwrites stale pending operations', () async {
     final directory = await Directory.systemTemp.createTemp('ledger-sync-test');
     addTearDown(() => directory.delete(recursive: true));

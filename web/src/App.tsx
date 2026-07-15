@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportBankStatementInput, type IndiaPayrollPreview, type IndiaSeedResult, type InvestmentLot, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type Organization, type OrganizationUser, type PayrollRun, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type ReportRow, type RevaluationPreview, type Role, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
+import { ApiClient, type Account, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -35,6 +35,8 @@ export function App() {
   const [attachments, setAttachments] = useState<Attachment[]>(() => cachedSnapshot?.attachments ?? []);
   const [budgets, setBudgets] = useState<Budget[]>(() => cachedSnapshot?.budgets ?? []);
   const [investmentLots, setInvestmentLots] = useState<InvestmentLot[]>(() => cachedSnapshot?.investmentLots ?? []);
+  const [investmentDividends, setInvestmentDividends] = useState<InvestmentDividend[]>(() => cachedSnapshot?.investmentDividends ?? []);
+  const [investmentCorporateActions, setInvestmentCorporateActions] = useState<InvestmentCorporateAction[]>(() => cachedSnapshot?.investmentCorporateActions ?? []);
   const [queuedAccountDrafts, setQueuedAccountDrafts] = useState<QueuedAccountDraft[]>(() => loadAccountDrafts());
   const [queuedJournalDrafts, setQueuedJournalDrafts] = useState<QueuedJournalDraft[]>(() => loadJournalDrafts());
   const [error, setError] = useState("");
@@ -48,7 +50,7 @@ export function App() {
     }
     setError("");
     try {
-      const [nextAccounts, nextTransactions, nextTaxAuthorities, nextTaxRates, nextTaxGroups, nextPayrollRuns, nextEmployees, nextCustomers, nextInvoices, nextRecurringInvoices, nextEstimates, nextCreditNotes, nextVendors, nextExpenses, nextBills, nextPurchaseOrders, nextExchangeRates, nextFiscalCloses, nextAuditLogs, nextOrganizationUsers, nextAttachments, nextBudgets, nextInvestmentLots] = await Promise.all([
+      const [nextAccounts, nextTransactions, nextTaxAuthorities, nextTaxRates, nextTaxGroups, nextPayrollRuns, nextEmployees, nextCustomers, nextInvoices, nextRecurringInvoices, nextEstimates, nextCreditNotes, nextVendors, nextExpenses, nextBills, nextPurchaseOrders, nextExchangeRates, nextFiscalCloses, nextAuditLogs, nextOrganizationUsers, nextAttachments, nextBudgets, nextInvestmentLots, nextInvestmentDividends, nextInvestmentCorporateActions] = await Promise.all([
         api.listAccounts(),
         api.listJournalTransactions(),
         api.listTaxAuthorities(),
@@ -71,7 +73,9 @@ export function App() {
         api.listOrganizationUsers(),
         api.listAttachments(),
         api.listBudgets(),
-        api.listInvestmentLots()
+        api.listInvestmentLots(),
+        api.listInvestmentDividends(),
+        api.listInvestmentCorporateActions()
       ]);
       setAccounts(nextAccounts);
       setTransactions(nextTransactions);
@@ -96,6 +100,8 @@ export function App() {
       setAttachments(nextAttachments);
       setBudgets(nextBudgets);
       setInvestmentLots(nextInvestmentLots);
+      setInvestmentDividends(nextInvestmentDividends);
+      setInvestmentCorporateActions(nextInvestmentCorporateActions);
       saveAccountingSnapshot({
         savedAt: new Date().toISOString(),
         accounts: nextAccounts,
@@ -124,7 +130,9 @@ export function App() {
         organizationUsers: nextOrganizationUsers,
         attachments: nextAttachments,
         budgets: nextBudgets,
-        investmentLots: nextInvestmentLots
+        investmentLots: nextInvestmentLots,
+        investmentDividends: nextInvestmentDividends,
+        investmentCorporateActions: nextInvestmentCorporateActions
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
@@ -305,7 +313,9 @@ export function App() {
       organizationUsers,
       attachments,
       budgets,
-      investmentLots
+      investmentLots,
+      investmentDividends,
+      investmentCorporateActions
     });
   }
 
@@ -339,7 +349,9 @@ export function App() {
       organizationUsers,
       attachments,
       budgets,
-      investmentLots
+      investmentLots,
+      investmentDividends,
+      investmentCorporateActions
     });
   }
 
@@ -369,7 +381,9 @@ export function App() {
       organizationUsers,
       attachments,
       budgets,
-      investmentLots
+      investmentLots,
+      investmentDividends,
+      investmentCorporateActions
     });
   }
 
@@ -487,6 +501,10 @@ export function App() {
             accounts={accounts}
             investmentLots={investmentLots}
             onInvestmentLotsChanged={setInvestmentLots}
+            investmentDividends={investmentDividends}
+            onInvestmentDividendsChanged={setInvestmentDividends}
+            investmentCorporateActions={investmentCorporateActions}
+            onInvestmentCorporateActionsChanged={setInvestmentCorporateActions}
             onRefresh={refresh}
           />
         )}
@@ -579,8 +597,20 @@ export function App() {
 
 function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (config: ApiConfig) => void }) {
   const [draft, setDraft] = useState(config);
-  const [loginForm, setLoginForm] = useState<LoginInput>({ email: "", password: "" });
+  const [loginForm, setLoginForm] = useState<LoginInput>({ email: "", password: "", mfa_code: "" });
+  const [mfaSetup, setMfaSetup] = useState<MFASetupResponse | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [bootstrapForm, setBootstrapForm] = useState<BootstrapFirstAdminInput>({
+    organization_name: "",
+    admin_name: "",
+    admin_email: "",
+    admin_password: "",
+    base_currency: "INR",
+    country_code: "IN",
+    seed_india_defaults: true
+  });
+  const [registrationForm, setRegistrationForm] = useState<RegisterOrganizationInput>({
     organization_name: "",
     admin_name: "",
     admin_email: "",
@@ -639,6 +669,106 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
     }
   }
 
+  async function logoutCurrentSession() {
+    if (!draft.refreshToken) {
+      setConnectionError("No refresh token is saved yet.");
+      return;
+    }
+    setLoading("logout");
+    setConnectionError("");
+    try {
+      await connectionApi.logout(draft.refreshToken);
+      const next = { ...draft, accessToken: "", refreshToken: "" };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice("Current refresh token revoked and local tokens cleared.");
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function revokeAllSessions() {
+    if (!draft.accessToken) {
+      setConnectionError("An access token is required to revoke all sessions.");
+      return;
+    }
+    setLoading("revoke-sessions");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.revokeAllSessions();
+      const next = { ...draft, accessToken: "", refreshToken: "" };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Revoked ${result.revoked_count} session(s) and cleared local tokens.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function setupMFA() {
+    setLoading("mfa-setup");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.setupMFA();
+      setMfaSetup(result);
+      setMfaRecoveryCodes([]);
+      setConnectionNotice("MFA secret generated. Add it to an authenticator app, then verify a code to enable MFA.");
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function enableMFA() {
+    setLoading("mfa-enable");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.enableMFA(mfaCode);
+      setMfaRecoveryCodes(result.recovery_codes ?? []);
+      setConnectionNotice("MFA enabled. Save the recovery codes now; they will not be shown again.");
+      setMfaSetup((current) => current ? { ...current, mfa_enabled: true } : current);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function disableMFA() {
+    setLoading("mfa-disable");
+    setConnectionError("");
+    try {
+      await connectionApi.disableMFA(mfaCode);
+      setConnectionNotice("MFA disabled for this user.");
+      setMfaSetup(null);
+      setMfaCode("");
+      setMfaRecoveryCodes([]);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function regenerateMFARecoveryCodes() {
+    setLoading("mfa-regenerate-codes");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.regenerateMFARecoveryCodes(mfaCode);
+      setMfaRecoveryCodes(result.recovery_codes ?? []);
+      setConnectionNotice("Recovery codes regenerated. Save this new set now; old recovery codes no longer work.");
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
   async function bootstrapFirstAdmin(event: FormEvent) {
     event.preventDefault();
     setLoading("bootstrap");
@@ -650,6 +780,24 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
       setDraft(next);
       onSave(next);
       setConnectionNotice(`Bootstrap complete${result.organization?.name ? ` for ${result.organization.name}` : ""}. Log in with the admin email to receive tokens.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function registerOrganization(event: FormEvent) {
+    event.preventDefault();
+    setLoading("register");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.registerOrganization(registrationForm);
+      const organizationId = result.organization?.id ?? draft.organizationId;
+      const next = { ...draft, organizationId };
+      setDraft(next);
+      onSave(next);
+      setConnectionNotice(`Registration complete${result.organization?.name ? ` for ${result.organization.name}` : ""}. Log in with the owner email to receive tokens.`);
     } catch (error) {
       setConnectionError(errorMessage(error));
     } finally {
@@ -719,6 +867,12 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
         <button className="secondary" type="button" disabled={!draft.refreshToken || loading === "refresh-token"} onClick={() => void refreshAccessToken()}>
           {loading === "refresh-token" ? "Refreshing..." : "Refresh token"}
         </button>
+        <button className="secondary" type="button" disabled={!draft.refreshToken || loading === "logout"} onClick={() => void logoutCurrentSession()}>
+          {loading === "logout" ? "Logging out..." : "Logout session"}
+        </button>
+        <button className="secondary" type="button" disabled={!draft.accessToken || loading === "revoke-sessions"} onClick={() => void revokeAllSessions()}>
+          {loading === "revoke-sessions" ? "Revoking..." : "Revoke all sessions"}
+        </button>
       </form>
 
       {connectionError && <div className="alert error">{connectionError}</div>}
@@ -727,6 +881,7 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
       <form className="form-grid" onSubmit={login}>
         <input placeholder="Email" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} />
         <input placeholder="Password" type="password" value={loginForm.password} onChange={(event) => setLoginForm({ ...loginForm, password: event.target.value })} />
+        <input placeholder="MFA or recovery code (if enabled)" value={loginForm.mfa_code ?? ""} onChange={(event) => setLoginForm({ ...loginForm, mfa_code: event.target.value })} />
         <button disabled={!loginForm.email || !loginForm.password || loading === "login"}>{loading === "login" ? "Logging in..." : "Login"}</button>
         <button className="secondary" type="button" disabled={!draft.accessToken || loading === "organizations"} onClick={() => void loadOrganizations()}>
           {loading === "organizations" ? "Loading..." : "Load organizations"}
@@ -748,6 +903,45 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
           </select>
         </label>
       )}
+
+      <section className="panel">
+        <p className="eyebrow">Security</p>
+        <h3>Multi-factor authentication</h3>
+        <p>Generate a TOTP secret, add it to an authenticator app, then enter a current 6-digit code to enable MFA. Recovery codes can be used once if the authenticator is unavailable.</p>
+        <div className="button-row">
+          <button className="secondary" type="button" disabled={!draft.accessToken || loading === "mfa-setup"} onClick={() => void setupMFA()}>
+            {loading === "mfa-setup" ? "Generating..." : "Setup MFA"}
+          </button>
+          <button className="secondary" type="button" disabled={!draft.accessToken || !mfaCode || loading === "mfa-enable"} onClick={() => void enableMFA()}>
+            {loading === "mfa-enable" ? "Enabling..." : "Enable MFA"}
+          </button>
+          <button className="secondary" type="button" disabled={!draft.accessToken || !mfaCode || loading === "mfa-disable"} onClick={() => void disableMFA()}>
+            {loading === "mfa-disable" ? "Disabling..." : "Disable MFA"}
+          </button>
+          <button className="secondary" type="button" disabled={!draft.accessToken || !mfaCode || loading === "mfa-regenerate-codes"} onClick={() => void regenerateMFARecoveryCodes()}>
+            {loading === "mfa-regenerate-codes" ? "Regenerating..." : "Regenerate recovery codes"}
+          </button>
+        </div>
+        <input placeholder="Authenticator code" value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} />
+        {mfaSetup && (
+          <div className="snapshot-card">
+            <strong>Secret:</strong> {mfaSetup.secret}
+            <br />
+            <strong>OTPAuth URL:</strong> {mfaSetup.otpauth_url}
+          </div>
+        )}
+        {mfaRecoveryCodes.length > 0 && (
+          <div className="snapshot-card">
+            <strong>Recovery codes:</strong>
+            <p>Store these securely. Each code works once and this list will disappear after you leave this screen.</p>
+            <div className="code-grid">
+              {mfaRecoveryCodes.map((code) => (
+                <code key={code}>{code}</code>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       <form className="form-grid" onSubmit={createOrganization}>
         <input placeholder="New organization name" value={organizationForm.name} onChange={(event) => setOrganizationForm({ ...organizationForm, name: event.target.value })} />
@@ -773,6 +967,24 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
         </label>
         <button disabled={!bootstrapForm.organization_name || !bootstrapForm.admin_email || bootstrapForm.admin_password.length < 12 || loading === "bootstrap"}>
           {loading === "bootstrap" ? "Bootstrapping..." : "Bootstrap first admin"}
+        </button>
+      </form>
+
+      <form className="form-grid" onSubmit={registerOrganization}>
+        <input placeholder="Register organization" value={registrationForm.organization_name} onChange={(event) => setRegistrationForm({ ...registrationForm, organization_name: event.target.value })} />
+        <input placeholder="Owner name" value={registrationForm.admin_name} onChange={(event) => setRegistrationForm({ ...registrationForm, admin_name: event.target.value })} />
+        <input placeholder="Owner email" value={registrationForm.admin_email} onChange={(event) => setRegistrationForm({ ...registrationForm, admin_email: event.target.value })} />
+        <input placeholder="Owner password" type="password" value={registrationForm.admin_password} onChange={(event) => setRegistrationForm({ ...registrationForm, admin_password: event.target.value })} />
+        <input placeholder="Currency" maxLength={3} value={registrationForm.base_currency ?? ""} onChange={(event) => setRegistrationForm({ ...registrationForm, base_currency: event.target.value.toUpperCase() })} />
+        <label>
+          Seed India defaults
+          <select value={registrationForm.seed_india_defaults ? "yes" : "no"} onChange={(event) => setRegistrationForm({ ...registrationForm, seed_india_defaults: event.target.value === "yes" })}>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+        <button disabled={!registrationForm.organization_name || !registrationForm.admin_email || registrationForm.admin_password.length < 12 || loading === "register"}>
+          {loading === "register" ? "Registering..." : "Register organization"}
         </button>
       </form>
     </div>
@@ -1250,8 +1462,20 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
   const [apAging, setAPAging] = useState<APAgingReport | null>(() => cachedReports?.apAging ?? null);
   const [taxLiability, setTaxLiability] = useState<TaxLiabilityReport | null>(() => cachedReports?.taxLiability ?? null);
   const [taxSummary, setTaxSummary] = useState<TaxSummaryReport | null>(() => cachedReports?.taxSummary ?? null);
+  const [payrollSummary, setPayrollSummary] = useState<PayrollSummaryReport | null>(() => cachedReports?.payrollSummary ?? null);
   const [budgetVsActual, setBudgetVsActual] = useState<BudgetVsActualReport | null>(() => cachedReports?.budgetVsActual ?? null);
-  const [loadingReport, setLoadingReport] = useState<"trial-balance" | "profit-and-loss" | "balance-sheet" | "cash-flow" | "ar-aging" | "ap-aging" | "tax-liability" | "tax-summary" | "budgets" | "budget-vs-actual" | null>(null);
+  const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
+  const [scheduledReportRuns, setScheduledReportRuns] = useState<ScheduledReportRun[]>([]);
+  const [selectedScheduledReportId, setSelectedScheduledReportId] = useState("");
+  const [scheduledReportForm, setScheduledReportForm] = useState<CreateScheduledReportInput>({
+    name: "Monthly P&L",
+    report_type: "profit_and_loss",
+    frequency: "monthly",
+    parameters_json: `{"from_date":"${fromDate}","to_date":"${toDate}"}`,
+    email_recipients: "",
+    next_run_at: today
+  });
+  const [loadingReport, setLoadingReport] = useState<"trial-balance" | "profit-and-loss" | "balance-sheet" | "cash-flow" | "ar-aging" | "ap-aging" | "tax-liability" | "tax-summary" | "payroll-summary" | "budgets" | "budget-vs-actual" | "scheduled-reports" | "scheduled-runs" | "report-pdf" | null>(null);
   const [reportError, setReportError] = useState("");
 
   async function loadTrialBalance(event?: FormEvent) {
@@ -1382,6 +1606,87 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     }
   }
 
+  async function loadPayrollSummary(event?: FormEvent) {
+    event?.preventDefault();
+    setLoadingReport("payroll-summary");
+    setReportError("");
+    try {
+      const report = await api.getPayrollSummary(fromDate, toDate);
+      setPayrollSummary(report);
+      persistReportSnapshot({ payrollSummary: report });
+    } catch (error) {
+      setPayrollSummary(null);
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function downloadPayrollSummaryCSV() {
+    setLoadingReport("payroll-summary");
+    setReportError("");
+    try {
+      const download = await api.downloadPayrollSummaryCSV(fromDate, toDate);
+      downloadBlob(download.filename, download.blob);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function downloadPayrollStatutoryComponentCSV(component: string) {
+    setLoadingReport("payroll-summary");
+    setReportError("");
+    try {
+      const download = await api.downloadPayrollStatutoryComponentCSV(fromDate, toDate, component);
+      downloadBlob(download.filename, download.blob);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function downloadTrialBalancePDF() {
+    setLoadingReport("report-pdf");
+    setReportError("");
+    try {
+      const download = await api.downloadTrialBalancePDF(asOf);
+      downloadBlob(download.filename, download.blob);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function downloadProfitAndLossPDF() {
+    setLoadingReport("report-pdf");
+    setReportError("");
+    try {
+      const download = await api.downloadProfitAndLossPDF(fromDate, toDate);
+      downloadBlob(download.filename, download.blob);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function downloadBalanceSheetPDF() {
+    setLoadingReport("report-pdf");
+    setReportError("");
+    try {
+      const download = await api.downloadBalanceSheetPDF(asOf);
+      downloadBlob(download.filename, download.blob);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
   async function loadBudgets() {
     setLoadingReport("budgets");
     setReportError("");
@@ -1415,6 +1720,59 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     }
   }
 
+  async function loadScheduledReports() {
+    setLoadingReport("scheduled-reports");
+    setReportError("");
+    try {
+      const schedules = await api.listScheduledReports();
+      setScheduledReports(schedules);
+      setSelectedScheduledReportId((current) => current || schedules[0]?.id || "");
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function createScheduledReport(event: FormEvent) {
+    event.preventDefault();
+    setLoadingReport("scheduled-reports");
+    setReportError("");
+    try {
+      const created = await api.createScheduledReport({
+        ...scheduledReportForm,
+        parameters_json: scheduledReportForm.parameters_json?.trim()
+          ? scheduledReportForm.parameters_json.trim()
+          : undefined,
+        email_recipients: scheduledReportForm.email_recipients?.trim()
+          ? scheduledReportForm.email_recipients.trim()
+          : undefined
+      });
+      setScheduledReports((current) => [created, ...current]);
+      setSelectedScheduledReportId(created.id);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  async function loadScheduledReportRuns(reportId = selectedScheduledReportId) {
+    if (!reportId) {
+      return;
+    }
+    setLoadingReport("scheduled-runs");
+    setReportError("");
+    try {
+      setScheduledReportRuns(await api.listScheduledReportRuns(reportId));
+      setSelectedScheduledReportId(reportId);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
   function persistReportSnapshot(update: Partial<Omit<ReportSnapshot, "savedAt">>) {
     const next = {
       ...reportSnapshot,
@@ -1436,6 +1794,7 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     setAPAging(null);
     setTaxLiability(null);
     setTaxSummary(null);
+    setPayrollSummary(null);
     setBudgetVsActual(null);
     setReportError("");
   }
@@ -1498,6 +1857,9 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
         <button className="secondary" type="button" disabled={loadingReport === "tax-summary"} onClick={() => void loadTaxSummary()}>
           {loadingReport === "tax-summary" ? "Loading..." : "Run GST summary"}
         </button>
+        <button className="secondary" type="button" disabled={loadingReport === "payroll-summary"} onClick={() => void loadPayrollSummary()}>
+          {loadingReport === "payroll-summary" ? "Loading..." : "Run payroll summary"}
+        </button>
       </form>
 
       <form className="panel form-grid" onSubmit={loadBudgetVsActual}>
@@ -1520,6 +1882,120 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
         </button>
       </form>
 
+      <form className="panel form-grid" onSubmit={createScheduledReport}>
+        <label>
+          Schedule name
+          <input
+            value={scheduledReportForm.name}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, name: event.target.value }))}
+            required
+          />
+        </label>
+        <label>
+          Report type
+          <select
+            value={scheduledReportForm.report_type}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, report_type: event.target.value as CreateScheduledReportInput["report_type"] }))}
+          >
+            <option value="trial_balance">Trial balance</option>
+            <option value="profit_and_loss">Profit and loss</option>
+            <option value="balance_sheet">Balance sheet</option>
+          </select>
+        </label>
+        <label>
+          Frequency
+          <select
+            value={scheduledReportForm.frequency}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, frequency: event.target.value as CreateScheduledReportInput["frequency"] }))}
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
+        <label>
+          Next run
+          <input
+            type="date"
+            value={scheduledReportForm.next_run_at.slice(0, 10)}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, next_run_at: event.target.value }))}
+            required
+          />
+        </label>
+        <label className="wide">
+          Parameters JSON
+          <textarea
+            value={scheduledReportForm.parameters_json ?? ""}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, parameters_json: event.target.value }))}
+            rows={3}
+            placeholder='{"as_of_date":"2026-07-31"}'
+          />
+        </label>
+        <label className="wide">
+          Email recipients
+          <textarea
+            value={scheduledReportForm.email_recipients ?? ""}
+            onChange={(event) => setScheduledReportForm((current) => ({ ...current, email_recipients: event.target.value }))}
+            rows={2}
+            placeholder="owner@example.com, accountant@example.com"
+          />
+        </label>
+        <button disabled={loadingReport === "scheduled-reports"}>
+          {loadingReport === "scheduled-reports" ? "Saving..." : "Create schedule"}
+        </button>
+        <button className="secondary" type="button" disabled={loadingReport === "scheduled-reports"} onClick={() => void loadScheduledReports()}>
+          Refresh schedules
+        </button>
+      </form>
+
+      {scheduledReports.length > 0 && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Scheduled reports</p>
+              <h3>{scheduledReports.length} recurring snapshots</h3>
+              <p>Worker-created runs are stored as immutable JSON snapshots for later export and review.</p>
+            </div>
+            <strong>{scheduledReportRuns.length}</strong>
+          </div>
+          <div className="button-row">
+            <select value={selectedScheduledReportId} onChange={(event) => setSelectedScheduledReportId(event.target.value)}>
+              {scheduledReports.map((report) => (
+                <option key={report.id} value={report.id}>{report.name}</option>
+              ))}
+            </select>
+            <button className="secondary" disabled={!selectedScheduledReportId || loadingReport === "scheduled-runs"} onClick={() => void loadScheduledReportRuns()}>
+              {loadingReport === "scheduled-runs" ? "Loading..." : "Load runs"}
+            </button>
+          </div>
+          <DataTable
+            headers={["Name", "Type", "Frequency", "Next run", "Last run", "Email", "Active"]}
+            rows={scheduledReports.map((report) => [
+              report.name,
+              titleCase(report.report_type.replace(/_/g, " ")),
+              titleCase(report.frequency),
+              report.next_run_at.slice(0, 10),
+              report.last_run_at ? report.last_run_at.slice(0, 10) : "-",
+              report.email_recipients || "-",
+              report.is_active ? "Yes" : "No"
+            ])}
+          />
+          {scheduledReportRuns.length > 0 && (
+            <DataTable
+              headers={["Run", "Type", "Status", "Period", "Snapshot", "Error"]}
+              rows={scheduledReportRuns.map((run) => [
+                run.created_at ? new Date(run.created_at).toLocaleString() : run.id.slice(0, 8),
+                titleCase(run.report_type.replace(/_/g, " ")),
+                titleCase(run.status),
+                run.as_of_date ? `As of ${run.as_of_date.slice(0, 10)}` : `${run.period_start?.slice(0, 10) ?? "-"} to ${run.period_end?.slice(0, 10) ?? "-"}`,
+                run.report_json ? `${Math.round(run.report_json.length / 1024)} KB` : "-",
+                run.error_message || "-"
+              ])}
+            />
+          )}
+        </section>
+      )}
+
       {reportError && <div className="alert error">{reportError}</div>}
       {trialBalance && (
         <section className="panel queue-panel">
@@ -1535,6 +2011,9 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
           </div>
           <div className="button-row">
             <button className="secondary" onClick={() => exportTrialBalance(trialBalance)}>Export CSV</button>
+            <button className="secondary" disabled={loadingReport === "report-pdf"} onClick={() => void downloadTrialBalancePDF()}>
+              {loadingReport === "report-pdf" ? "Downloading..." : "Export PDF"}
+            </button>
           </div>
           <DataTable
             headers={["Code", "Account", "Type", "Debit", "Credit", "Balance"]}
@@ -1565,6 +2044,9 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
           </div>
           <div className="button-row">
             <button className="secondary" onClick={() => exportProfitAndLoss(profitAndLoss)}>Export CSV</button>
+            <button className="secondary" disabled={loadingReport === "report-pdf"} onClick={() => void downloadProfitAndLossPDF()}>
+              {loadingReport === "report-pdf" ? "Downloading..." : "Export PDF"}
+            </button>
           </div>
           <DataTable
             headers={["Section", "Code", "Account", "Amount"]}
@@ -1590,6 +2072,9 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
           </div>
           <div className="button-row">
             <button className="secondary" onClick={() => exportBalanceSheet(balanceSheet)}>Export CSV</button>
+            <button className="secondary" disabled={loadingReport === "report-pdf"} onClick={() => void downloadBalanceSheetPDF()}>
+              {loadingReport === "report-pdf" ? "Downloading..." : "Export PDF"}
+            </button>
           </div>
           <DataTable
             headers={["Section", "Code", "Account", "Balance"]}
@@ -1750,6 +2235,45 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
               formatMinorAsInr(row.output_tax_minor),
               formatMinorAsInr(row.input_tax_minor),
               formatMinorAsInr(row.net_payable_minor)
+            ])}
+          />
+        </section>
+      )}
+      {payrollSummary && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {payrollSummary.from_date.slice(0, 10)} to {payrollSummary.to_date.slice(0, 10)}
+              </p>
+              <h3>Payroll cost {formatMinorAsInr(payrollSummary.total_payroll_cost_minor)}</h3>
+              <p>
+                {payrollSummary.total_runs} posted runs, {payrollSummary.total_employees} employee payslips,
+                net pay {formatMinorAsInr(payrollSummary.total_net_pay_minor)} and employer contributions {formatMinorAsInr(payrollSummary.total_employer_contributions_minor)}.
+              </p>
+            </div>
+            <strong>{payrollSummary.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" onClick={() => void downloadPayrollSummaryCSV()}>Download summary CSV</button>
+            {["TDS", "PF", "ESI", "PT"].map((component) => (
+              <button key={component} className="secondary" onClick={() => void downloadPayrollStatutoryComponentCSV(component)}>
+                Download {component} CSV
+              </button>
+            ))}
+            <button className="secondary" onClick={() => exportPayrollSummary(payrollSummary)}>Export cached CSV</button>
+          </div>
+          <DataTable
+            headers={["Run", "Pay date", "Employees", "Gross", "Deductions", "Net", "Employer", "Cost"]}
+            rows={payrollSummary.rows.map((row) => [
+              row.run_number,
+              row.pay_date.slice(0, 10),
+              String(row.employee_count),
+              formatMinorAsInr(row.gross_pay_minor),
+              formatMinorAsInr(row.deductions_minor),
+              formatMinorAsInr(row.net_pay_minor),
+              formatMinorAsInr(row.employer_contributions_minor),
+              formatMinorAsInr(row.payroll_cost_minor)
             ])}
           />
         </section>
@@ -2006,12 +2530,20 @@ function InvestmentsPage({
   accounts,
   investmentLots,
   onInvestmentLotsChanged,
+  investmentDividends,
+  onInvestmentDividendsChanged,
+  investmentCorporateActions,
+  onInvestmentCorporateActionsChanged,
   onRefresh
 }: {
   api: ApiClient;
   accounts: Account[];
   investmentLots: InvestmentLot[];
   onInvestmentLotsChanged: (lots: InvestmentLot[]) => void;
+  investmentDividends: InvestmentDividend[];
+  onInvestmentDividendsChanged: (dividends: InvestmentDividend[]) => void;
+  investmentCorporateActions: InvestmentCorporateAction[];
+  onInvestmentCorporateActionsChanged: (actions: InvestmentCorporateAction[]) => void;
   onRefresh: () => Promise<void>;
 }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -2038,9 +2570,39 @@ function InvestmentsPage({
     gain_loss_account_id: accounts.find((account) => account.type === "income" || account.type === "expense")?.id ?? "",
     notes: ""
   });
+  const [dividendForm, setDividendForm] = useState({
+    account_id: investmentAccounts[0]?.id ?? "",
+    symbol: "",
+    dividend_date: today,
+    amount_minor: 0,
+    currency: "INR",
+    cash_account_id: investmentAccounts[0]?.id ?? "",
+    income_account_id: accounts.find((account) => account.type === "income")?.id ?? "",
+    notes: ""
+  });
+  const [corporateActionForm, setCorporateActionForm] = useState({
+    account_id: investmentAccounts[0]?.id ?? "",
+    symbol: "",
+    action_type: "split" as InvestmentCorporateAction["action_type"],
+    action_date: today,
+    ratio_numerator: 2,
+    ratio_denominator: 1,
+    notes: ""
+  });
+  const [priceImportForm, setPriceImportForm] = useState({
+    format: "csv" as "csv" | "amfi",
+    source: "csv_import",
+    symbol_mode: "scheme_code" as ImportAMFINAVInput["symbol_mode"],
+    csv: "symbol,price_date,price_minor,currency\nNIFTYBEES,2026-07-31,7200,INR"
+  });
   const [reportFrom, setReportFrom] = useState(fiscalStart);
   const [reportTo, setReportTo] = useState(today);
+  const [taxAdjustmentWindowDays, setTaxAdjustmentWindowDays] = useState(30);
   const [realizedGains, setRealizedGains] = useState<RealizedGainsReport | null>(() => cachedReports?.realizedGains ?? null);
+  const [dividendReport, setDividendReport] = useState<InvestmentDividendReport | null>(() => cachedReports?.investmentDividends ?? null);
+  const [corporateActionReport, setCorporateActionReport] = useState<InvestmentCorporateActionReport | null>(null);
+  const [taxAdjustmentReport, setTaxAdjustmentReport] = useState<InvestmentTaxAdjustmentReport | null>(null);
+  const [taxLotReport, setTaxLotReport] = useState<InvestmentTaxLotReport | null>(() => cachedReports?.investmentTaxLots ?? null);
   const [loading, setLoading] = useState("");
   const [investmentError, setInvestmentError] = useState("");
   const [investmentNotice, setInvestmentNotice] = useState("");
@@ -2049,6 +2611,9 @@ function InvestmentsPage({
   const totalRemainingQuantity = investmentLots.reduce((total, lot) => total + lot.remaining_quantity_millis, 0);
   const canCreateLot = Boolean(lotForm.account_id && lotForm.symbol.trim() && lotForm.acquisition_date && lotForm.quantity_millis > 0 && lotForm.cost_basis_minor > 0);
   const canSellLot = Boolean(saleForm.lot_id && saleForm.sale_date && saleForm.quantity_millis > 0 && saleForm.proceeds_minor > 0);
+  const canCreateDividend = Boolean(dividendForm.account_id && dividendForm.symbol.trim() && dividendForm.dividend_date && dividendForm.amount_minor > 0);
+  const canCreateCorporateAction = Boolean(corporateActionForm.account_id && corporateActionForm.symbol.trim() && corporateActionForm.action_date && corporateActionForm.ratio_numerator > 0 && corporateActionForm.ratio_denominator > 0);
+  const canImportPrices = Boolean(priceImportForm.csv.trim());
 
   async function refreshLots() {
     setLoading("refresh");
@@ -2057,6 +2622,34 @@ function InvestmentsPage({
       const lots = await api.listInvestmentLots();
       onInvestmentLotsChanged(lots);
       setInvestmentNotice(`Loaded ${lots.length} investment lot(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function refreshDividends() {
+    setLoading("refresh-dividends");
+    setInvestmentError("");
+    try {
+      const dividends = await api.listInvestmentDividends();
+      onInvestmentDividendsChanged(dividends);
+      setInvestmentNotice(`Loaded ${dividends.length} dividend(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function refreshCorporateActions() {
+    setLoading("refresh-actions");
+    setInvestmentError("");
+    try {
+      const actions = await api.listInvestmentCorporateActions();
+      onInvestmentCorporateActionsChanged(actions);
+      setInvestmentNotice(`Loaded ${actions.length} corporate action(s).`);
     } catch (error) {
       setInvestmentError(errorMessage(error));
     } finally {
@@ -2105,6 +2698,67 @@ function InvestmentsPage({
     }
   }
 
+  async function createDividend(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateDividend) {
+      return;
+    }
+    setLoading("create-dividend");
+    setInvestmentError("");
+    try {
+      const dividend = await api.createInvestmentDividend(toInvestmentDividendInput(dividendForm));
+      onInvestmentDividendsChanged([dividend, ...investmentDividends]);
+      setDividendForm({ ...dividendForm, symbol: "", amount_minor: 0, notes: "" });
+      setInvestmentNotice(`Recorded dividend ${formatMinorAsInr(dividend.amount_minor)} for ${dividend.symbol}${dividend.journal_transaction_id ? " and posted it to the ledger" : ""}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function createCorporateAction(event: FormEvent) {
+    event.preventDefault();
+    if (!canCreateCorporateAction) {
+      return;
+    }
+    setLoading("create-action");
+    setInvestmentError("");
+    try {
+      const action = await api.createInvestmentCorporateAction(toInvestmentCorporateActionInput(corporateActionForm));
+      onInvestmentCorporateActionsChanged([action, ...investmentCorporateActions]);
+      setCorporateActionForm({ ...corporateActionForm, symbol: "", notes: "" });
+      setInvestmentNotice(`Applied ${titleCase(action.action_type)} to ${action.affected_lots} lot(s), changing open quantity by ${formatQuantityMillis(action.quantity_delta_millis)}.`);
+      await onRefresh();
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function importPrices(event: FormEvent) {
+    event.preventDefault();
+    if (!canImportPrices) {
+      return;
+    }
+    setLoading("import-prices");
+    setInvestmentError("");
+    try {
+      const result = priceImportForm.format === "amfi"
+        ? await api.importAMFINAV(toImportAMFINAVInput(priceImportForm))
+        : await api.importInvestmentPrices(toImportInvestmentPricesInput(priceImportForm));
+      const suffix = result.errors.length > 0 ? ` ${result.errors.length} row issue(s) need review.` : "";
+      setInvestmentNotice(`Imported ${result.imported} price row(s), skipped ${result.skipped}.${suffix}`);
+      await onRefresh();
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
   async function loadRealizedGains(event?: FormEvent) {
     event?.preventDefault();
     setLoading("realized-gains");
@@ -2115,6 +2769,81 @@ function InvestmentsPage({
       const snapshot = loadReportSnapshot() ?? { savedAt: "" };
       saveReportSnapshot({ ...snapshot, realizedGains: report, savedAt: new Date().toISOString() });
       setInvestmentNotice(`Loaded realized gains report with ${report.rows.length} disposition(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadDividendReport(event?: FormEvent) {
+    event?.preventDefault();
+    setLoading("dividend-report");
+    setInvestmentError("");
+    try {
+      const report = await api.getInvestmentDividends(reportFrom, reportTo);
+      setDividendReport(report);
+      const snapshot = loadReportSnapshot() ?? { savedAt: "" };
+      saveReportSnapshot({ ...snapshot, investmentDividends: report, savedAt: new Date().toISOString() });
+      setInvestmentNotice(`Loaded dividend report with ${report.rows.length} dividend(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadTaxLotReport() {
+    setLoading("tax-lots");
+    setInvestmentError("");
+    try {
+      const report = await api.getInvestmentTaxLots(reportTo);
+      setTaxLotReport(report);
+      const snapshot = loadReportSnapshot() ?? { savedAt: "" };
+      saveReportSnapshot({ ...snapshot, investmentTaxLots: report, savedAt: new Date().toISOString() });
+      setInvestmentNotice(`Loaded tax-lot report with ${report.rows.length} lot(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadTaxAdjustmentReport() {
+    setLoading("tax-adjustments");
+    setInvestmentError("");
+    try {
+      const report = await api.getInvestmentTaxAdjustments(reportFrom, reportTo, taxAdjustmentWindowDays);
+      setTaxAdjustmentReport(report);
+      setInvestmentNotice(`Loaded tax adjustment report with ${report.rows.length} candidate adjustment(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadCorporateActionReport() {
+    setLoading("corporate-action-report");
+    setInvestmentError("");
+    try {
+      const report = await api.getInvestmentCorporateActions(reportFrom, reportTo);
+      setCorporateActionReport(report);
+      setInvestmentNotice(`Loaded corporate-action report with ${report.total_actions} action(s).`);
+    } catch (error) {
+      setInvestmentError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function downloadCorporateActionReportCSV() {
+    setLoading("corporate-action-csv");
+    setInvestmentError("");
+    try {
+      const download = await api.downloadInvestmentCorporateActionsCSV(reportFrom, reportTo);
+      downloadBlob(download.filename, download.blob);
+      setInvestmentNotice("Downloaded corporate-action report CSV.");
     } catch (error) {
       setInvestmentError(errorMessage(error));
     } finally {
@@ -2140,6 +2869,12 @@ function InvestmentsPage({
         </div>
         <button className="secondary" disabled={loading === "refresh"} onClick={() => void refreshLots()}>
           {loading === "refresh" ? "Refreshing..." : "Refresh lots"}
+        </button>
+        <button className="secondary" disabled={loading === "refresh-dividends"} onClick={() => void refreshDividends()}>
+          {loading === "refresh-dividends" ? "Refreshing..." : "Refresh dividends"}
+        </button>
+        <button className="secondary" disabled={loading === "refresh-actions"} onClick={() => void refreshCorporateActions()}>
+          {loading === "refresh-actions" ? "Refreshing..." : "Refresh actions"}
         </button>
       </section>
 
@@ -2204,6 +2939,81 @@ function InvestmentsPage({
         <button disabled={!canSellLot || loading === "sell-lot"}>{loading === "sell-lot" ? "Recording..." : "Record sale"}</button>
       </form>
 
+      <form className="panel form-grid" onSubmit={createDividend}>
+        <AccountSelect label="Investment account" accounts={investmentAccounts} value={dividendForm.account_id} onChange={(value) => setDividendForm({ ...dividendForm, account_id: value })} />
+        <input placeholder="Dividend symbol" value={dividendForm.symbol} onChange={(event) => setDividendForm({ ...dividendForm, symbol: event.target.value.toUpperCase() })} />
+        <label>
+          Dividend date
+          <input type="date" value={dividendForm.dividend_date} onChange={(event) => setDividendForm({ ...dividendForm, dividend_date: event.target.value })} />
+        </label>
+        <label>
+          Amount minor
+          <input type="number" min={1} value={dividendForm.amount_minor} onChange={(event) => setDividendForm({ ...dividendForm, amount_minor: Number(event.target.value) })} />
+        </label>
+        <input maxLength={3} value={dividendForm.currency} onChange={(event) => setDividendForm({ ...dividendForm, currency: event.target.value.toUpperCase() })} />
+        <AccountSelect label="Cash account" accounts={accounts.filter((account) => account.type === "asset")} value={dividendForm.cash_account_id} onChange={(value) => setDividendForm({ ...dividendForm, cash_account_id: value })} />
+        <AccountSelect label="Dividend income account" accounts={accounts.filter((account) => account.type === "income")} value={dividendForm.income_account_id} onChange={(value) => setDividendForm({ ...dividendForm, income_account_id: value })} />
+        <input placeholder="Dividend notes" value={dividendForm.notes} onChange={(event) => setDividendForm({ ...dividendForm, notes: event.target.value })} />
+        <button disabled={!canCreateDividend || loading === "create-dividend"}>{loading === "create-dividend" ? "Recording..." : "Record dividend"}</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={createCorporateAction}>
+        <AccountSelect label="Investment account" accounts={investmentAccounts} value={corporateActionForm.account_id} onChange={(value) => setCorporateActionForm({ ...corporateActionForm, account_id: value })} />
+        <input placeholder="Action symbol" value={corporateActionForm.symbol} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, symbol: event.target.value.toUpperCase() })} />
+        <label>
+          Action type
+          <select value={corporateActionForm.action_type} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, action_type: event.target.value as InvestmentCorporateAction["action_type"] })}>
+            <option value="split">Stock split</option>
+            <option value="bonus">Bonus issue</option>
+          </select>
+        </label>
+        <label>
+          Action date
+          <input type="date" value={corporateActionForm.action_date} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, action_date: event.target.value })} />
+        </label>
+        <label>
+          Ratio numerator
+          <input type="number" min={1} value={corporateActionForm.ratio_numerator} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, ratio_numerator: Number(event.target.value) })} />
+        </label>
+        <label>
+          Ratio denominator
+          <input type="number" min={1} value={corporateActionForm.ratio_denominator} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, ratio_denominator: Number(event.target.value) })} />
+        </label>
+        <input placeholder="Action notes" value={corporateActionForm.notes} onChange={(event) => setCorporateActionForm({ ...corporateActionForm, notes: event.target.value })} />
+        <button disabled={!canCreateCorporateAction || loading === "create-action"}>{loading === "create-action" ? "Applying..." : "Apply corporate action"}</button>
+      </form>
+
+      <form className="panel form-grid" onSubmit={importPrices}>
+        <label>
+          Price feed format
+          <select value={priceImportForm.format} onChange={(event) => setPriceImportForm({ ...priceImportForm, format: event.target.value as "csv" | "amfi" })}>
+            <option value="csv">Generic CSV</option>
+            <option value="amfi">AMFI NAV text</option>
+          </select>
+        </label>
+        {priceImportForm.format === "csv" ? (
+          <input placeholder="Price import source" value={priceImportForm.source} onChange={(event) => setPriceImportForm({ ...priceImportForm, source: event.target.value })} />
+        ) : (
+          <label>
+            AMFI symbol mapping
+            <select value={priceImportForm.symbol_mode} onChange={(event) => setPriceImportForm({ ...priceImportForm, symbol_mode: event.target.value as ImportAMFINAVInput["symbol_mode"] })}>
+              <option value="scheme_code">Scheme code</option>
+              <option value="isin_growth">Growth ISIN</option>
+              <option value="scheme_name">Scheme name</option>
+            </select>
+          </label>
+        )}
+        <label className="full-span">
+          {priceImportForm.format === "amfi" ? "AMFI NAV feed text" : "Price CSV"}
+          <textarea
+            rows={5}
+            value={priceImportForm.csv}
+            onChange={(event) => setPriceImportForm({ ...priceImportForm, csv: event.target.value })}
+          />
+        </label>
+        <button disabled={!canImportPrices || loading === "import-prices"}>{loading === "import-prices" ? "Importing..." : priceImportForm.format === "amfi" ? "Import AMFI NAV" : "Import price CSV"}</button>
+      </form>
+
       <DataTable
         headers={["Symbol", "Security", "Account", "Acquired", "Qty", "Remaining", "Cost", "Method"]}
         rows={investmentLots.map((lot) => [
@@ -2218,6 +3028,31 @@ function InvestmentsPage({
         ])}
       />
 
+      <DataTable
+        headers={["Date", "Symbol", "Account", "Amount", "Currency", "Posted"]}
+        rows={investmentDividends.map((dividend) => [
+          dividend.dividend_date.slice(0, 10),
+          dividend.symbol,
+          accountName(dividend.account_id),
+          formatMinorAsInr(dividend.amount_minor),
+          dividend.currency,
+          dividend.journal_transaction_id ? "Yes" : "No"
+        ])}
+      />
+
+      <DataTable
+        headers={["Date", "Symbol", "Type", "Ratio", "Affected lots", "Qty delta", "Cost delta"]}
+        rows={investmentCorporateActions.map((action) => [
+          action.action_date.slice(0, 10),
+          action.symbol,
+          titleCase(action.action_type),
+          `${action.ratio_numerator}:${action.ratio_denominator}`,
+          String(action.affected_lots),
+          formatQuantityMillis(action.quantity_delta_millis),
+          formatMinorAsInr(action.cost_basis_delta_minor)
+        ])}
+      />
+
       <form className="panel form-grid" onSubmit={loadRealizedGains}>
         <label>
           From date
@@ -2227,7 +3062,23 @@ function InvestmentsPage({
           To date
           <input type="date" value={reportTo} onChange={(event) => setReportTo(event.target.value)} required />
         </label>
+        <label>
+          Tax window days
+          <input type="number" min={1} value={taxAdjustmentWindowDays} onChange={(event) => setTaxAdjustmentWindowDays(Number(event.target.value))} />
+        </label>
         <button disabled={loading === "realized-gains"}>{loading === "realized-gains" ? "Loading..." : "Run realized gains"}</button>
+        <button className="secondary" type="button" disabled={loading === "dividend-report"} onClick={() => void loadDividendReport()}>
+          {loading === "dividend-report" ? "Loading..." : "Run dividend report"}
+        </button>
+        <button className="secondary" type="button" disabled={loading === "tax-adjustments"} onClick={() => void loadTaxAdjustmentReport()}>
+          {loading === "tax-adjustments" ? "Loading..." : "Run tax adjustments"}
+        </button>
+        <button className="secondary" type="button" disabled={loading === "tax-lots"} onClick={() => void loadTaxLotReport()}>
+          {loading === "tax-lots" ? "Loading..." : "Run tax lots"}
+        </button>
+        <button className="secondary" type="button" disabled={loading === "corporate-action-report"} onClick={() => void loadCorporateActionReport()}>
+          {loading === "corporate-action-report" ? "Loading..." : "Run action report"}
+        </button>
       </form>
 
       {realizedGains && (
@@ -2250,6 +3101,114 @@ function InvestmentsPage({
               formatMinorAsInr(row.allocated_cost_basis_minor),
               formatMinorAsInr(row.realized_gain_loss_minor),
               row.currency
+            ])}
+          />
+        </section>
+      )}
+      {taxAdjustmentReport && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">{taxAdjustmentReport.from_date.slice(0, 10)} to {taxAdjustmentReport.to_date.slice(0, 10)} · {taxAdjustmentReport.window_days}-day window</p>
+              <h3>Potential deferred loss {formatMinorAsInr(taxAdjustmentReport.total_deferred_loss_minor)}</h3>
+              <p>{taxAdjustmentReport.rows.length} loss repurchase candidate(s), replacement quantity {formatQuantityMillis(taxAdjustmentReport.total_replacement_quantity_millis)}.</p>
+            </div>
+            <button className="secondary" onClick={() => exportInvestmentTaxAdjustments(taxAdjustmentReport)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Sale date", "Symbol", "Sold qty", "Loss", "Replacement qty", "Deferred loss", "Window", "Replacement lots"]}
+            rows={taxAdjustmentReport.rows.map((row) => [
+              row.sale_date.slice(0, 10),
+              row.symbol,
+              formatQuantityMillis(row.quantity_millis),
+              formatMinorAsInr(row.realized_loss_minor),
+              formatQuantityMillis(row.replacement_quantity_millis),
+              formatMinorAsInr(row.deferred_loss_minor),
+              `${row.window_start.slice(0, 10)} to ${row.window_end.slice(0, 10)}`,
+              row.replacement_lot_ids.join(", ")
+            ])}
+          />
+        </section>
+      )}
+      {dividendReport && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">{dividendReport.from_date.slice(0, 10)} to {dividendReport.to_date.slice(0, 10)}</p>
+              <h3>Dividend income {formatMinorAsInr(dividendReport.total_amount_minor)}</h3>
+              <p>{dividendReport.rows.length} dividend receipt(s) recorded in this period.</p>
+            </div>
+            <button className="secondary" onClick={() => exportInvestmentDividends(dividendReport)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Date", "Symbol", "Account", "Amount", "Currency", "Posted"]}
+            rows={dividendReport.rows.map((row) => [
+              row.dividend_date.slice(0, 10),
+              row.symbol,
+              accountName(row.account_id),
+              formatMinorAsInr(row.amount_minor),
+              row.currency,
+              row.journal_transaction_id ? "Yes" : "No"
+            ])}
+          />
+        </section>
+      )}
+      {corporateActionReport && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">{corporateActionReport.from_date.slice(0, 10)} to {corporateActionReport.to_date.slice(0, 10)}</p>
+              <h3>{corporateActionReport.total_actions} corporate action(s)</h3>
+              <p>
+                {corporateActionReport.total_affected_lots} lot(s) affected, quantity delta {formatQuantityMillis(corporateActionReport.total_quantity_delta_millis)},
+                cost basis delta {formatMinorAsInr(corporateActionReport.total_cost_basis_delta_minor)}.
+              </p>
+            </div>
+            <div className="button-row">
+              <button className="secondary" onClick={() => exportInvestmentCorporateActions(corporateActionReport)}>Export cached CSV</button>
+              <button className="secondary" disabled={loading === "corporate-action-csv"} onClick={() => void downloadCorporateActionReportCSV()}>
+                {loading === "corporate-action-csv" ? "Downloading..." : "Download API CSV"}
+              </button>
+            </div>
+          </div>
+          <DataTable
+            headers={["Date", "Symbol", "Type", "Ratio", "Affected lots", "Qty delta", "Cost delta", "Notes"]}
+            rows={corporateActionReport.rows.map((row) => [
+              row.action_date.slice(0, 10),
+              row.symbol,
+              titleCase(row.action_type),
+              `${row.ratio_numerator}:${row.ratio_denominator}`,
+              String(row.affected_lots),
+              formatQuantityMillis(row.quantity_delta_millis),
+              formatMinorAsInr(row.cost_basis_delta_minor),
+              row.notes ?? ""
+            ])}
+          />
+        </section>
+      )}
+      {taxLotReport && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">As of {taxLotReport.as_of_date.slice(0, 10)}</p>
+              <h3>Tax lots {formatMinorAsInr(taxLotReport.total_remaining_cost_basis_minor)} remaining basis</h3>
+              <p>Remaining {formatQuantityMillis(taxLotReport.total_remaining_quantity_millis)} units; realized gain/loss {formatMinorAsInr(taxLotReport.total_realized_gain_loss_minor)}.</p>
+            </div>
+            <button className="secondary" onClick={() => exportInvestmentTaxLots(taxLotReport)}>Export CSV</button>
+          </div>
+          <DataTable
+            headers={["Symbol", "Acquired", "Qty", "Remaining", "Disposed", "Cost", "Remaining cost", "Proceeds", "Gain/Loss", "Unit cost"]}
+            rows={taxLotReport.rows.map((row) => [
+              row.symbol,
+              row.acquisition_date.slice(0, 10),
+              formatQuantityMillis(row.quantity_millis),
+              formatQuantityMillis(row.remaining_quantity_millis),
+              formatQuantityMillis(row.disposed_quantity_millis),
+              formatMinorAsInr(row.cost_basis_minor),
+              formatMinorAsInr(row.remaining_cost_basis_minor),
+              formatMinorAsInr(row.proceeds_minor),
+              formatMinorAsInr(row.realized_gain_loss_minor),
+              formatMinorAsInr(row.unit_cost_minor)
             ])}
           />
         </section>
@@ -2283,6 +3242,8 @@ function PayrollPage({
   const [payrollNotice, setPayrollNotice] = useState("");
   const [loading, setLoading] = useState<"refresh" | string | null>(null);
   const [indiaPayrollPreview, setIndiaPayrollPreview] = useState<IndiaPayrollPreview | null>(null);
+  const [professionalTaxPresets, setProfessionalTaxPresets] = useState<IndiaProfessionalTaxPreset[]>([]);
+  const [selectedProfessionalTaxPreset, setSelectedProfessionalTaxPreset] = useState("");
   const [employeeForm, setEmployeeForm] = useState({
     display_name: "",
     email: "",
@@ -2308,16 +3269,27 @@ function PayrollPage({
     employee_pf_enabled: true,
     employee_pf_rate_bps: 1200,
     pf_wage_ceiling_minor: 1500000,
+    employer_pf_enabled: true,
+    employer_pf_rate_bps: 1200,
     employee_esi_enabled: true,
     employee_esi_rate_bps: 75,
+    employer_esi_enabled: true,
+    employer_esi_rate_bps: 325,
     esi_gross_limit_minor: 2100000,
     professional_tax_minor: 0,
+    tds_rate_bps: 0,
     tds_minor: 0,
+    tds_annual_income_minor: 0,
+    tds_periods_in_year: 12,
+    tds_slabs_text: "0,30000000,0\n30000000,60000000,500\n60000000,,1000",
     preview_components: [] as CreatePayrollComponentInput[],
+    employer_contributions_minor: 0,
     payslip_key: "",
     payroll_expense_account_id: "",
     payroll_liability_account_id: "",
-    deduction_liability_account_id: ""
+    deduction_liability_account_id: "",
+    employer_expense_account_id: "",
+    employer_liability_account_id: ""
   });
   const draftRuns = payrollRuns.filter((run) => run.status === "draft").length;
   const postedRuns = payrollRuns.filter((run) => run.status === "posted").length;
@@ -2329,7 +3301,8 @@ function PayrollPage({
     (runForm.gross_pay_minor > 0 || runForm.preview_components.length > 0 || runForm.basic_pay_minor + runForm.hra_minor + runForm.special_minor + runForm.bonus_minor + runForm.reimbursement_minor > 0) &&
     runForm.payroll_expense_account_id &&
     runForm.payroll_liability_account_id &&
-    runForm.deduction_liability_account_id
+    runForm.deduction_liability_account_id &&
+    (runForm.employer_contributions_minor === 0 || (runForm.employer_expense_account_id && runForm.employer_liability_account_id))
   );
 
   function updatePayrollRunForm(next: Partial<typeof runForm>, clearPreview = false) {
@@ -2369,6 +3342,30 @@ function PayrollPage({
     } finally {
       setLoading(null);
     }
+  }
+
+  async function loadProfessionalTaxPresets() {
+    setLoading("pt-presets");
+    setPayrollError("");
+    try {
+      const presets = await api.listIndiaProfessionalTaxPresets();
+      setProfessionalTaxPresets(presets);
+      setPayrollNotice(`Loaded ${presets.length} India professional tax starter preset(s).`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  function applyProfessionalTaxPreset(stateCode: string) {
+    setSelectedProfessionalTaxPreset(stateCode);
+    const preset = professionalTaxPresets.find((candidate) => candidate.state_code === stateCode);
+    if (!preset) {
+      return;
+    }
+    updatePayrollRunForm({ professional_tax_minor: preset.monthly_amount_minor }, true);
+    setPayrollNotice(`Applied ${preset.state_name} PT starter preset: ${formatMinorAsInr(preset.monthly_amount_minor)}. Verify active slabs before filing.`);
   }
 
   async function createEmployee(event: FormEvent) {
@@ -2417,6 +3414,7 @@ function PayrollPage({
         gross_pay_minor: 0,
         deductions_minor: 0,
         preview_components: [],
+        employer_contributions_minor: 0,
         payslip_key: ""
       });
       setIndiaPayrollPreview(null);
@@ -2442,20 +3440,29 @@ function PayrollPage({
         employee_pf_enabled: runForm.employee_pf_enabled,
         employee_pf_rate_bps: runForm.employee_pf_rate_bps,
         pf_wage_ceiling_minor: runForm.pf_wage_ceiling_minor,
+        employer_pf_enabled: runForm.employer_pf_enabled,
+        employer_pf_rate_bps: runForm.employer_pf_rate_bps,
         employee_esi_enabled: runForm.employee_esi_enabled,
         employee_esi_rate_bps: runForm.employee_esi_rate_bps,
+        employer_esi_enabled: runForm.employer_esi_enabled,
+        employer_esi_rate_bps: runForm.employer_esi_rate_bps,
         esi_gross_limit_minor: runForm.esi_gross_limit_minor,
         professional_tax_minor: runForm.professional_tax_minor,
-        tds_minor: runForm.tds_minor
+        tds_rate_bps: runForm.tds_rate_bps,
+        tds_minor: runForm.tds_minor,
+        tds_annual_income_minor: runForm.tds_annual_income_minor,
+        tds_periods_in_year: runForm.tds_periods_in_year,
+        tds_slabs: parseTDSSlabs(runForm.tds_slabs_text)
       });
       setIndiaPayrollPreview(preview);
       setRunForm({
         ...runForm,
         gross_pay_minor: preview.gross_pay_minor,
         deductions_minor: preview.deductions_minor,
+        employer_contributions_minor: preview.employer_contributions_minor,
         preview_components: preview.components
       });
-      setPayrollNotice(`Previewed India payroll: net pay ${formatMinorAsInr(preview.net_pay_minor)}.`);
+      setPayrollNotice(`Previewed India payroll: net pay ${formatMinorAsInr(preview.net_pay_minor)}, employer cost ${formatMinorAsInr(preview.payroll_cost_minor)}.`);
     } catch (error) {
       setPayrollError(errorMessage(error));
     } finally {
@@ -2498,6 +3505,44 @@ function PayrollPage({
     }
   }
 
+  async function downloadPayslipPDF(run: PayrollRun) {
+    const item = run.items?.find((candidate) => candidate.id);
+    if (!item?.id) {
+      setPayrollError("This payroll run does not include a payslip-ready item yet.");
+      return;
+    }
+
+    setLoading(`payslip-pdf-${run.id}`);
+    setPayrollError("");
+    try {
+      const download = await api.downloadPayslipPDF(run.id, item.id);
+      downloadBlob(download.filename, download.blob);
+      setPayrollNotice(`Downloaded payslip PDF for ${run.run_number}.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function downloadCurrentPayslipPDF() {
+    if (!payslipPreview) {
+      return;
+    }
+
+    setLoading(`payslip-pdf-${payslipPreview.payroll_run_id}`);
+    setPayrollError("");
+    try {
+      const download = await api.downloadPayslipPDF(payslipPreview.payroll_run_id, payslipPreview.payroll_item_id);
+      downloadBlob(download.filename, download.blob);
+      setPayrollNotice(`Downloaded payslip PDF for ${payslipPreview.employee.display_name}.`);
+    } catch (error) {
+      setPayrollError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
   return (
     <div className="stack">
       <section className="panel offline-panel">
@@ -2517,6 +3562,9 @@ function PayrollPage({
           </button>
           <button className="secondary" disabled={loading === "employees"} onClick={() => void refreshEmployees()}>
             {loading === "employees" ? "Loading..." : "Refresh employees"}
+          </button>
+          <button className="secondary" disabled={loading === "pt-presets"} onClick={() => void loadProfessionalTaxPresets()}>
+            {loading === "pt-presets" ? "Loading..." : "Load PT presets"}
           </button>
         </div>
       </section>
@@ -2635,6 +3683,13 @@ function PayrollPage({
         <input
           type="number"
           min="0"
+          placeholder="Employer contributions minor"
+          value={runForm.employer_contributions_minor}
+          onChange={(event) => updatePayrollRunForm({ employer_contributions_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
           placeholder="Basic pay component"
           value={runForm.basic_pay_minor}
           onChange={(event) => updatePayrollRunForm({ basic_pay_minor: Number(event.target.value) }, true)}
@@ -2678,9 +3733,24 @@ function PayrollPage({
         <input
           type="number"
           min="0"
-          placeholder="PF rate bps"
+          placeholder="Employee PF rate bps"
           value={runForm.employee_pf_rate_bps}
           onChange={(event) => updatePayrollRunForm({ employee_pf_rate_bps: Number(event.target.value) }, true)}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={runForm.employer_pf_enabled}
+            onChange={(event) => updatePayrollRunForm({ employer_pf_enabled: event.target.checked }, true)}
+          />
+          Employer PF enabled
+        </label>
+        <input
+          type="number"
+          min="0"
+          placeholder="Employer PF rate bps"
+          value={runForm.employer_pf_rate_bps}
+          onChange={(event) => updatePayrollRunForm({ employer_pf_rate_bps: Number(event.target.value) }, true)}
         />
         <input
           type="number"
@@ -2700,9 +3770,24 @@ function PayrollPage({
         <input
           type="number"
           min="0"
-          placeholder="ESI rate bps"
+          placeholder="Employee ESI rate bps"
           value={runForm.employee_esi_rate_bps}
           onChange={(event) => updatePayrollRunForm({ employee_esi_rate_bps: Number(event.target.value) }, true)}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={runForm.employer_esi_enabled}
+            onChange={(event) => updatePayrollRunForm({ employer_esi_enabled: event.target.checked }, true)}
+          />
+          Employer ESI enabled
+        </label>
+        <input
+          type="number"
+          min="0"
+          placeholder="Employer ESI rate bps"
+          value={runForm.employer_esi_rate_bps}
+          onChange={(event) => updatePayrollRunForm({ employer_esi_rate_bps: Number(event.target.value) }, true)}
         />
         <input
           type="number"
@@ -2718,13 +3803,57 @@ function PayrollPage({
           value={runForm.professional_tax_minor}
           onChange={(event) => updatePayrollRunForm({ professional_tax_minor: Number(event.target.value) }, true)}
         />
+        <label>
+          Professional tax preset
+          <select value={selectedProfessionalTaxPreset} onChange={(event) => applyProfessionalTaxPreset(event.target.value)}>
+            <option value="">Manual or select state</option>
+            {professionalTaxPresets.map((preset) => (
+              <option key={preset.state_code} value={preset.state_code}>
+                {preset.state_code} · {preset.state_name} · {formatMinorAsInr(preset.monthly_amount_minor)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="metric-card">
+          <span>PT preset note</span>
+          <small>{professionalTaxPresets.find((preset) => preset.state_code === selectedProfessionalTaxPreset)?.notes ?? "Load presets to apply starter India state PT amounts; always verify current local slabs."}</small>
+        </div>
         <input
           type="number"
           min="0"
-          placeholder="TDS minor"
+          placeholder="TDS rate bps when fixed TDS is empty"
+          value={runForm.tds_rate_bps}
+          onChange={(event) => updatePayrollRunForm({ tds_rate_bps: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="Fixed TDS minor"
           value={runForm.tds_minor}
           onChange={(event) => updatePayrollRunForm({ tds_minor: Number(event.target.value) }, true)}
         />
+        <input
+          type="number"
+          min="0"
+          placeholder="Annual taxable income for slab TDS"
+          value={runForm.tds_annual_income_minor}
+          onChange={(event) => updatePayrollRunForm({ tds_annual_income_minor: Number(event.target.value) }, true)}
+        />
+        <input
+          type="number"
+          min="1"
+          placeholder="TDS periods in year"
+          value={runForm.tds_periods_in_year}
+          onChange={(event) => updatePayrollRunForm({ tds_periods_in_year: Number(event.target.value) }, true)}
+        />
+        <label className="full-span">
+          TDS slabs: from_minor,to_minor,rate_bps
+          <textarea
+            rows={4}
+            value={runForm.tds_slabs_text}
+            onChange={(event) => updatePayrollRunForm({ tds_slabs_text: event.target.value }, true)}
+          />
+        </label>
         <input
           placeholder="Payslip key"
           value={runForm.payslip_key}
@@ -2748,6 +3877,18 @@ function PayrollPage({
           value={runForm.deduction_liability_account_id}
           onChange={(value) => setRunForm({ ...runForm, deduction_liability_account_id: value })}
         />
+        <AccountSelect
+          label="Employer contribution expense account"
+          accounts={accounts}
+          value={runForm.employer_expense_account_id}
+          onChange={(value) => setRunForm({ ...runForm, employer_expense_account_id: value })}
+        />
+        <AccountSelect
+          label="Employer contribution liability account"
+          accounts={accounts}
+          value={runForm.employer_liability_account_id}
+          onChange={(value) => setRunForm({ ...runForm, employer_liability_account_id: value })}
+        />
         <button type="button" className="secondary" disabled={loading === "preview-india-payroll"} onClick={() => void previewIndiaPayroll()}>
           {loading === "preview-india-payroll" ? "Previewing..." : "Preview India payroll"}
         </button>
@@ -2764,10 +3905,12 @@ function PayrollPage({
               <h3>Payroll component breakdown</h3>
               <p>
                 Gross {formatMinorAsInr(indiaPayrollPreview.gross_pay_minor)}, deductions {formatMinorAsInr(indiaPayrollPreview.deductions_minor)},
-                {" "}net {formatMinorAsInr(indiaPayrollPreview.net_pay_minor)}. These components will be attached to the next draft run.
+                {" "}net {formatMinorAsInr(indiaPayrollPreview.net_pay_minor)}, employer cost {formatMinorAsInr(indiaPayrollPreview.payroll_cost_minor)}.
+                Employee components will be attached to the next draft run.
+                {indiaPayrollPreview.rule_summary.tds_slab_count > 0 ? ` Slab TDS annual tax ${formatMinorAsInr(indiaPayrollPreview.rule_summary.tds_annual_tax_minor)} over ${indiaPayrollPreview.rule_summary.tds_periods_in_year} period(s).` : ""}
               </p>
             </div>
-            <strong>{indiaPayrollPreview.components.length}</strong>
+            <strong>{indiaPayrollPreview.components.length + indiaPayrollPreview.employer_contributions.length}</strong>
           </div>
           <DataTable
             headers={["Code", "Name", "Type", "Amount", "Statutory"]}
@@ -2778,6 +3921,18 @@ function PayrollPage({
               formatMinorAsInr(component.amount_minor),
               component.is_statutory ? "Yes" : "No"
             ])}
+          />
+          <DataTable
+            headers={["Employer contribution", "Amount", "Statutory"]}
+            rows={[
+              ...indiaPayrollPreview.employer_contributions.map((component) => [
+                `${component.code} - ${component.name}`,
+                formatMinorAsInr(component.amount_minor),
+                component.is_statutory ? "Yes" : "No"
+              ]),
+              ["Total employer contributions", formatMinorAsInr(indiaPayrollPreview.employer_contributions_minor), ""],
+              ["Total payroll cost", formatMinorAsInr(indiaPayrollPreview.payroll_cost_minor), ""]
+            ]}
           />
         </section>
       )}
@@ -2802,6 +3957,8 @@ function PayrollPage({
                 <th>Gross</th>
                 <th>Deductions</th>
                 <th>Net</th>
+                <th>Employer</th>
+                <th>Cost</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -2815,6 +3972,8 @@ function PayrollPage({
                   <td>{formatMinorAsInr(run.gross_pay_minor)}</td>
                   <td>{formatMinorAsInr(run.deductions_minor)}</td>
                   <td>{formatMinorAsInr(run.net_pay_minor)}</td>
+                  <td>{formatMinorAsInr(run.employer_contributions_minor ?? 0)}</td>
+                  <td>{formatMinorAsInr((run.payroll_cost_minor && run.payroll_cost_minor > 0) ? run.payroll_cost_minor : run.gross_pay_minor + (run.employer_contributions_minor ?? 0))}</td>
                   <td>
                     <div className="button-row compact">
                       <button
@@ -2823,6 +3982,13 @@ function PayrollPage({
                         onClick={() => void loadPayslipPreview(run)}
                       >
                         {loading === `payslip-${run.id}` ? "Loading..." : "Payslip"}
+                      </button>
+                      <button
+                        className="secondary compact"
+                        disabled={!run.items?.some((item) => item.id) || loading === `payslip-pdf-${run.id}`}
+                        onClick={() => void downloadPayslipPDF(run)}
+                      >
+                        {loading === `payslip-pdf-${run.id}` ? "Downloading..." : "PDF"}
                       </button>
                       <button
                         className="secondary compact"
@@ -2853,6 +4019,9 @@ function PayrollPage({
             </div>
             <div className="button-row">
               <strong>{payslipPreview.status}</strong>
+              <button className="secondary compact" disabled={loading === `payslip-pdf-${payslipPreview.payroll_run_id}`} onClick={() => void downloadCurrentPayslipPDF()}>
+                {loading === `payslip-pdf-${payslipPreview.payroll_run_id}` ? "Downloading..." : "Download PDF"}
+              </button>
               <button className="secondary compact" onClick={() => exportPayslipPreview(payslipPreview)}>
                 Export CSV
               </button>
@@ -4820,6 +5989,15 @@ function ReconciliationPage({
   const defaultBankAccountId = accounts.find((account) => account.subtype === "bank" || account.subtype === "cash" || account.type === "asset")?.id ?? "";
   const [accountId, setAccountId] = useState(defaultBankAccountId);
   const [importForm, setImportForm] = useState({ file_name: "manual-bank-import.csv", format: "csv" });
+  const [csvForm, setCsvForm] = useState({
+    csv_content: "",
+    date_columns: "date,posted date,value date,transaction date",
+    description_columns: "description,narration,details,particulars,transaction remarks",
+    amount_columns: "amount,transaction amount",
+    debit_columns: "debit,withdrawal,withdrawals,paid out",
+    credit_columns: "credit,deposit,deposits,paid in",
+    reference_columns: "reference,ref,utr,cheque no,cheque number,transaction id"
+  });
   const [qifForm, setQifForm] = useState({ file_name: "bank-statement.qif", qif_content: "" });
   const [ofxForm, setOfxForm] = useState({ file_name: "bank-statement.ofx", ofx_content: "" });
   const [lineForm, setLineForm] = useState({ posted_date: new Date().toISOString().slice(0, 10), description: "", amount_minor: 0, reference: "" });
@@ -4836,11 +6014,15 @@ function ReconciliationPage({
       .map((split) => ({ transaction, split }))
   ));
   const unreconciledSplits = candidateSplits.filter(({ split }) => !split.reconciled);
+  const reconciliationSummary = summarizeReconciliation(accountStatementLines, candidateSplits);
+  const suggestedMatches = suggestReconciliationMatches(unmatchedLines.filter((line) => !line.is_duplicate), unreconciledSplits);
+  const suggestedMatchByLineId = new Map(suggestedMatches.map((suggestion) => [suggestion.line.id, suggestion]));
   const canAddLine = Boolean(lineForm.posted_date && lineForm.amount_minor !== 0);
   const canImport = Boolean(accountId && draftLines.length > 0);
   const canImportQif = Boolean(accountId && qifForm.qif_content.trim());
   const canImportOfx = Boolean(accountId && ofxForm.ofx_content.trim());
   const canMatch = Boolean(matchForm.statement_line_id && matchForm.ledger_split_id);
+  const canApplySuggestions = suggestedMatches.length > 0;
 
   async function loadLines(selectedAccountId = accountId) {
     if (!selectedAccountId) {
@@ -4883,6 +6065,17 @@ function ReconciliationPage({
     setReconciliationNotice("Staged statement line removed.");
   }
 
+  function stageCsvLines() {
+    setReconciliationError("");
+    try {
+      const mappedLines = mapCsvStatementLines(csvForm.csv_content, csvForm);
+      setDraftLines([...draftLines, ...mappedLines]);
+      setReconciliationNotice(`Mapped ${mappedLines.length} CSV line(s) into the staged import queue.`);
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    }
+  }
+
   async function importStatement(event: FormEvent) {
     event.preventDefault();
     if (!canImport) {
@@ -4901,7 +6094,7 @@ function ReconciliationPage({
       const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
       onStatementLinesChanged([...importedLines, ...otherAccountLines]);
       setDraftLines([]);
-      setReconciliationNotice(`Imported ${result.line_count} statement line(s).`);
+      setReconciliationNotice(importNotice(result.line_count, importedLines));
     } catch (error) {
       setReconciliationError(errorMessage(error));
     } finally {
@@ -4926,7 +6119,7 @@ function ReconciliationPage({
       const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
       onStatementLinesChanged([...importedLines, ...otherAccountLines]);
       setQifForm({ ...qifForm, qif_content: "" });
-      setReconciliationNotice(`Imported ${result.line_count} QIF statement line(s).`);
+      setReconciliationNotice(importNotice(result.line_count, importedLines, "QIF"));
     } catch (error) {
       setReconciliationError(errorMessage(error));
     } finally {
@@ -4951,7 +6144,7 @@ function ReconciliationPage({
       const otherAccountLines = statementLines.filter((line) => line.account_id !== accountId);
       onStatementLinesChanged([...importedLines, ...otherAccountLines]);
       setOfxForm({ ...ofxForm, ofx_content: "" });
-      setReconciliationNotice(`Imported ${result.line_count} OFX statement line(s).`);
+      setReconciliationNotice(importNotice(result.line_count, importedLines, "OFX"));
     } catch (error) {
       setReconciliationError(errorMessage(error));
     } finally {
@@ -4971,6 +6164,29 @@ function ReconciliationPage({
       onStatementLinesChanged(statementLines.map((line) => line.id === matchedLine.id ? matchedLine : line));
       setMatchForm({ statement_line_id: "", ledger_split_id: "" });
       setReconciliationNotice("Statement line matched and ledger split reconciled.");
+      await onRefresh();
+    } catch (error) {
+      setReconciliationError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function applySuggestedMatches() {
+    if (!canApplySuggestions) {
+      return;
+    }
+    setLoading("auto-match");
+    setReconciliationError("");
+    try {
+      const matchedLines: BankStatementLine[] = [];
+      for (const suggestion of suggestedMatches) {
+        matchedLines.push(await api.matchBankStatementLine(suggestion.line.id, suggestion.candidate.split.id));
+      }
+      const matchedByID = new Map(matchedLines.map((line) => [line.id, line]));
+      onStatementLinesChanged(statementLines.map((line) => matchedByID.get(line.id) ?? line));
+      setMatchForm({ statement_line_id: "", ledger_split_id: "" });
+      setReconciliationNotice(`Applied ${matchedLines.length} suggested match(es).`);
       await onRefresh();
     } catch (error) {
       setReconciliationError(errorMessage(error));
@@ -5001,6 +6217,39 @@ function ReconciliationPage({
       {reconciliationNotice && <div className="alert success">{reconciliationNotice}</div>}
 
       <section className="panel form-grid">
+        <div className="metric-card">
+          <span>Statement lines</span>
+          <strong>{reconciliationSummary.lineCount}</strong>
+          <small>{reconciliationSummary.matchedLineCount} matched · {reconciliationSummary.openLineCount} open</small>
+        </div>
+        <div className="metric-card">
+          <span>Duplicate candidates</span>
+          <strong>{reconciliationSummary.duplicateLineCount}</strong>
+          <small>Skipped by suggested matching</small>
+        </div>
+        <div className="metric-card">
+          <span>Statement flow</span>
+          <strong>{formatMinorAsInr(reconciliationSummary.inflowMinor)}</strong>
+          <small>{formatMinorAsInr(reconciliationSummary.outflowMinor)} outflow</small>
+        </div>
+        <div className="metric-card">
+          <span>Ledger splits</span>
+          <strong>{reconciliationSummary.reconciledSplitCount}/{reconciliationSummary.splitCount}</strong>
+          <small>{reconciliationSummary.unreconciledSplitCount} unreconciled</small>
+        </div>
+        <div className="metric-card">
+          <span>Suggested matches</span>
+          <strong>{suggestedMatches.length}</strong>
+          <small>Exact amount within 3 days</small>
+        </div>
+        <div className="metric-card">
+          <span>Statement net</span>
+          <strong>{formatMinorAsInr(reconciliationSummary.netMinor)}</strong>
+          <small>Imported line total</small>
+        </div>
+      </section>
+
+      <section className="panel form-grid">
         <AccountSelect label="Bank or cash account" accounts={accounts.filter((account) => account.type === "asset")} value={accountId} onChange={updateAccount} />
         <label>
           Import file name
@@ -5010,6 +6259,53 @@ function ReconciliationPage({
           Format
           <input value={importForm.format} onChange={(event) => setImportForm({ ...importForm, format: event.target.value })} />
         </label>
+      </section>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
+            <p className="eyebrow">CSV mapper</p>
+            <h3>Paste bank CSV and stage lines</h3>
+            <p>Maps common headers automatically. Debit/withdrawal columns become outflows; credit/deposit columns become inflows.</p>
+          </div>
+          <strong>{csvForm.csv_content.trim() ? "Ready" : "Empty"}</strong>
+        </div>
+        <label className="full-span">
+          CSV content
+          <textarea
+            rows={7}
+            value={csvForm.csv_content}
+            onChange={(event) => setCsvForm({ ...csvForm, csv_content: event.target.value })}
+            placeholder={"Value Date,Narration,Withdrawal,Deposit,UTR\n2026-07-13,UPI payment,1250.00,,UPI-123\n2026-07-14,Client receipt,,5000.00,UTR-456"}
+          />
+        </label>
+        <div className="form-grid">
+          <label>
+            Date columns
+            <input value={csvForm.date_columns} onChange={(event) => setCsvForm({ ...csvForm, date_columns: event.target.value })} />
+          </label>
+          <label>
+            Description columns
+            <input value={csvForm.description_columns} onChange={(event) => setCsvForm({ ...csvForm, description_columns: event.target.value })} />
+          </label>
+          <label>
+            Amount columns
+            <input value={csvForm.amount_columns} onChange={(event) => setCsvForm({ ...csvForm, amount_columns: event.target.value })} />
+          </label>
+          <label>
+            Debit columns
+            <input value={csvForm.debit_columns} onChange={(event) => setCsvForm({ ...csvForm, debit_columns: event.target.value })} />
+          </label>
+          <label>
+            Credit columns
+            <input value={csvForm.credit_columns} onChange={(event) => setCsvForm({ ...csvForm, credit_columns: event.target.value })} />
+          </label>
+          <label>
+            Reference columns
+            <input value={csvForm.reference_columns} onChange={(event) => setCsvForm({ ...csvForm, reference_columns: event.target.value })} />
+          </label>
+        </div>
+        <button type="button" disabled={!csvForm.csv_content.trim()} onClick={stageCsvLines}>Map CSV to staged lines</button>
       </section>
 
       <section className="panel form-grid">
@@ -5151,11 +6447,45 @@ function ReconciliationPage({
       <section className="panel queue-panel">
         <div className="queue-heading">
           <div>
+            <p className="eyebrow">Matching rules</p>
+            <h3>Suggested matches</h3>
+            <p>Exact amount and near-date matches are proposed first; duplicate statement lines are skipped.</p>
+          </div>
+          <strong>{suggestedMatches.length}</strong>
+        </div>
+        <section className="table-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Statement line</th>
+                <th>Suggested ledger split</th>
+                <th>Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              {suggestedMatches.map((suggestion) => (
+                <tr key={`${suggestion.line.id}-${suggestion.candidate.split.id}`}>
+                  <td>{suggestion.line.posted_date.slice(0, 10)} · {formatMinorAsInr(suggestion.line.amount_minor)} · {suggestion.line.description || suggestion.line.reference || suggestion.line.id}</td>
+                  <td>{suggestion.candidate.transaction.transaction_date.slice(0, 10)} · {suggestion.candidate.transaction.memo || suggestion.candidate.transaction.source_module} · {formatMinorAsInr(suggestion.candidate.split.debit_minor - suggestion.candidate.split.credit_minor)}</td>
+                  <td>{suggestion.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <button type="button" disabled={!canApplySuggestions || loading === "auto-match"} onClick={() => void applySuggestedMatches()}>
+          {loading === "auto-match" ? "Applying..." : "Apply suggested matches"}
+        </button>
+      </section>
+
+      <section className="panel queue-panel">
+        <div className="queue-heading">
+          <div>
             <p className="eyebrow">Review</p>
             <h3>Statement lines</h3>
-            <p>Cached locally after load/import for offline review.</p>
+            <p>Cached locally after load/import for offline review. Duplicate candidates are flagged for manual review.</p>
           </div>
-          <strong>{accountStatementLines.length}</strong>
+          <strong>{accountStatementLines.length} · {accountStatementLines.filter((line) => line.is_duplicate).length} dupes</strong>
         </div>
         <section className="table-panel">
           <table>
@@ -5166,26 +6496,254 @@ function ReconciliationPage({
                 <th>Amount</th>
                 <th>Reference</th>
                 <th>Status</th>
+                <th>Suggestion</th>
                 <th>Split</th>
               </tr>
             </thead>
             <tbody>
-              {accountStatementLines.map((line) => (
-                <tr key={line.id}>
-                  <td>{line.posted_date.slice(0, 10)}</td>
-                  <td>{line.description || "Unlabeled line"}</td>
-                  <td>{formatMinorAsInr(line.amount_minor)}</td>
-                  <td>{line.reference || "-"}</td>
-                  <td>{line.matched_split_id ? "Matched" : "Open"}</td>
-                  <td>{line.matched_split_id ?? "-"}</td>
-                </tr>
-              ))}
+              {accountStatementLines.map((line) => {
+                const suggestion = suggestedMatchByLineId.get(line.id);
+                return (
+                  <tr key={line.id}>
+                    <td>{line.posted_date.slice(0, 10)}</td>
+                    <td>{line.description || "Unlabeled line"}</td>
+                    <td>{formatMinorAsInr(line.amount_minor)}</td>
+                    <td>{line.reference || "-"}</td>
+                    <td>{line.is_duplicate ? `Duplicate${line.duplicate_of_id ? ` of ${line.duplicate_of_id.slice(0, 8)}` : ""}` : line.matched_split_id ? "Matched" : "Open"}</td>
+                    <td>{suggestion ? suggestion.reason : "-"}</td>
+                    <td>{line.matched_split_id ?? "-"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </section>
       </section>
     </div>
   );
+}
+
+function importNotice(lineCount: number, lines: BankStatementLine[], label = "statement") {
+  const duplicateCount = lines.filter((line) => line.is_duplicate).length;
+  const prefix = label === "statement" ? `Imported ${lineCount} statement line(s).` : `Imported ${lineCount} ${label} statement line(s).`;
+  return duplicateCount > 0 ? `${prefix} ${duplicateCount} duplicate candidate(s) flagged.` : prefix;
+}
+
+type CsvBankMappingConfig = {
+  date_columns: string;
+  description_columns: string;
+  amount_columns: string;
+  debit_columns: string;
+  credit_columns: string;
+  reference_columns: string;
+};
+
+function mapCsvStatementLines(content: string, mapping: CsvBankMappingConfig): ImportBankStatementInput["lines"] {
+  const rows = parseCsvRows(content);
+  if (rows.length < 2) {
+    throw new Error("CSV must include a header row and at least one statement line.");
+  }
+  const headers = rows[0].map(normalizeCsvHeader);
+  const dateIndex = findCsvColumn(headers, mapping.date_columns);
+  const descriptionIndex = findCsvColumn(headers, mapping.description_columns);
+  const amountIndex = findCsvColumn(headers, mapping.amount_columns);
+  const debitIndex = findCsvColumn(headers, mapping.debit_columns);
+  const creditIndex = findCsvColumn(headers, mapping.credit_columns);
+  const referenceIndex = findCsvColumn(headers, mapping.reference_columns);
+
+  if (dateIndex === -1) {
+    throw new Error("CSV mapper could not find a date column.");
+  }
+  if (amountIndex === -1 && debitIndex === -1 && creditIndex === -1) {
+    throw new Error("CSV mapper could not find an amount or debit/credit column.");
+  }
+
+  const mappedLines = rows.slice(1).reduce<ImportBankStatementInput["lines"]>((lines, row, rowIndex) => {
+    if (row.every((cell) => !cell.trim())) {
+      return lines;
+    }
+    const postedDate = parseCsvDate(row[dateIndex], rowIndex + 2);
+    const amountMinor = amountIndex >= 0
+      ? parseMinorAmount(row[amountIndex])
+      : parseMinorAmount(row[creditIndex] ?? "") - parseMinorAmount(row[debitIndex] ?? "");
+    if (amountMinor === 0) {
+      return lines;
+    }
+    lines.push({
+      posted_date: postedDate,
+      description: descriptionIndex >= 0 ? row[descriptionIndex]?.trim() || undefined : undefined,
+      amount_minor: amountMinor,
+      reference: referenceIndex >= 0 ? row[referenceIndex]?.trim() || undefined : undefined
+    });
+    return lines;
+  }, []);
+  if (mappedLines.length === 0) {
+    throw new Error("CSV mapper did not find any non-zero statement lines.");
+  }
+  return mappedLines;
+}
+
+function parseCsvRows(content: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const nextChar = content[index + 1];
+    if (char === "\"") {
+      if (inQuotes && nextChar === "\"") {
+        cell += "\"";
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && nextChar === "\n") {
+        index += 1;
+      }
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+    cell += char;
+  }
+
+  if (cell || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((parsedRow) => parsedRow.some((value) => value.trim()));
+}
+
+function findCsvColumn(headers: string[], aliases: string) {
+  const normalizedAliases = aliases.split(",").map(normalizeCsvHeader).filter(Boolean);
+  return headers.findIndex((header) => normalizedAliases.includes(header));
+}
+
+function normalizeCsvHeader(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function parseCsvDate(value: string, rowNumber: number) {
+  const raw = value.trim();
+  const isoMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+  }
+  const indianDateMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (indianDateMatch) {
+    const year = indianDateMatch[3].length === 2 ? `20${indianDateMatch[3]}` : indianDateMatch[3];
+    return `${year}-${indianDateMatch[2].padStart(2, "0")}-${indianDateMatch[1].padStart(2, "0")}`;
+  }
+  throw new Error(`CSV row ${rowNumber} has an unsupported date: ${raw || "(blank)"}`);
+}
+
+function parseMinorAmount(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "-") {
+    return 0;
+  }
+  const upper = trimmed.toUpperCase();
+  const isNegative = upper.includes("DR") || upper.startsWith("(") || upper.startsWith("-");
+  const numeric = upper.replace(/CR|DR|INR|RS\.?|₹|\(|\)|,/g, "").trim();
+  const amount = Number.parseFloat(numeric);
+  if (!Number.isFinite(amount)) {
+    return 0;
+  }
+  return Math.round(Math.abs(amount) * 100) * (isNegative ? -1 : 1);
+}
+
+type ReconciliationCandidate = {
+  transaction: JournalTransaction;
+  split: LedgerSplit;
+};
+
+type ReconciliationSuggestion = {
+  line: BankStatementLine;
+  candidate: ReconciliationCandidate;
+  score: number;
+  reason: string;
+};
+
+function summarizeReconciliation(lines: BankStatementLine[], candidates: ReconciliationCandidate[]) {
+  const inflowMinor = lines.reduce((total, line) => total + Math.max(line.amount_minor, 0), 0);
+  const outflowMinor = lines.reduce((total, line) => total + Math.abs(Math.min(line.amount_minor, 0)), 0);
+  const matchedLineCount = lines.filter((line) => Boolean(line.matched_split_id)).length;
+  const reconciledSplitCount = candidates.filter(({ split }) => split.reconciled).length;
+  return {
+    lineCount: lines.length,
+    matchedLineCount,
+    openLineCount: lines.length - matchedLineCount,
+    duplicateLineCount: lines.filter((line) => line.is_duplicate).length,
+    inflowMinor,
+    outflowMinor,
+    netMinor: inflowMinor - outflowMinor,
+    splitCount: candidates.length,
+    reconciledSplitCount,
+    unreconciledSplitCount: candidates.length - reconciledSplitCount
+  };
+}
+
+function suggestReconciliationMatches(lines: BankStatementLine[], candidates: ReconciliationCandidate[]): ReconciliationSuggestion[] {
+  const suggestions = lines.flatMap((line) => candidates.map((candidate) => scoreReconciliationCandidate(line, candidate)).filter((suggestion): suggestion is ReconciliationSuggestion => suggestion !== null));
+  const usedLines = new Set<string>();
+  const usedSplits = new Set<string>();
+  return suggestions
+    .sort((left, right) => right.score - left.score || left.line.posted_date.localeCompare(right.line.posted_date))
+    .filter((suggestion) => {
+      if (usedLines.has(suggestion.line.id) || usedSplits.has(suggestion.candidate.split.id)) {
+        return false;
+      }
+      usedLines.add(suggestion.line.id);
+      usedSplits.add(suggestion.candidate.split.id);
+      return true;
+    });
+}
+
+function scoreReconciliationCandidate(line: BankStatementLine, candidate: ReconciliationCandidate): ReconciliationSuggestion | null {
+  const splitAmountMinor = candidate.split.debit_minor - candidate.split.credit_minor;
+  if (line.amount_minor !== splitAmountMinor) {
+    return null;
+  }
+  const daysApart = Math.abs(daysBetween(line.posted_date, candidate.transaction.transaction_date));
+  if (daysApart > 3) {
+    return null;
+  }
+  const statementText = normalizeMatchText(`${line.description ?? ""} ${line.reference ?? ""}`);
+  const ledgerText = normalizeMatchText(`${candidate.transaction.memo ?? ""} ${candidate.transaction.source_module ?? ""}`);
+  const textOverlap = statementText && ledgerText && (statementText.includes(ledgerText) || ledgerText.includes(statementText));
+  const score = 100 - (daysApart * 10) + (textOverlap ? 15 : 0);
+  const reason = daysApart === 0 ? "Exact amount, same date" : `Exact amount, ${daysApart} day(s) apart`;
+  return {
+    line,
+    candidate,
+    score,
+    reason: textOverlap ? `${reason}, similar memo` : reason
+  };
+}
+
+function daysBetween(leftDate: string, rightDate: string) {
+  const left = Date.parse(leftDate.slice(0, 10));
+  const right = Date.parse(rightDate.slice(0, 10));
+  if (!Number.isFinite(left) || !Number.isFinite(right)) {
+    return 999;
+  }
+  return Math.round((left - right) / 86_400_000);
+}
+
+function normalizeMatchText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function AdminPage({
@@ -5354,7 +6912,8 @@ function AdminPage({
       const user = await api.createOrganizationUser(toOrganizationUserInput(userForm));
       onOrganizationUsersChanged([user, ...organizationUsers]);
       setUserForm({ name: "", email: "", password: "", role: "viewer" });
-      setAdminNotice(`User ${user.email} added as ${user.role}.`);
+      const inviteStatus = user.invite_email_sent ? " Invitation email sent." : user.invite_email_error ? ` Invitation email failed: ${user.invite_email_error}` : "";
+      setAdminNotice(`User ${user.email} added as ${user.role}.${inviteStatus}`);
       await onRefresh();
     } catch (error) {
       setAdminError(errorMessage(error));
@@ -5494,8 +7053,8 @@ function AdminPage({
       </form>
 
       <DataTable
-        headers={["Name", "Email", "Role", "Active"]}
-        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No"])}
+        headers={["Name", "Email", "Role", "Active", "Invite email"]}
+        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No", user.invite_email_sent ? "Sent" : user.invite_email_error ? "Failed" : "-"])}
       />
 
       <section className="panel queue-panel">
@@ -6217,6 +7776,62 @@ function toInvestmentLotInput(form: {
   };
 }
 
+function toInvestmentDividendInput(form: {
+  account_id: string;
+  symbol: string;
+  dividend_date: string;
+  amount_minor: number;
+  currency: string;
+  cash_account_id: string;
+  income_account_id: string;
+  notes: string;
+}): CreateInvestmentDividendInput {
+  return {
+    account_id: form.account_id,
+    symbol: form.symbol.trim().toUpperCase(),
+    dividend_date: form.dividend_date,
+    amount_minor: form.amount_minor,
+    currency: form.currency.trim() || "INR",
+    cash_account_id: form.cash_account_id || undefined,
+    income_account_id: form.income_account_id || undefined,
+    notes: form.notes.trim() || undefined
+  };
+}
+
+function toInvestmentCorporateActionInput(form: {
+  account_id: string;
+  symbol: string;
+  action_type: InvestmentCorporateAction["action_type"];
+  action_date: string;
+  ratio_numerator: number;
+  ratio_denominator: number;
+  notes: string;
+}): CreateInvestmentCorporateActionInput {
+  return {
+    account_id: form.account_id,
+    symbol: form.symbol.trim().toUpperCase(),
+    action_type: form.action_type,
+    action_date: form.action_date,
+    ratio_numerator: form.ratio_numerator,
+    ratio_denominator: form.ratio_denominator,
+    notes: form.notes.trim() || undefined
+  };
+}
+
+function toImportInvestmentPricesInput(form: { csv: string; source: string }): ImportInvestmentPricesInput {
+  return {
+    csv: form.csv,
+    source: form.source.trim() || "csv_import"
+  };
+}
+
+function toImportAMFINAVInput(form: { csv: string; symbol_mode: ImportAMFINAVInput["symbol_mode"] }): ImportAMFINAVInput {
+  return {
+    text: form.csv,
+    symbol_mode: form.symbol_mode ?? "scheme_code"
+  };
+}
+
 function toSellInvestmentLotInput(form: {
   sale_date: string;
   quantity_millis: number;
@@ -6595,10 +8210,13 @@ function toPayrollRunInput(form: {
   professional_tax_minor: number;
   tds_minor: number;
   preview_components: CreatePayrollComponentInput[];
+  employer_contributions_minor: number;
   payslip_key: string;
   payroll_expense_account_id: string;
   payroll_liability_account_id: string;
   deduction_liability_account_id: string;
+  employer_expense_account_id: string;
+  employer_liability_account_id: string;
 }): CreatePayrollRunInput {
   const manualComponents = [
     form.basic_pay_minor > 0 ? { code: "BASIC", name: "Basic Pay", type: "earning" as const, amount_minor: form.basic_pay_minor } : null,
@@ -6625,6 +8243,9 @@ function toPayrollRunInput(form: {
     payroll_expense_account_id: form.payroll_expense_account_id,
     payroll_liability_account_id: form.payroll_liability_account_id,
     deduction_liability_account_id: form.deduction_liability_account_id,
+    employer_expense_account_id: form.employer_contributions_minor > 0 ? form.employer_expense_account_id : undefined,
+    employer_liability_account_id: form.employer_contributions_minor > 0 ? form.employer_liability_account_id : undefined,
+    employer_contributions_minor: form.employer_contributions_minor > 0 ? form.employer_contributions_minor : undefined,
     items: [
       {
         employee_id: form.employee_id,
@@ -6635,6 +8256,30 @@ function toPayrollRunInput(form: {
       }
     ]
   };
+}
+
+function parseTDSSlabs(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const [fromMinor, toMinor, rateBps] = trimmed.split(",").map((part) => part.trim());
+      const parsedFrom = Number(fromMinor);
+      const parsedTo = toMinor ? Number(toMinor) : 0;
+      const parsedRate = Number(rateBps);
+      if (!Number.isFinite(parsedFrom) || !Number.isFinite(parsedTo) || !Number.isFinite(parsedRate)) {
+        throw new Error(`Invalid TDS slab row ${index + 1}. Use from_minor,to_minor,rate_bps.`);
+      }
+      return {
+        from_minor: parsedFrom,
+        to_minor: parsedTo,
+        rate_bps: parsedRate
+      };
+    })
+    .filter((slab) => slab !== null);
 }
 
 function exportTrialBalance(report: TrialBalanceReport) {
@@ -6760,6 +8405,29 @@ function exportTaxSummary(report: TaxSummaryReport) {
   );
 }
 
+function exportPayrollSummary(report: PayrollSummaryReport) {
+  downloadCsv(
+    `payroll-summary-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Run", "Period start", "Period end", "Pay date", "Employees", "Gross minor", "Deductions minor", "Net minor", "Employer contributions minor", "Payroll cost minor", "Journal transaction ID"]],
+    [
+      ...report.rows.map((row) => [
+        row.run_number,
+        row.period_start.slice(0, 10),
+        row.period_end.slice(0, 10),
+        row.pay_date.slice(0, 10),
+        row.employee_count,
+        row.gross_pay_minor,
+        row.deductions_minor,
+        row.net_pay_minor,
+        row.employer_contributions_minor,
+        row.payroll_cost_minor,
+        row.journal_transaction_id ?? ""
+      ]),
+      ["Total", "", "", "", report.total_employees, report.total_gross_pay_minor, report.total_deductions_minor, report.total_net_pay_minor, report.total_employer_contributions_minor, report.total_payroll_cost_minor, ""]
+    ]
+  );
+}
+
 function exportBudgetVsActual(report: BudgetVsActualReport) {
   downloadCsv(
     `budget-vs-actual-${report.budget_id}.csv`,
@@ -6783,6 +8451,99 @@ function exportRealizedGains(report: RealizedGainsReport) {
         row.currency
       ]),
       ["Total", "", "", report.total_proceeds_minor, report.total_cost_basis_minor, report.total_gain_loss_minor, ""]
+    ]
+  );
+}
+
+function exportInvestmentDividends(report: InvestmentDividendReport) {
+  downloadCsv(
+    `investment-dividends-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Dividend date", "Symbol", "Account ID", "Amount minor", "Currency", "Journal transaction ID"]],
+    [
+      ...report.rows.map((row) => [
+        row.dividend_date.slice(0, 10),
+        row.symbol,
+        row.account_id,
+        row.amount_minor,
+        row.currency,
+        row.journal_transaction_id ?? ""
+      ]),
+      ["Total", "", "", report.total_amount_minor, "", ""]
+    ]
+  );
+}
+
+function exportInvestmentCorporateActions(report: InvestmentCorporateActionReport) {
+  downloadCsv(
+    `investment-corporate-actions-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Action date", "Symbol", "Action type", "Ratio numerator", "Ratio denominator", "Affected lots", "Quantity delta millis", "Cost basis delta minor", "Account ID", "Notes"]],
+    [
+      ...report.rows.map((row) => [
+        row.action_date.slice(0, 10),
+        row.symbol,
+        row.action_type,
+        row.ratio_numerator,
+        row.ratio_denominator,
+        row.affected_lots,
+        row.quantity_delta_millis,
+        row.cost_basis_delta_minor,
+        row.account_id,
+        row.notes ?? ""
+      ]),
+      ["Total", "", "", "", "", report.total_affected_lots, report.total_quantity_delta_millis, report.total_cost_basis_delta_minor, "", ""]
+    ]
+  );
+}
+
+function exportInvestmentTaxAdjustments(report: InvestmentTaxAdjustmentReport) {
+  downloadCsv(
+    `investment-tax-adjustments-${report.from_date.slice(0, 10)}-to-${report.to_date.slice(0, 10)}.csv`,
+    [["Sale date", "Symbol", "Disposition ID", "Lot ID", "Quantity", "Proceeds minor", "Cost basis minor", "Realized loss minor", "Replacement quantity", "Deferred loss minor", "Window start", "Window end", "Replacement lot IDs", "Currency", "Notes"]],
+    [
+      ...report.rows.map((row) => [
+        row.sale_date.slice(0, 10),
+        row.symbol,
+        row.disposition_id,
+        row.lot_id,
+        formatQuantityMillis(row.quantity_millis),
+        row.proceeds_minor,
+        row.allocated_cost_basis_minor,
+        row.realized_loss_minor,
+        formatQuantityMillis(row.replacement_quantity_millis),
+        row.deferred_loss_minor,
+        row.window_start.slice(0, 10),
+        row.window_end.slice(0, 10),
+        row.replacement_lot_ids.join(" "),
+        row.currency,
+        row.notes ?? ""
+      ]),
+      ["Total", "", "", "", "", "", "", report.total_loss_minor, formatQuantityMillis(report.total_replacement_quantity_millis), report.total_deferred_loss_minor, "", "", "", "", ""]
+    ]
+  );
+}
+
+function exportInvestmentTaxLots(report: InvestmentTaxLotReport) {
+  downloadCsv(
+    `investment-tax-lots-${report.as_of_date.slice(0, 10)}.csv`,
+    [["Symbol", "Lot ID", "Acquired", "Quantity", "Remaining", "Disposed", "Cost basis minor", "Remaining cost minor", "Disposed cost minor", "Proceeds minor", "Realized gain/loss minor", "Unit cost minor", "Currency", "Cost method"]],
+    [
+      ...report.rows.map((row) => [
+        row.symbol,
+        row.lot_id,
+        row.acquisition_date.slice(0, 10),
+        formatQuantityMillis(row.quantity_millis),
+        formatQuantityMillis(row.remaining_quantity_millis),
+        formatQuantityMillis(row.disposed_quantity_millis),
+        row.cost_basis_minor,
+        row.remaining_cost_basis_minor,
+        row.disposed_cost_basis_minor,
+        row.proceeds_minor,
+        row.realized_gain_loss_minor,
+        row.unit_cost_minor,
+        row.currency,
+        row.cost_method
+      ]),
+      ["Total", "", "", formatQuantityMillis(report.total_quantity_millis), formatQuantityMillis(report.total_remaining_quantity_millis), "", report.total_cost_basis_minor, report.total_remaining_cost_basis_minor, "", report.total_proceeds_minor, report.total_realized_gain_loss_minor, "", "", ""]
     ]
   );
 }
@@ -6885,6 +8646,10 @@ function downloadCsv(filename: string, headerRows: CsvCell[][], dataRows: CsvCel
     .map((row) => row.map(escapeCsvCell).join(","))
     .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  downloadBlob(filename, blob);
+}
+
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

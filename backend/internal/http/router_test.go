@@ -70,6 +70,94 @@ func TestViewerCannotCreateAccount(t *testing.T) {
 	}
 }
 
+func TestOrganizationRoutePermissionMatrix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := routerTestDB(t)
+	tokens := auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour)
+	org := domain.Organization{Name: "Acme India", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	router := NewRouter(RouterConfig{
+		DB:             db,
+		SwaggerEnabled: false,
+		Tokens:         tokens,
+	})
+
+	tests := []struct {
+		name       string
+		role       domain.Role
+		method     string
+		path       string
+		body       string
+		wantStatus int
+	}{
+		{name: "viewer can read accounts", role: domain.RoleViewer, method: http.MethodGet, path: "/accounts", wantStatus: http.StatusOK},
+		{name: "viewer cannot write accounts", role: domain.RoleViewer, method: http.MethodPost, path: "/accounts", body: `{}`, wantStatus: http.StatusForbidden},
+		{name: "bookkeeper reaches account write handler", role: domain.RoleBookkeeper, method: http.MethodPost, path: "/accounts", body: `{}`, wantStatus: http.StatusBadRequest},
+		{name: "bookkeeper cannot write payroll", role: domain.RoleBookkeeper, method: http.MethodPost, path: "/payroll/runs", body: `{}`, wantStatus: http.StatusForbidden},
+		{name: "payroll manager reaches payroll write handler", role: domain.RolePayrollManager, method: http.MethodPost, path: "/payroll/runs", body: `{}`, wantStatus: http.StatusBadRequest},
+		{name: "payroll manager can read payroll", role: domain.RolePayrollManager, method: http.MethodGet, path: "/payroll/runs", wantStatus: http.StatusOK},
+		{name: "accountant can read organization users", role: domain.RoleAccountant, method: http.MethodGet, path: "/users", wantStatus: http.StatusOK},
+		{name: "accountant cannot create organization users", role: domain.RoleAccountant, method: http.MethodPost, path: "/users", body: `{}`, wantStatus: http.StatusForbidden},
+		{name: "admin reaches organization user write handler", role: domain.RoleAdmin, method: http.MethodPost, path: "/users", body: `{}`, wantStatus: http.StatusBadRequest},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			accessToken := mustAccessToken(t, tokens, map[string]domain.Role{org.ID: test.role})
+			var body io.Reader
+			if test.body != "" {
+				body = strings.NewReader(test.body)
+			}
+			request := httptest.NewRequest(test.method, "/api/v1/organizations/"+org.ID+test.path, body)
+			request.Header.Set("Authorization", "Bearer "+accessToken)
+			if test.body != "" {
+				request.Header.Set("Content-Type", "application/json")
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestOrganizationRoutesDenyCrossTenantAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := routerTestDB(t)
+	tokens := auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour)
+	orgOne := domain.Organization{Name: "Acme One", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	orgTwo := domain.Organization{Name: "Acme Two", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&orgOne).Error; err != nil {
+		t.Fatalf("create org one: %v", err)
+	}
+	if err := db.Create(&orgTwo).Error; err != nil {
+		t.Fatalf("create org two: %v", err)
+	}
+
+	router := NewRouter(RouterConfig{
+		DB:             db,
+		SwaggerEnabled: false,
+		Tokens:         tokens,
+	})
+	accessToken := mustAccessToken(t, tokens, map[string]domain.Role{orgOne.ID: domain.RoleAdmin})
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/"+orgTwo.ID+"/accounts", nil)
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "organization_access_denied") {
+		t.Fatalf("body = %s, want organization_access_denied", response.Body.String())
+	}
+}
+
 func TestBookkeeperCanCreateAttachmentMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := routerTestDB(t)
@@ -297,4 +385,19 @@ func routerTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("auto migrate test database: %v", err)
 	}
 	return db
+}
+
+func mustAccessToken(t *testing.T, tokens auth.TokenManager, roles map[string]domain.Role) string {
+	t.Helper()
+	user := domain.User{
+		BaseModel: domain.BaseModel{ID: "test-user-id"},
+		Email:     "test-user@example.com",
+		Name:      "Test User",
+		IsActive:  true,
+	}
+	accessToken, err := tokens.NewAccessToken(user, roles)
+	if err != nil {
+		t.Fatalf("create access token: %v", err)
+	}
+	return accessToken
 }

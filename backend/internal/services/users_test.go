@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,5 +53,38 @@ func TestUserServiceCreateOrganizationUser(t *testing.T) {
 	})
 	if !errors.Is(err, ErrUserAlreadyMember) {
 		t.Fatalf("duplicate membership error = %v, want %v", err, ErrUserAlreadyMember)
+	}
+}
+
+func TestUserServiceCreateOrganizationUserSendsInvitationEmail(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Acme India", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	sender := &captureEmailSender{}
+	service := NewUserServiceWithOptions(db, sender, "https://app.example.com/login")
+	user, err := service.CreateOrganizationUser(ctx, CreateOrganizationUserInput{
+		OrganizationID: org.ID,
+		Name:           "Invited User",
+		Email:          "invited@example.com",
+		Password:       "secure-password",
+		Role:           domain.RoleViewer,
+	})
+	if err != nil {
+		t.Fatalf("CreateOrganizationUser() error = %v", err)
+	}
+	if !user.InviteEmailSent || user.InviteEmailError != "" {
+		t.Fatalf("unexpected invite email status: %+v", user)
+	}
+	if len(sender.messages) != 1 {
+		t.Fatalf("sent messages = %d, want 1", len(sender.messages))
+	}
+	message := sender.messages[0]
+	if message.To != "invited@example.com" || !strings.Contains(message.Text, "https://app.example.com/login") || !strings.Contains(message.Text, "Acme India") {
+		t.Fatalf("unexpected invitation email: %+v", message)
 	}
 }

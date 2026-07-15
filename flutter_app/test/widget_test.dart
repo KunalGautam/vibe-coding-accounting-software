@@ -181,14 +181,17 @@ void main() {
 
     expect(find.text('Pending drafts'), findsOneWidget);
     expect(find.text('Metro Taxi'), findsOneWidget);
-    expect(find.text('INR 845.50 · Ready to sync'), findsOneWidget);
+    expect(find.text('INR 845.50 · Ready to sync · Waiting'), findsOneWidget);
     expect(find.text('Receipt attachment: attachment-1'), findsOneWidget);
     expect(find.text('Tax rate: tax-rate-1'), findsOneWidget);
     expect(find.text('Tax group: tax-group-1'), findsOneWidget);
     expect(find.text('Tax inclusive'), findsWidgets);
     expect(find.text('Reimbursable'), findsWidgets);
     expect(find.text('Tea Stall'), findsOneWidget);
-    expect(find.text('INR 30.00 · Needs posting accounts'), findsOneWidget);
+    expect(
+      find.text('INR 30.00 · Needs posting accounts · Waiting'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('previews configured tax before queuing a draft expense', (
@@ -334,7 +337,7 @@ void main() {
     expect(pending.single.payload['reimbursable'], true);
     expect(pending.single.payload['expense_account_id'], 'expense-account');
     expect(find.text('Airport Taxi'), findsOneWidget);
-    expect(find.text('INR 950.00 · Ready to sync'), findsOneWidget);
+    expect(find.text('INR 950.00 · Ready to sync · Waiting'), findsOneWidget);
     expect(find.text('Receipt attachment: attachment-2'), findsOneWidget);
     expect(find.text('Tax group: tax-group-2'), findsOneWidget);
   });
@@ -389,7 +392,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Last sync: 0 synced, 3 waiting, 0 failed.'),
+      find.text('Last sync: 0 synced, 3 waiting, 0 failed, 0 need review.'),
       findsOneWidget,
     );
   });

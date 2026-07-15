@@ -109,6 +109,105 @@
           }
         },
         {
+          "name": "Register Organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organization_name\": \"Acme India\",\n  \"admin_name\": \"Owner User\",\n  \"admin_email\": \"owner@example.com\",\n  \"admin_password\": \"change-me-securely\",\n  \"base_currency\": \"INR\",\n  \"country_code\": \"IN\",\n  \"seed_india_defaults\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/sessions/revoke-all"
+          }
+        },
+        {
+          "name": "Setup MFA",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/mfa/setup"
+          }
+        },
+        {
+          "name": "Enable MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/mfa/enable",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Disable MFA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/mfa/disable",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Regenerate MFA Recovery Codes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/mfa/recovery-codes/regenerate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
           "name": "Request Password Reset",
           "request": {
             "method": "POST",
@@ -434,10 +533,144 @@
           }
         },
         {
+          "name": "Import Investment Prices CSV",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"amfi_nav\",\n  \"csv\": \"symbol,price_date,price_minor,currency\\nNIFTYBEES,2026-07-31,7200,INR\\nLIQUIDFUND,2026-07-31,10500,INR\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Import AMFI NAV Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/amfi",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol_mode\": \"scheme_code\",\n  \"text\": \"Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\\nINF204K01UN5;INF204K01UN5;;Nifty Index Fund Growth;123.4567;31-Jul-2026\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Import Yahoo Finance Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/yahoo",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"RELIANCE\",\n  \"csv\": \"Date,Open,High,Low,Close,Adj Close,Volume\\n2026-07-31,1400.00,1425.00,1395.00,1410.55,1410.55,123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Investment Dividends",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/dividends"
+          }
+        },
+        {
+          "name": "Create Investment Dividend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/dividends",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"symbol\": \"NIFTYBEES\",\n  \"dividend_date\": \"2026-07-20\",\n  \"amount_minor\": 25000,\n  \"currency\": \"INR\",\n  \"cash_account_id\": \"{{account_id}}\",\n  \"income_account_id\": \"{{account_id}}\",\n  \"notes\": \"Quarterly dividend\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Investment Corporate Actions",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/corporate-actions"
+          }
+        },
+        {
+          "name": "Create Investment Corporate Action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/corporate-actions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"symbol\": \"NIFTYBEES\",\n  \"action_type\": \"split\",\n  \"action_date\": \"2026-07-25\",\n  \"ratio_numerator\": 2,\n  \"ratio_denominator\": 1,\n  \"notes\": \"2-for-1 split\"\n}"
+            }
+          }
+        },
+        {
           "name": "Realized Gains",
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/realized-gains?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Investment Dividends",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-dividends?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Investment Corporate Actions",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-corporate-actions?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Investment Corporate Actions CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-corporate-actions.csv?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Investment Tax Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-tax-lots?as_of=2026-07-31"
+          }
+        },
+        {
+          "name": "Investment Tax Adjustments",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/investment-tax-adjustments?from=2026-01-01&to=2026-12-31&window_days=30"
           }
         },
         {
@@ -926,7 +1159,7 @@
             "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"run_number\": \"PAY-2026-07\",\n  \"period_start\": \"2026-07-01\",\n  \"period_end\": \"2026-07-31\",\n  \"pay_date\": \"2026-07-31\",\n  \"currency\": \"INR\",\n  \"payroll_expense_account_id\": \"{{account_id}}\",\n  \"payroll_liability_account_id\": \"{{account_id}}\",\n  \"deduction_liability_account_id\": \"{{account_id}}\",\n  \"items\": [\n    {\n      \"employee_id\": \"00000000-0000-0000-0000-000000000000\",\n      \"gross_pay_minor\": 100000,\n      \"deductions_minor\": 10000,\n      \"components\": [\n        { \"code\": \"BASIC\", \"name\": \"Basic Pay\", \"type\": \"earning\", \"amount_minor\": 70000 },\n        { \"code\": \"HRA\", \"name\": \"House Rent Allowance\", \"type\": \"earning\", \"amount_minor\": 30000 },\n        { \"code\": \"PF\", \"name\": \"Provident Fund\", \"type\": \"deduction\", \"amount_minor\": 10000, \"is_statutory\": true }\n      ]\n    }\n  ]\n}"
+              "raw": "{\n  \"run_number\": \"PAY-2026-07\",\n  \"period_start\": \"2026-07-01\",\n  \"period_end\": \"2026-07-31\",\n  \"pay_date\": \"2026-07-31\",\n  \"currency\": \"INR\",\n  \"payroll_expense_account_id\": \"{{account_id}}\",\n  \"payroll_liability_account_id\": \"{{account_id}}\",\n  \"deduction_liability_account_id\": \"{{account_id}}\",\n  \"employer_expense_account_id\": \"{{account_id}}\",\n  \"employer_liability_account_id\": \"{{account_id}}\",\n  \"employer_contributions_minor\": 12000,\n  \"items\": [\n    {\n      \"employee_id\": \"00000000-0000-0000-0000-000000000000\",\n      \"gross_pay_minor\": 100000,\n      \"deductions_minor\": 10000,\n      \"components\": [\n        { \"code\": \"BASIC\", \"name\": \"Basic Pay\", \"type\": \"earning\", \"amount_minor\": 70000 },\n        { \"code\": \"HRA\", \"name\": \"House Rent Allowance\", \"type\": \"earning\", \"amount_minor\": 30000 },\n        { \"code\": \"PF\", \"name\": \"Provident Fund\", \"type\": \"deduction\", \"amount_minor\": 10000, \"is_statutory\": true }\n      ]\n    }\n  ]\n}"
             }
           }
         },
@@ -950,8 +1183,15 @@
             "url": "{{base_url}}/organizations/{{organization_id}}/payroll/india-preview",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"basic_minor\": 2000000,\n  \"hra_minor\": 500000,\n  \"special_minor\": 250000,\n  \"bonus_minor\": 0,\n  \"reimbursement_minor\": 0,\n  \"employee_pf_enabled\": true,\n  \"employee_pf_rate_bps\": 1200,\n  \"pf_wage_ceiling_minor\": 1500000,\n  \"employee_esi_enabled\": true,\n  \"employee_esi_rate_bps\": 75,\n  \"esi_gross_limit_minor\": 2100000,\n  \"professional_tax_minor\": 20000,\n  \"tds_minor\": 150000\n}"
+              "raw": "{\n  \"basic_minor\": 2000000,\n  \"hra_minor\": 500000,\n  \"special_minor\": 250000,\n  \"bonus_minor\": 0,\n  \"reimbursement_minor\": 0,\n  \"employee_pf_enabled\": true,\n  \"employee_pf_rate_bps\": 1200,\n  \"pf_wage_ceiling_minor\": 1500000,\n  \"employer_pf_enabled\": true,\n  \"employer_pf_rate_bps\": 1200,\n  \"employee_esi_enabled\": true,\n  \"employee_esi_rate_bps\": 75,\n  \"employer_esi_enabled\": true,\n  \"employer_esi_rate_bps\": 325,\n  \"esi_gross_limit_minor\": 2100000,\n  \"professional_tax_minor\": 20000,\n  \"tds_rate_bps\": 0,\n  \"tds_minor\": 0,\n  \"tds_annual_income_minor\": 90000000,\n  \"tds_periods_in_year\": 12,\n  \"tds_slabs\": [\n    { \"from_minor\": 0, \"to_minor\": 30000000, \"rate_bps\": 0 },\n    { \"from_minor\": 30000000, \"to_minor\": 60000000, \"rate_bps\": 500 },\n    { \"from_minor\": 60000000, \"to_minor\": 0, \"rate_bps\": 1000 }\n  ]\n}"
             }
+          }
+        },
+        {
+          "name": "List India Professional Tax Presets",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/india-professional-tax-presets"
           }
         },
         {
@@ -959,6 +1199,13 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs/{{payroll_run_id}}/items/{{payroll_item_id}}/payslip"
+          }
+        },
+        {
+          "name": "Download Payslip PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/payroll/runs/{{payroll_run_id}}/items/{{payroll_item_id}}/payslip.pdf"
           }
         }
       ]
@@ -1179,6 +1426,13 @@
           }
         },
         {
+          "name": "Trial Balance PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/trial-balance.pdf?as_of=2026-07-11"
+          }
+        },
+        {
           "name": "Profit And Loss",
           "request": {
             "method": "GET",
@@ -1186,10 +1440,24 @@
           }
         },
         {
+          "name": "Profit And Loss PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/profit-and-loss.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "Balance Sheet",
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/balance-sheet?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "Balance Sheet PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/balance-sheet.pdf?as_of=2026-12-31"
           }
         },
         {
@@ -1228,6 +1496,20 @@
           }
         },
         {
+          "name": "Payroll Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/payroll-summary?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Payroll Summary CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/payroll-summary.csv?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "Realized Gains",
           "request": {
             "method": "GET",
@@ -1263,6 +1545,44 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/budgets/00000000-0000-0000-0000-000000000000/vs-actual"
+          }
+        },
+        {
+          "name": "Payroll Statutory Component CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/payroll-statutory-components.csv?from=2026-01-01&to=2026-12-31&component=TDS"
+          }
+        },
+        {
+          "name": "List Scheduled Reports",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/scheduled"
+          }
+        },
+        {
+          "name": "Create Scheduled Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/scheduled",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Monthly P&L\",\n  \"report_type\": \"profit_and_loss\",\n  \"frequency\": \"monthly\",\n  \"parameters_json\": \"{\\\"from_date\\\":\\\"2026-07-01\\\",\\\"to_date\\\":\\\"2026-07-31\\\"}\",\n  \"email_recipients\": \"owner@example.com, accountant@example.com\",\n  \"next_run_at\": \"2026-08-01\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Scheduled Report Runs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/scheduled/00000000-0000-0000-0000-000000000000/runs"
           }
         }
       ]

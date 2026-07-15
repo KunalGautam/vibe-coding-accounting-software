@@ -186,6 +186,75 @@ export type TaxSummaryReport = {
   rows: TaxReportRow[];
 };
 
+export type PayrollSummaryReport = {
+  from_date: string;
+  to_date: string;
+  rows: PayrollSummaryRow[];
+  total_runs: number;
+  total_employees: number;
+  total_gross_pay_minor: number;
+  total_deductions_minor: number;
+  total_net_pay_minor: number;
+  total_employer_contributions_minor: number;
+  total_payroll_cost_minor: number;
+};
+
+export type PayrollSummaryRow = {
+  payroll_run_id: string;
+  run_number: string;
+  period_start: string;
+  period_end: string;
+  pay_date: string;
+  currency: string;
+  employee_count: number;
+  gross_pay_minor: number;
+  deductions_minor: number;
+  net_pay_minor: number;
+  employer_contributions_minor: number;
+  payroll_cost_minor: number;
+  journal_transaction_id?: string;
+};
+
+export type ScheduledReportType = "trial_balance" | "profit_and_loss" | "balance_sheet";
+
+export type ScheduledReportFrequency = "daily" | "weekly" | "monthly";
+
+export type ScheduledReport = {
+  id: string;
+  organization_id: string;
+  name: string;
+  report_type: ScheduledReportType;
+  frequency: ScheduledReportFrequency;
+  parameters_json?: string;
+  email_recipients?: string;
+  next_run_at: string;
+  last_run_at?: string;
+  is_active: boolean;
+};
+
+export type ScheduledReportRun = {
+  id: string;
+  organization_id: string;
+  scheduled_report_id: string;
+  report_type: ScheduledReportType;
+  status: "completed" | "failed";
+  period_start?: string;
+  period_end?: string;
+  as_of_date?: string;
+  report_json?: string;
+  error_message?: string;
+  created_at?: string;
+};
+
+export type CreateScheduledReportInput = {
+  name: string;
+  report_type: ScheduledReportType;
+  frequency: ScheduledReportFrequency;
+  parameters_json?: string;
+  email_recipients?: string;
+  next_run_at: string;
+};
+
 export type Budget = {
   id: string;
   organization_id: string;
@@ -277,6 +346,56 @@ export type InvestmentDisposition = {
   notes?: string;
 };
 
+export type InvestmentDividend = {
+  id: string;
+  organization_id: string;
+  account_id: string;
+  symbol: string;
+  dividend_date: string;
+  amount_minor: number;
+  currency: string;
+  cash_account_id?: string;
+  income_account_id?: string;
+  journal_transaction_id?: string | null;
+  notes?: string;
+};
+
+export type CreateInvestmentDividendInput = {
+  account_id: string;
+  symbol: string;
+  dividend_date: string;
+  amount_minor: number;
+  currency?: string;
+  cash_account_id?: string;
+  income_account_id?: string;
+  notes?: string;
+};
+
+export type InvestmentCorporateAction = {
+  id: string;
+  organization_id: string;
+  account_id: string;
+  symbol: string;
+  action_type: "split" | "bonus";
+  action_date: string;
+  ratio_numerator: number;
+  ratio_denominator: number;
+  affected_lots: number;
+  quantity_delta_millis: number;
+  cost_basis_delta_minor: number;
+  notes?: string;
+};
+
+export type CreateInvestmentCorporateActionInput = {
+  account_id: string;
+  symbol: string;
+  action_type: InvestmentCorporateAction["action_type"];
+  action_date: string;
+  ratio_numerator: number;
+  ratio_denominator: number;
+  notes?: string;
+};
+
 export type SellInvestmentLotInput = {
   sale_date: string;
   quantity_millis: number;
@@ -316,6 +435,83 @@ export type RealizedGainsReport = {
   total_gain_loss_minor: number;
 };
 
+export type InvestmentDividendReport = {
+  from_date: string;
+  to_date: string;
+  rows: InvestmentDividend[];
+  total_amount_minor: number;
+};
+
+export type InvestmentCorporateActionReport = {
+  from_date: string;
+  to_date: string;
+  rows: InvestmentCorporateAction[];
+  total_actions: number;
+  total_affected_lots: number;
+  total_quantity_delta_millis: number;
+  total_cost_basis_delta_minor: number;
+};
+
+export type InvestmentTaxLotRow = {
+  lot_id: string;
+  account_id: string;
+  symbol: string;
+  security_name?: string;
+  acquisition_date: string;
+  quantity_millis: number;
+  remaining_quantity_millis: number;
+  disposed_quantity_millis: number;
+  cost_basis_minor: number;
+  remaining_cost_basis_minor: number;
+  disposed_cost_basis_minor: number;
+  proceeds_minor: number;
+  realized_gain_loss_minor: number;
+  unit_cost_minor: number;
+  currency: string;
+  cost_method: InvestmentLot["cost_method"];
+};
+
+export type InvestmentTaxLotReport = {
+  as_of_date: string;
+  rows: InvestmentTaxLotRow[];
+  total_quantity_millis: number;
+  total_remaining_quantity_millis: number;
+  total_cost_basis_minor: number;
+  total_remaining_cost_basis_minor: number;
+  total_proceeds_minor: number;
+  total_realized_gain_loss_minor: number;
+};
+
+export type InvestmentTaxAdjustmentRow = {
+  disposition_id: string;
+  lot_id: string;
+  account_id: string;
+  symbol: string;
+  sale_date: string;
+  quantity_millis: number;
+  proceeds_minor: number;
+  allocated_cost_basis_minor: number;
+  realized_loss_minor: number;
+  replacement_quantity_millis: number;
+  deferred_loss_minor: number;
+  replacement_lot_ids: string[];
+  window_start: string;
+  window_end: string;
+  currency: string;
+  notes?: string;
+};
+
+export type InvestmentTaxAdjustmentReport = {
+  from_date: string;
+  to_date: string;
+  rule: string;
+  window_days: number;
+  rows: InvestmentTaxAdjustmentRow[];
+  total_loss_minor: number;
+  total_deferred_loss_minor: number;
+  total_replacement_quantity_millis: number;
+};
+
 export type InvestmentPrice = {
   id: string;
   organization_id: string;
@@ -332,6 +528,23 @@ export type CreateInvestmentPriceInput = {
   price_minor: number;
   currency?: string;
   source?: string;
+};
+
+export type ImportInvestmentPricesInput = {
+  csv: string;
+  source?: string;
+};
+
+export type ImportAMFINAVInput = {
+  text: string;
+  symbol_mode?: "scheme_code" | "isin_growth" | "scheme_name";
+};
+
+export type InvestmentPriceImportResult = {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  prices: InvestmentPrice[];
 };
 
 export type InvestmentValuationRow = {
@@ -369,9 +582,13 @@ export type PayrollRun = {
   payroll_expense_account_id?: string;
   payroll_liability_account_id?: string;
   deduction_liability_account_id?: string;
+  employer_expense_account_id?: string;
+  employer_liability_account_id?: string;
   gross_pay_minor: number;
   deductions_minor: number;
   net_pay_minor: number;
+  employer_contributions_minor?: number;
+  payroll_cost_minor?: number;
   journal_transaction_id?: string | null;
   items?: PayrollItem[];
 };
@@ -833,6 +1050,8 @@ export type BankStatementLine = {
   description?: string;
   amount_minor: number;
   reference?: string;
+  is_duplicate: boolean;
+  duplicate_of_id?: string | null;
   matched_split_id?: string | null;
   matched_at?: string | null;
 };
@@ -962,6 +1181,8 @@ export type OrganizationUser = {
   email: string;
   role: Role;
   is_active: boolean;
+  invite_email_sent?: boolean;
+  invite_email_error?: string;
 };
 
 export type Role = "admin" | "accountant" | "bookkeeper" | "payroll_manager" | "viewer" | "employee_self_service";
@@ -982,6 +1203,9 @@ export type CreatePayrollRunInput = {
   payroll_expense_account_id: string;
   payroll_liability_account_id: string;
   deduction_liability_account_id: string;
+  employer_expense_account_id?: string;
+  employer_liability_account_id?: string;
+  employer_contributions_minor?: number;
   items: CreatePayrollItemInput[];
 };
 
@@ -1010,30 +1234,70 @@ export type PreviewIndiaPayrollInput = {
   employee_pf_enabled?: boolean;
   employee_pf_rate_bps?: number;
   pf_wage_ceiling_minor?: number;
+  employer_pf_enabled?: boolean;
+  employer_pf_rate_bps?: number;
   employee_esi_enabled?: boolean;
   employee_esi_rate_bps?: number;
+  employer_esi_enabled?: boolean;
+  employer_esi_rate_bps?: number;
   esi_gross_limit_minor?: number;
   professional_tax_minor?: number;
+  tds_rate_bps?: number;
   tds_minor?: number;
+  tds_annual_income_minor?: number;
+  tds_periods_in_year?: number;
+  tds_slabs?: IndiaTDSSlabInput[];
 };
 
 export type IndiaPayrollPreview = {
   gross_pay_minor: number;
   deductions_minor: number;
   net_pay_minor: number;
+  employer_contributions_minor: number;
+  payroll_cost_minor: number;
   components: CreatePayrollComponentInput[];
+  employer_contributions: IndiaPayrollEmployerContribution[];
   rule_summary: IndiaPayrollRuleSummary;
+};
+
+export type IndiaPayrollEmployerContribution = {
+  code: string;
+  name: string;
+  amount_minor: number;
+  is_statutory: boolean;
+};
+
+export type IndiaTDSSlabInput = {
+  from_minor: number;
+  to_minor?: number;
+  rate_bps: number;
+};
+
+export type IndiaProfessionalTaxPreset = {
+  state_code: string;
+  state_name: string;
+  monthly_amount_minor: number;
+  notes: string;
 };
 
 export type IndiaPayrollRuleSummary = {
   employee_pf_enabled: boolean;
   employee_pf_rate_bps: number;
   pf_wage_ceiling_minor: number;
+  employer_pf_enabled: boolean;
+  employer_pf_rate_bps: number;
   employee_esi_enabled: boolean;
   employee_esi_rate_bps: number;
+  employer_esi_enabled: boolean;
+  employer_esi_rate_bps: number;
   esi_gross_limit_minor: number;
   professional_tax_minor: number;
+  tds_rate_bps: number;
   tds_minor: number;
+  tds_annual_income_minor: number;
+  tds_annual_tax_minor: number;
+  tds_periods_in_year: number;
+  tds_slab_count: number;
 };
 
 export type PayslipPreview = {
@@ -1054,6 +1318,11 @@ export type PayslipPreview = {
   earnings: PayrollComponent[];
   deductions: PayrollComponent[];
   components: PayrollComponent[];
+};
+
+export type BinaryDownload = {
+  blob: Blob;
+  filename: string;
 };
 
 export type LedgerSplit = {
@@ -1176,9 +1445,26 @@ export type AuthTokenResponse = {
   expires_in: number;
 };
 
+export type RevokeAllSessionsResponse = {
+  revoked: boolean;
+  revoked_count: number;
+};
+
 export type LoginInput = {
   email: string;
   password: string;
+  mfa_code?: string;
+};
+
+export type MFASetupResponse = {
+  secret: string;
+  otpauth_url: string;
+  mfa_enabled: boolean;
+};
+
+export type MFAStatusResponse = {
+  mfa_enabled: boolean;
+  recovery_codes?: string[];
 };
 
 export type RequestPasswordResetInput = {
@@ -1187,6 +1473,7 @@ export type RequestPasswordResetInput = {
 
 export type RequestPasswordResetResponse = {
   requested: boolean;
+  email_sent: boolean;
   reset_token?: string;
   reset_token_expires_at?: string;
 };
@@ -1222,6 +1509,9 @@ export type BootstrapFirstAdminResponse = {
   india_seed?: IndiaSeedResult;
 };
 
+export type RegisterOrganizationInput = BootstrapFirstAdminInput;
+export type RegisterOrganizationResponse = BootstrapFirstAdminResponse;
+
 export type AccountInput = {
   code: string;
   name: string;
@@ -1251,6 +1541,13 @@ export class ApiClient {
     });
   }
 
+  async registerOrganization(input: RegisterOrganizationInput): Promise<RegisterOrganizationResponse> {
+    return this.publicRequest("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
   async login(input: LoginInput): Promise<AuthTokenResponse> {
     return this.publicRequest("/auth/login", {
       method: "POST",
@@ -1262,6 +1559,46 @@ export class ApiClient {
     return this.publicRequest("/auth/refresh", {
       method: "POST",
       body: JSON.stringify({ refresh_token: refreshToken })
+    });
+  }
+
+  async logout(refreshToken: string): Promise<{ revoked: boolean }> {
+    return this.publicRequest("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+  }
+
+  async revokeAllSessions(): Promise<RevokeAllSessionsResponse> {
+    return this.request("/auth/sessions/revoke-all", {
+      method: "POST"
+    });
+  }
+
+  async setupMFA(): Promise<MFASetupResponse> {
+    return this.request("/auth/mfa/setup", {
+      method: "POST"
+    });
+  }
+
+  async enableMFA(code: string): Promise<MFAStatusResponse> {
+    return this.request("/auth/mfa/enable", {
+      method: "POST",
+      body: JSON.stringify({ code })
+    });
+  }
+
+  async disableMFA(code: string): Promise<MFAStatusResponse> {
+    return this.request("/auth/mfa/disable", {
+      method: "POST",
+      body: JSON.stringify({ code })
+    });
+  }
+
+  async regenerateMFARecoveryCodes(code: string): Promise<MFAStatusResponse> {
+    return this.request("/auth/mfa/recovery-codes/regenerate", {
+      method: "POST",
+      body: JSON.stringify({ code })
     });
   }
 
@@ -1366,13 +1703,26 @@ export class ApiClient {
     return this.request(`/organizations/${this.config.organizationId}/reports/trial-balance?as_of=${encodeURIComponent(asOf)}`);
   }
 
+  async downloadTrialBalancePDF(asOf: string): Promise<BinaryDownload> {
+    return this.downloadBinary(`/organizations/${this.config.organizationId}/reports/trial-balance.pdf?as_of=${encodeURIComponent(asOf)}`, `trial-balance-${asOf}.pdf`);
+  }
+
   async getProfitAndLoss(from: string, to: string): Promise<ProfitAndLossReport> {
     const params = new URLSearchParams({ from, to });
     return this.request(`/organizations/${this.config.organizationId}/reports/profit-and-loss?${params.toString()}`);
   }
 
+  async downloadProfitAndLossPDF(from: string, to: string): Promise<BinaryDownload> {
+    const params = new URLSearchParams({ from, to });
+    return this.downloadBinary(`/organizations/${this.config.organizationId}/reports/profit-and-loss.pdf?${params.toString()}`, `profit-and-loss-${from}-to-${to}.pdf`);
+  }
+
   async getBalanceSheet(asOf: string): Promise<BalanceSheetReport> {
     return this.request(`/organizations/${this.config.organizationId}/reports/balance-sheet?as_of=${encodeURIComponent(asOf)}`);
+  }
+
+  async downloadBalanceSheetPDF(asOf: string): Promise<BinaryDownload> {
+    return this.downloadBinary(`/organizations/${this.config.organizationId}/reports/balance-sheet.pdf?as_of=${encodeURIComponent(asOf)}`, `balance-sheet-${asOf}.pdf`);
   }
 
   async getCashFlow(from: string, to: string): Promise<CashFlowReport> {
@@ -1398,6 +1748,62 @@ export class ApiClient {
     return this.request(`/organizations/${this.config.organizationId}/reports/tax-summary?${params.toString()}`);
   }
 
+  async getPayrollSummary(from: string, to: string): Promise<PayrollSummaryReport> {
+    const params = new URLSearchParams({ from, to });
+    return this.request(`/organizations/${this.config.organizationId}/reports/payroll-summary?${params.toString()}`);
+  }
+
+  async downloadPayrollSummaryCSV(from: string, to: string): Promise<BinaryDownload> {
+    const params = new URLSearchParams({ from, to });
+    const response = await fetch(`${this.config.baseUrl}/organizations/${this.config.organizationId}/reports/payroll-summary.csv?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${this.config.accessToken}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined);
+      const message = errorBody?.error?.message ?? `Request failed with ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      blob: await response.blob(),
+      filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")) ?? `payroll-summary-${from}-to-${to}.csv`
+    };
+  }
+
+  async downloadPayrollStatutoryComponentCSV(from: string, to: string, component: string): Promise<BinaryDownload> {
+    const params = new URLSearchParams({ from, to, component });
+    const response = await fetch(`${this.config.baseUrl}/organizations/${this.config.organizationId}/reports/payroll-statutory-components.csv?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${this.config.accessToken}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined);
+      const message = errorBody?.error?.message ?? `Request failed with ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      blob: await response.blob(),
+      filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")) ?? `payroll-${component.toLowerCase()}-statutory-${from}-to-${to}.csv`
+    };
+  }
+
+  async listScheduledReports(): Promise<ScheduledReport[]> {
+    return this.request(`/organizations/${this.config.organizationId}/reports/scheduled`);
+  }
+
+  async createScheduledReport(input: CreateScheduledReportInput): Promise<ScheduledReport> {
+    return this.request(`/organizations/${this.config.organizationId}/reports/scheduled`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async listScheduledReportRuns(scheduledReportId: string): Promise<ScheduledReportRun[]> {
+    return this.request(`/organizations/${this.config.organizationId}/reports/scheduled/${scheduledReportId}/runs`);
+  }
+
   async listBudgets(): Promise<Budget[]> {
     return this.request(`/organizations/${this.config.organizationId}/budgets`);
   }
@@ -1419,6 +1825,28 @@ export class ApiClient {
 
   async createInvestmentLot(input: CreateInvestmentLotInput): Promise<InvestmentLot> {
     return this.request(`/organizations/${this.config.organizationId}/investments/lots`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async listInvestmentDividends(): Promise<InvestmentDividend[]> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/dividends`);
+  }
+
+  async createInvestmentDividend(input: CreateInvestmentDividendInput): Promise<InvestmentDividend> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/dividends`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async listInvestmentCorporateActions(): Promise<InvestmentCorporateAction[]> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/corporate-actions`);
+  }
+
+  async createInvestmentCorporateAction(input: CreateInvestmentCorporateActionInput): Promise<InvestmentCorporateAction> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/corporate-actions`, {
       method: "POST",
       body: JSON.stringify(input)
     });
@@ -1449,9 +1877,61 @@ export class ApiClient {
     });
   }
 
+  async importInvestmentPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async importAMFINAV(input: ImportAMFINAVInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/amfi`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
   async getRealizedGains(from: string, to: string): Promise<RealizedGainsReport> {
     const params = new URLSearchParams({ from, to });
     return this.request(`/organizations/${this.config.organizationId}/reports/realized-gains?${params.toString()}`);
+  }
+
+  async getInvestmentDividends(from: string, to: string): Promise<InvestmentDividendReport> {
+    const params = new URLSearchParams({ from, to });
+    return this.request(`/organizations/${this.config.organizationId}/reports/investment-dividends?${params.toString()}`);
+  }
+
+  async getInvestmentCorporateActions(from: string, to: string): Promise<InvestmentCorporateActionReport> {
+    const params = new URLSearchParams({ from, to });
+    return this.request(`/organizations/${this.config.organizationId}/reports/investment-corporate-actions?${params.toString()}`);
+  }
+
+  async downloadInvestmentCorporateActionsCSV(from: string, to: string): Promise<BinaryDownload> {
+    const params = new URLSearchParams({ from, to });
+    const response = await fetch(`${this.config.baseUrl}/organizations/${this.config.organizationId}/reports/investment-corporate-actions.csv?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${this.config.accessToken}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined);
+      const message = errorBody?.error?.message ?? `Request failed with ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      blob: await response.blob(),
+      filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")) ?? `investment-corporate-actions-${from}-to-${to}.csv`
+    };
+  }
+
+  async getInvestmentTaxLots(asOf: string): Promise<InvestmentTaxLotReport> {
+    const params = new URLSearchParams({ as_of: asOf });
+    return this.request(`/organizations/${this.config.organizationId}/reports/investment-tax-lots?${params.toString()}`);
+  }
+
+  async getInvestmentTaxAdjustments(from: string, to: string, windowDays = 30): Promise<InvestmentTaxAdjustmentReport> {
+    const params = new URLSearchParams({ from, to, window_days: String(windowDays) });
+    return this.request(`/organizations/${this.config.organizationId}/reports/investment-tax-adjustments?${params.toString()}`);
   }
 
   async getInvestmentValuation(asOf: string): Promise<InvestmentValuationReport> {
@@ -1477,8 +1957,29 @@ export class ApiClient {
     });
   }
 
+  async listIndiaProfessionalTaxPresets(): Promise<IndiaProfessionalTaxPreset[]> {
+    return this.request(`/organizations/${this.config.organizationId}/payroll/india-professional-tax-presets`);
+  }
+
   async getPayslipPreview(payrollRunId: string, payrollItemId: string): Promise<PayslipPreview> {
     return this.request(`/organizations/${this.config.organizationId}/payroll/runs/${payrollRunId}/items/${payrollItemId}/payslip`);
+  }
+
+  async downloadPayslipPDF(payrollRunId: string, payrollItemId: string): Promise<BinaryDownload> {
+    const response = await fetch(`${this.config.baseUrl}/organizations/${this.config.organizationId}/payroll/runs/${payrollRunId}/items/${payrollItemId}/payslip.pdf`, {
+      headers: {
+        Authorization: `Bearer ${this.config.accessToken}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined);
+      const message = errorBody?.error?.message ?? `Request failed with ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      blob: await response.blob(),
+      filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")) ?? `payslip-${payrollRunId}.pdf`
+    };
   }
 
   async postPayrollRun(payrollRunId: string): Promise<PayrollRun> {
@@ -1809,6 +2310,23 @@ export class ApiClient {
     return `${this.config.baseUrl}/organizations/${this.config.organizationId}/attachments/${attachmentId}/download`;
   }
 
+  private async downloadBinary(path: string, fallbackFilename: string): Promise<BinaryDownload> {
+    const response = await fetch(`${this.config.baseUrl}${path}`, {
+      headers: {
+        Authorization: `Bearer ${this.config.accessToken}`
+      }
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => undefined);
+      const message = errorBody?.error?.message ?? `Request failed with ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      blob: await response.blob(),
+      filename: filenameFromContentDisposition(response.headers.get("Content-Disposition")) ?? fallbackFilename
+    };
+  }
+
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${this.config.baseUrl}${path}`, {
       ...init,
@@ -1843,4 +2361,12 @@ export class ApiClient {
     }
     return response.json();
   }
+}
+
+function filenameFromContentDisposition(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const match = /filename="?([^";]+)"?/i.exec(value);
+  return match?.[1] ?? null;
 }

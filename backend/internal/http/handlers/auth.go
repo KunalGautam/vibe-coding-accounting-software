@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"accounting.abhashtech.com/internal/auth"
 	"accounting.abhashtech.com/internal/services"
 	"github.com/gin-gonic/gin"
 )
@@ -15,9 +16,14 @@ type AuthHandler struct {
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+	MFACode  string `json:"mfa_code"`
 }
 
 type refreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+type revokeRefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
@@ -30,6 +36,10 @@ type confirmPasswordResetRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=12"`
 }
 
+type mfaCodeRequest struct {
+	Code string `json:"code" binding:"required"`
+}
+
 func NewAuthHandler(auth services.AuthService) AuthHandler {
 	return AuthHandler{auth: auth}
 }
@@ -37,8 +47,17 @@ func NewAuthHandler(auth services.AuthService) AuthHandler {
 func (h AuthHandler) RegisterRoutes(router gin.IRoutes) {
 	router.POST("/auth/login", h.Login)
 	router.POST("/auth/refresh", h.Refresh)
+	router.POST("/auth/logout", h.Logout)
 	router.POST("/auth/password-reset/request", h.RequestPasswordReset)
 	router.POST("/auth/password-reset/confirm", h.ConfirmPasswordReset)
+}
+
+func (h AuthHandler) RegisterProtectedRoutes(router gin.IRoutes) {
+	router.POST("/auth/sessions/revoke-all", h.RevokeAllSessions)
+	router.POST("/auth/mfa/setup", h.SetupMFA)
+	router.POST("/auth/mfa/enable", h.EnableMFA)
+	router.POST("/auth/mfa/disable", h.DisableMFA)
+	router.POST("/auth/mfa/recovery-codes/regenerate", h.RegenerateMFARecoveryCodes)
 }
 
 func (h AuthHandler) Login(c *gin.Context) {
@@ -48,7 +67,7 @@ func (h AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	result, err := h.auth.Login(c.Request.Context(), request.Email, request.Password)
+	result, err := h.auth.Login(c.Request.Context(), request.Email, request.Password, request.MFACode)
 	if err != nil {
 		status, code := authErrorStatus(err)
 		respondError(c, status, code, err.Error())
@@ -73,6 +92,107 @@ func (h AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, authResponse(result))
+}
+
+func (h AuthHandler) Logout(c *gin.Context) {
+	var request revokeRefreshTokenRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := h.auth.RevokeRefreshToken(c.Request.Context(), request.RefreshToken); err != nil {
+		status, code := authErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"revoked": true})
+}
+
+func (h AuthHandler) RevokeAllSessions(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	count, err := h.auth.RevokeUserSessions(c.Request.Context(), claims.UserID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "session_revocation_failed", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"revoked": true, "revoked_count": count})
+}
+
+func (h AuthHandler) SetupMFA(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	result, err := h.auth.SetupMFA(c.Request.Context(), claims.UserID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "mfa_setup_failed", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h AuthHandler) EnableMFA(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	var request mfaCodeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.auth.EnableMFA(c.Request.Context(), claims.UserID, request.Code)
+	if err != nil {
+		status, code := authErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h AuthHandler) DisableMFA(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	var request mfaCodeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := h.auth.DisableMFA(c.Request.Context(), claims.UserID, request.Code); err != nil {
+		status, code := authErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"mfa_enabled": false})
+}
+
+func (h AuthHandler) RegenerateMFARecoveryCodes(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	var request mfaCodeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.auth.RegenerateMFARecoveryCodes(c.Request.Context(), claims.UserID, request.Code)
+	if err != nil {
+		status, code := authErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (h AuthHandler) RequestPasswordReset(c *gin.Context) {
@@ -121,7 +241,17 @@ func authErrorStatus(err error) (int, string) {
 		errors.Is(err, services.ErrInvalidRefreshToken),
 		errors.Is(err, services.ErrInvalidResetToken):
 		return http.StatusUnauthorized, "invalid_credentials"
+	case errors.Is(err, services.ErrMFARequired):
+		return http.StatusUnauthorized, "mfa_required"
+	case errors.Is(err, services.ErrInvalidMFACode):
+		return http.StatusUnauthorized, "invalid_mfa_code"
 	default:
 		return http.StatusInternalServerError, "auth_failed"
 	}
+}
+
+func currentAccessClaims(c *gin.Context) (auth.AccessClaims, bool) {
+	value, ok := c.Get("access_claims")
+	claims, ok := value.(auth.AccessClaims)
+	return claims, ok
 }

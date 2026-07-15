@@ -131,6 +131,29 @@ const (
 	PayrollRunStatusVoid   PayrollRunStatus = "void"
 )
 
+type ScheduledReportType string
+
+const (
+	ScheduledReportTrialBalance  ScheduledReportType = "trial_balance"
+	ScheduledReportProfitAndLoss ScheduledReportType = "profit_and_loss"
+	ScheduledReportBalanceSheet  ScheduledReportType = "balance_sheet"
+)
+
+type ScheduledReportFrequency string
+
+const (
+	ScheduledReportFrequencyDaily   ScheduledReportFrequency = "daily"
+	ScheduledReportFrequencyWeekly  ScheduledReportFrequency = "weekly"
+	ScheduledReportFrequencyMonthly ScheduledReportFrequency = "monthly"
+)
+
+type ScheduledReportRunStatus string
+
+const (
+	ScheduledReportRunCompleted ScheduledReportRunStatus = "completed"
+	ScheduledReportRunFailed    ScheduledReportRunStatus = "failed"
+)
+
 type PayrollComponentType string
 
 const (
@@ -194,6 +217,8 @@ type User struct {
 	Email        string `gorm:"size:320;not null;uniqueIndex" json:"email"`
 	Name         string `gorm:"size:255;not null" json:"name"`
 	PasswordHash string `gorm:"size:255;not null" json:"-"`
+	MFASecret    string `gorm:"size:128" json:"-"`
+	MFAEnabled   bool   `gorm:"not null;default:false" json:"mfa_enabled"`
 	IsActive     bool   `gorm:"not null;default:true" json:"is_active"`
 }
 
@@ -222,6 +247,14 @@ type PasswordResetToken struct {
 	TokenHash string     `gorm:"size:128;not null;uniqueIndex" json:"-"`
 	ExpiresAt time.Time  `gorm:"not null;index" json:"expires_at"`
 	UsedAt    *time.Time `json:"used_at,omitempty"`
+}
+
+type MFARecoveryCode struct {
+	BaseModel
+	UserID   string     `gorm:"type:char(36);not null;index" json:"user_id"`
+	User     User       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	CodeHash string     `gorm:"size:128;not null;uniqueIndex" json:"-"`
+	UsedAt   *time.Time `json:"used_at,omitempty"`
 }
 
 type BackupSnapshot struct {
@@ -680,9 +713,13 @@ type PayrollRun struct {
 	PayrollExpenseAccountID     string           `gorm:"type:char(36);not null" json:"payroll_expense_account_id"`
 	PayrollLiabilityAccountID   string           `gorm:"type:char(36);not null" json:"payroll_liability_account_id"`
 	DeductionLiabilityAccountID string           `gorm:"type:char(36);not null" json:"deduction_liability_account_id"`
+	EmployerExpenseAccountID    string           `gorm:"type:char(36)" json:"employer_expense_account_id,omitempty"`
+	EmployerLiabilityAccountID  string           `gorm:"type:char(36)" json:"employer_liability_account_id,omitempty"`
 	GrossPayMinor               int64            `gorm:"not null;default:0" json:"gross_pay_minor"`
 	DeductionsMinor             int64            `gorm:"not null;default:0" json:"deductions_minor"`
 	NetPayMinor                 int64            `gorm:"not null;default:0" json:"net_pay_minor"`
+	EmployerContributionsMinor  int64            `gorm:"not null;default:0" json:"employer_contributions_minor"`
+	PayrollCostMinor            int64            `gorm:"not null;default:0" json:"payroll_cost_minor"`
 	JournalTransactionID        *string          `gorm:"type:char(36);index" json:"journal_transaction_id,omitempty"`
 	Items                       []PayrollItem    `gorm:"foreignKey:PayrollRunID" json:"items"`
 }
@@ -713,6 +750,35 @@ type PayrollComponent struct {
 	IsStatutory    bool                 `gorm:"not null;default:false" json:"is_statutory"`
 }
 
+type ScheduledReport struct {
+	BaseModel
+	OrganizationID  string                   `gorm:"type:char(36);not null;index" json:"organization_id"`
+	Organization    Organization             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"-"`
+	Name            string                   `gorm:"size:255;not null;index" json:"name"`
+	ReportType      ScheduledReportType      `gorm:"size:64;not null;index" json:"report_type"`
+	Frequency       ScheduledReportFrequency `gorm:"size:32;not null;index" json:"frequency"`
+	ParametersJSON  string                   `gorm:"type:text" json:"parameters_json"`
+	EmailRecipients string                   `gorm:"type:text" json:"email_recipients,omitempty"`
+	NextRunAt       time.Time                `gorm:"not null;index" json:"next_run_at"`
+	LastRunAt       *time.Time               `json:"last_run_at,omitempty"`
+	IsActive        bool                     `gorm:"not null;default:true;index" json:"is_active"`
+	Runs            []ScheduledReportRun     `gorm:"foreignKey:ScheduledReportID" json:"runs,omitempty"`
+}
+
+type ScheduledReportRun struct {
+	BaseModel
+	OrganizationID    string                   `gorm:"type:char(36);not null;index" json:"organization_id"`
+	ScheduledReportID string                   `gorm:"type:char(36);not null;index" json:"scheduled_report_id"`
+	ScheduledReport   ScheduledReport          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE" json:"-"`
+	ReportType        ScheduledReportType      `gorm:"size:64;not null;index" json:"report_type"`
+	Status            ScheduledReportRunStatus `gorm:"size:32;not null;index" json:"status"`
+	PeriodStart       *time.Time               `json:"period_start,omitempty"`
+	PeriodEnd         *time.Time               `json:"period_end,omitempty"`
+	AsOfDate          *time.Time               `json:"as_of_date,omitempty"`
+	ReportJSON        string                   `gorm:"type:longtext" json:"report_json,omitempty"`
+	ErrorMessage      string                   `gorm:"size:1000" json:"error_message,omitempty"`
+}
+
 type BankStatementImport struct {
 	BaseModel
 	OrganizationID string              `gorm:"type:char(36);not null;index" json:"organization_id"`
@@ -737,6 +803,9 @@ type BankStatementLine struct {
 	Description    string              `gorm:"size:1000" json:"description"`
 	AmountMinor    int64               `gorm:"not null" json:"amount_minor"`
 	Reference      string              `gorm:"size:255;index" json:"reference"`
+	IsDuplicate    bool                `gorm:"not null;default:false;index" json:"is_duplicate"`
+	DuplicateOfID  *string             `gorm:"type:char(36);index" json:"duplicate_of_id,omitempty"`
+	DuplicateOf    *BankStatementLine  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL" json:"-"`
 	MatchedSplitID *string             `gorm:"type:char(36);index" json:"matched_split_id,omitempty"`
 	MatchedAt      *time.Time          `json:"matched_at,omitempty"`
 }
@@ -808,6 +877,47 @@ type InvestmentDisposition struct {
 	JournalTransactionID    *string             `gorm:"type:char(36);index" json:"journal_transaction_id,omitempty"`
 	JournalTransaction      *JournalTransaction `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"-"`
 	Notes                   string              `gorm:"size:1000" json:"notes"`
+}
+
+type InvestmentDividend struct {
+	BaseModel
+	OrganizationID       string              `gorm:"type:char(36);not null;index" json:"organization_id"`
+	Organization         Organization        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"-"`
+	AccountID            string              `gorm:"type:char(36);not null;index" json:"account_id"`
+	Account              Account             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"account,omitempty"`
+	Symbol               string              `gorm:"size:64;not null;index" json:"symbol"`
+	DividendDate         time.Time           `gorm:"not null;index" json:"dividend_date"`
+	AmountMinor          int64               `gorm:"not null" json:"amount_minor"`
+	Currency             string              `gorm:"size:3;not null;default:INR" json:"currency"`
+	CashAccountID        string              `gorm:"type:char(36)" json:"cash_account_id,omitempty"`
+	IncomeAccountID      string              `gorm:"type:char(36)" json:"income_account_id,omitempty"`
+	JournalTransactionID *string             `gorm:"type:char(36);index" json:"journal_transaction_id,omitempty"`
+	JournalTransaction   *JournalTransaction `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"-"`
+	Notes                string              `gorm:"size:1000" json:"notes"`
+}
+
+type InvestmentCorporateActionType string
+
+const (
+	InvestmentCorporateActionSplit InvestmentCorporateActionType = "split"
+	InvestmentCorporateActionBonus InvestmentCorporateActionType = "bonus"
+)
+
+type InvestmentCorporateAction struct {
+	BaseModel
+	OrganizationID      string                        `gorm:"type:char(36);not null;index" json:"organization_id"`
+	Organization        Organization                  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"-"`
+	AccountID           string                        `gorm:"type:char(36);not null;index" json:"account_id"`
+	Account             Account                       `gorm:"constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"account,omitempty"`
+	Symbol              string                        `gorm:"size:64;not null;index" json:"symbol"`
+	ActionType          InvestmentCorporateActionType `gorm:"size:32;not null;index" json:"action_type"`
+	ActionDate          time.Time                     `gorm:"not null;index" json:"action_date"`
+	RatioNumerator      int64                         `gorm:"not null" json:"ratio_numerator"`
+	RatioDenominator    int64                         `gorm:"not null" json:"ratio_denominator"`
+	AffectedLots        int64                         `gorm:"not null" json:"affected_lots"`
+	QuantityDeltaMillis int64                         `gorm:"not null" json:"quantity_delta_millis"`
+	CostBasisDeltaMinor int64                         `gorm:"not null" json:"cost_basis_delta_minor"`
+	Notes               string                        `gorm:"size:1000" json:"notes"`
 }
 
 type InvestmentPrice struct {
@@ -889,6 +999,7 @@ func AllModels() []any {
 		&OrganizationMembership{},
 		&RefreshToken{},
 		&PasswordResetToken{},
+		&MFARecoveryCode{},
 		&BackupSnapshot{},
 		&Account{},
 		&JournalTransaction{},
@@ -920,6 +1031,8 @@ func AllModels() []any {
 		&PayrollRun{},
 		&PayrollItem{},
 		&PayrollComponent{},
+		&ScheduledReport{},
+		&ScheduledReportRun{},
 		&BankStatementImport{},
 		&BankStatementLine{},
 		&Budget{},
@@ -927,6 +1040,8 @@ func AllModels() []any {
 		&ExchangeRate{},
 		&InvestmentLot{},
 		&InvestmentDisposition{},
+		&InvestmentDividend{},
+		&InvestmentCorporateAction{},
 		&InvestmentPrice{},
 		&FiscalClose{},
 	}

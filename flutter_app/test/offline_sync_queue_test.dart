@@ -127,6 +127,42 @@ void main() {
     expect(operation.payload['payment_account_id'], 'cash-account');
   });
 
+  test('editing a failed draft clears stale retry and conflict state', () {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'expense-1',
+        module: 'expenses',
+        action: 'create_draft',
+        createdAt: DateTime.utc(2026, 7, 11),
+        retryCount: 2,
+        lastAttemptAt: DateTime.utc(2026, 7, 12),
+        lastError: 'duplicate expense number',
+        conflictReason: 'duplicate expense number',
+        payload: const {
+          'merchant_name': 'Metro Taxi',
+          'amount_minor': 84550,
+          'expense_account_id': 'expense-account',
+          'payment_account_id': 'cash-account',
+          'currency': 'INR',
+        },
+      ),
+    ]);
+
+    queue.updateExpenseDraft(
+      id: 'expense-1',
+      merchantName: 'Airport Taxi',
+      amountMinor: 95000,
+      taxInclusive: false,
+      reimbursable: false,
+    );
+
+    final operation = queue.pending.single;
+    expect(operation.retryCount, 0);
+    expect(operation.lastAttemptAt, isNull);
+    expect(operation.lastError, isNull);
+    expect(operation.conflictReason, isNull);
+  });
+
   test('serializes and hydrates sync operations', () {
     final operation = SyncOperation(
       id: 'expense-1',

@@ -1,8 +1,12 @@
 package http
 
 import (
+	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"accounting.abhashtech.com/internal/auth"
 	"accounting.abhashtech.com/internal/domain"
@@ -12,6 +16,11 @@ import (
 
 const accessClaimsKey = "access_claims"
 const requestIDKey = "request_id"
+
+type rateLimitBucket struct {
+	windowStart time.Time
+	count       int
+}
 
 func RequestIDMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -44,6 +53,76 @@ func CORSMiddleware(allowedOrigins string) gin.HandlerFunc {
 
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
+func StructuredLoggerMiddleware(logger *slog.Logger) gin.HandlerFunc {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		latency := time.Since(start)
+		level := slog.LevelInfo
+		if c.Writer.Status() >= http.StatusInternalServerError {
+			level = slog.LevelError
+		} else if c.Writer.Status() >= http.StatusBadRequest {
+			level = slog.LevelWarn
+		}
+		logger.LogAttrs(c.Request.Context(), level, "http_request",
+			slog.String("request_id", CurrentRequestID(c)),
+			slog.String("method", c.Request.Method),
+			slog.String("path", c.Request.URL.Path),
+			slog.String("route", c.FullPath()),
+			slog.Int("status", c.Writer.Status()),
+			slog.Int("bytes", c.Writer.Size()),
+			slog.Duration("latency", latency),
+			slog.String("client_ip", c.ClientIP()),
+			slog.String("user_agent", c.Request.UserAgent()),
+		)
+	}
+}
+
+func RateLimitMiddleware(maxRequests int, window time.Duration) gin.HandlerFunc {
+	if maxRequests <= 0 || window <= 0 {
+		return func(c *gin.Context) {
+			c.Next()
+		}
+	}
+
+	var mutex sync.Mutex
+	buckets := map[string]rateLimitBucket{}
+
+	return func(c *gin.Context) {
+		now := time.Now()
+		key := c.ClientIP() + " " + c.FullPath()
+		if key == c.ClientIP()+" " {
+			key = c.ClientIP() + " " + c.Request.URL.Path
+		}
+
+		mutex.Lock()
+		bucket := buckets[key]
+		if bucket.windowStart.IsZero() || now.Sub(bucket.windowStart) >= window {
+			bucket = rateLimitBucket{windowStart: now}
+		}
+		bucket.count++
+		buckets[key] = bucket
+		limited := bucket.count > maxRequests
+		retryAfter := int(window.Seconds() - now.Sub(bucket.windowStart).Seconds())
+		if retryAfter < 1 {
+			retryAfter = 1
+		}
+		mutex.Unlock()
+
+		if limited {
+			c.Header("Retry-After", strconv.Itoa(retryAfter))
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error": gin.H{"code": "rate_limited", "message": "Too many requests; retry later"},
+			})
 			return
 		}
 		c.Next()

@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,6 +86,13 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	if balanceSheet.TotalAssetsMinor != 140000 {
 		t.Fatalf("assets = %d, want 140000", balanceSheet.TotalAssetsMinor)
 	}
+
+	pdf, filename, err := service.TrialBalancePDF(ctx, org.ID, asOf)
+	assertReportPDF(t, pdf, filename, err)
+	pdf, filename, err = service.ProfitAndLossPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportPDF(t, pdf, filename, err)
+	pdf, filename, err = service.BalanceSheetPDF(ctx, org.ID, asOf)
+	assertReportPDF(t, pdf, filename, err)
 
 	cashFlow, err := service.CashFlow(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	if err != nil {
@@ -189,6 +198,181 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	}
 }
 
+func TestReportServicePayrollSummary(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Payroll Reports Co", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	if _, err := NewSeedService(db).SeedIndiaDefaults(ctx, org.ID); err != nil {
+		t.Fatalf("seed defaults: %v", err)
+	}
+	employee := domain.Employee{OrganizationID: org.ID, DisplayName: "Employee One", EmployeeCode: "E001", IsActive: true}
+	if err := db.Create(&employee).Error; err != nil {
+		t.Fatalf("create employee: %v", err)
+	}
+
+	payrollExpense := mustAccountByCode(t, db, org.ID, "6100")
+	payrollLiability := mustAccountByCode(t, db, org.ID, "2200")
+	payroll := NewPayrollService(db)
+	postedRun, err := payroll.CreateRun(ctx, CreatePayrollRunInput{
+		OrganizationID:              org.ID,
+		RunNumber:                   "PAY-POSTED",
+		PeriodStart:                 time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		PeriodEnd:                   time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+		PayDate:                     time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+		PayrollExpenseAccountID:     payrollExpense.ID,
+		PayrollLiabilityAccountID:   payrollLiability.ID,
+		DeductionLiabilityAccountID: payrollLiability.ID,
+		EmployerExpenseAccountID:    payrollExpense.ID,
+		EmployerLiabilityAccountID:  payrollLiability.ID,
+		EmployerContributionsMinor:  12000,
+		Items: []CreatePayrollItemInput{{
+			EmployeeID:      employee.ID,
+			GrossPayMinor:   100000,
+			DeductionsMinor: 10000,
+			Components: []CreatePayrollComponentInput{
+				{Code: "BASIC", Name: "Basic Pay", Type: domain.PayrollComponentEarning, AmountMinor: 100000},
+				{Code: "PF", Name: "Employee Provident Fund", Type: domain.PayrollComponentDeduction, AmountMinor: 5000, IsStatutory: true},
+				{Code: "TDS", Name: "Tax Deducted at Source", Type: domain.PayrollComponentDeduction, AmountMinor: 5000, IsStatutory: true},
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CreateRun(posted) error = %v", err)
+	}
+	if _, err := payroll.PostRun(ctx, org.ID, postedRun.ID); err != nil {
+		t.Fatalf("PostRun() error = %v", err)
+	}
+	if _, err := payroll.CreateRun(ctx, CreatePayrollRunInput{
+		OrganizationID:              org.ID,
+		RunNumber:                   "PAY-DRAFT",
+		PeriodStart:                 time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		PeriodEnd:                   time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
+		PayDate:                     time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
+		PayrollExpenseAccountID:     payrollExpense.ID,
+		PayrollLiabilityAccountID:   payrollLiability.ID,
+		DeductionLiabilityAccountID: payrollLiability.ID,
+		Items: []CreatePayrollItemInput{{
+			EmployeeID:    employee.ID,
+			GrossPayMinor: 999999,
+		}},
+	}); err != nil {
+		t.Fatalf("CreateRun(draft) error = %v", err)
+	}
+
+	report, err := NewReportService(db).PayrollSummary(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("PayrollSummary() error = %v", err)
+	}
+	if report.TotalRuns != 1 || report.TotalEmployees != 1 || len(report.Rows) != 1 {
+		t.Fatalf("unexpected payroll summary row counts: %+v", report)
+	}
+	if report.TotalGrossPayMinor != 100000 || report.TotalDeductionsMinor != 10000 || report.TotalNetPayMinor != 90000 {
+		t.Fatalf("unexpected payroll summary pay totals: %+v", report)
+	}
+	if report.TotalEmployerContributionsMinor != 12000 || report.TotalPayrollCostMinor != 112000 {
+		t.Fatalf("unexpected payroll summary employer totals: %+v", report)
+	}
+
+	csvPayload, filename, err := NewReportService(db).PayrollSummaryCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("PayrollSummaryCSV() error = %v", err)
+	}
+	if filename != "payroll-summary-2026-07-01-to-2026-08-31.csv" {
+		t.Fatalf("filename = %q", filename)
+	}
+	csvText := string(csvPayload)
+	if !strings.Contains(csvText, "PAY-POSTED") || !strings.Contains(csvText, "Total,,,,,1,100000,10000,90000,12000,112000,") {
+		t.Fatalf("unexpected payroll summary csv:\n%s", csvText)
+	}
+
+	tdsPayload, tdsFilename, err := NewReportService(db).PayrollStatutoryComponentCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), "TDS")
+	if err != nil {
+		t.Fatalf("PayrollStatutoryComponentCSV() error = %v", err)
+	}
+	if tdsFilename != "payroll-tds-statutory-2026-07-01-to-2026-08-31.csv" {
+		t.Fatalf("tds filename = %q", tdsFilename)
+	}
+	tdsText := string(tdsPayload)
+	if !strings.Contains(tdsText, "PAY-POSTED,2026-07-01,2026-07-31,2026-07-31,E001,Employee One,,") ||
+		!strings.Contains(tdsText, "TDS,Tax Deducted at Source,5000,100000,90000") ||
+		!strings.Contains(tdsText, "Total,,,,,,,,TDS,,5000,,") {
+		t.Fatalf("unexpected statutory component csv:\n%s", tdsText)
+	}
+}
+
+func TestReportServiceRunDueScheduledReports(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Scheduled Reports Co", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+
+	emailSender := &captureEmailSender{}
+	reportService := NewReportServiceWithEmail(db, emailSender)
+	scheduled, err := reportService.CreateScheduledReport(ctx, CreateScheduledReportInput{
+		OrganizationID:  org.ID,
+		Name:            "Monthly P&L",
+		ReportType:      domain.ScheduledReportProfitAndLoss,
+		Frequency:       domain.ScheduledReportFrequencyMonthly,
+		ParametersJSON:  `{"from_date":"2026-07-01","to_date":"2026-07-31"}`,
+		EmailRecipients: "owner@example.com, accountant@example.com",
+		NextRunAt:       time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("CreateScheduledReport() error = %v", err)
+	}
+
+	result, err := reportService.RunDueScheduledReports(ctx, time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("RunDueScheduledReports() error = %v", err)
+	}
+	if result.ReportsProcessed != 1 || result.CompletedCount != 1 || result.FailedCount != 0 {
+		t.Fatalf("unexpected scheduled report result: %+v", result)
+	}
+
+	schedules, err := reportService.ListScheduledReports(ctx, org.ID)
+	if err != nil {
+		t.Fatalf("ListScheduledReports() error = %v", err)
+	}
+	if len(schedules) != 1 || schedules[0].ID != scheduled.ID {
+		t.Fatalf("unexpected scheduled reports: %+v", schedules)
+	}
+
+	var run domain.ScheduledReportRun
+	if err := db.Where("scheduled_report_id = ?", scheduled.ID).First(&run).Error; err != nil {
+		t.Fatalf("load scheduled report run: %v", err)
+	}
+	if run.Status != domain.ScheduledReportRunCompleted || run.ReportJSON == "" || run.PeriodStart == nil || run.PeriodEnd == nil {
+		t.Fatalf("unexpected scheduled report run: %+v", run)
+	}
+	if len(emailSender.messages) != 2 {
+		t.Fatalf("sent messages = %d, want 2", len(emailSender.messages))
+	}
+	if emailSender.messages[0].To != "owner@example.com" || !strings.Contains(emailSender.messages[0].Text, "JSON snapshot") {
+		t.Fatalf("unexpected scheduled report email: %+v", emailSender.messages[0])
+	}
+	runs, err := reportService.ListScheduledReportRuns(ctx, org.ID, scheduled.ID)
+	if err != nil {
+		t.Fatalf("ListScheduledReportRuns() error = %v", err)
+	}
+	if len(runs) != 1 || runs[0].ID != run.ID {
+		t.Fatalf("unexpected scheduled report runs: %+v", runs)
+	}
+
+	var updated domain.ScheduledReport
+	if err := db.First(&updated, "id = ?", scheduled.ID).Error; err != nil {
+		t.Fatalf("load updated schedule: %v", err)
+	}
+	if updated.LastRunAt == nil || !updated.NextRunAt.After(time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("schedule was not advanced: %+v", updated)
+	}
+}
+
 func postTestTransaction(t *testing.T, db *gorm.DB, organizationID string, transactionDate time.Time, splits []domain.LedgerSplit) {
 	t.Helper()
 	postedAt := time.Now().UTC()
@@ -205,5 +389,18 @@ func postTestTransaction(t *testing.T, db *gorm.DB, organizationID string, trans
 	}
 	if err := db.Create(&transaction).Error; err != nil {
 		t.Fatalf("create test transaction: %v", err)
+	}
+}
+
+func assertReportPDF(t *testing.T, payload []byte, filename string, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("report PDF error = %v", err)
+	}
+	if !bytes.HasPrefix(payload, []byte("%PDF-1.4")) || !bytes.Contains(payload, []byte("%%EOF")) {
+		t.Fatalf("report PDF is not complete: %q", string(payload[:min(len(payload), 32)]))
+	}
+	if !strings.HasSuffix(filename, ".pdf") {
+		t.Fatalf("filename = %q, want .pdf suffix", filename)
 	}
 }

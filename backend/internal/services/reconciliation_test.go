@@ -78,6 +78,61 @@ func TestReconciliationServiceImportAndMatchStatementLine(t *testing.T) {
 	}
 }
 
+func TestReconciliationServiceImportMarksDuplicateStatementLines(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Acme India", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	if _, err := NewSeedService(db).SeedIndiaDefaults(ctx, org.ID); err != nil {
+		t.Fatalf("seed defaults: %v", err)
+	}
+	bank := mustAccountByCode(t, db, org.ID, "1010")
+	service := NewReconciliationService(db)
+	postedDate := time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC)
+
+	firstImport, err := service.ImportBankStatement(ctx, ImportBankStatementInput{
+		OrganizationID: org.ID,
+		AccountID:      bank.ID,
+		FileName:       "bank.csv",
+		Format:         "csv",
+		Lines: []ImportBankStatementLineInput{
+			{PostedDate: postedDate, Description: "Owner contribution", AmountMinor: 10000, Reference: "REF-001"},
+			{PostedDate: postedDate, Description: "Owner   contribution", AmountMinor: 10000, Reference: "ref-001"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ImportBankStatement(first) error = %v", err)
+	}
+	if len(firstImport.Lines) != 2 {
+		t.Fatalf("first import lines = %d, want 2", len(firstImport.Lines))
+	}
+	if firstImport.Lines[0].IsDuplicate {
+		t.Fatalf("first line marked duplicate: %+v", firstImport.Lines[0])
+	}
+	if !firstImport.Lines[1].IsDuplicate || firstImport.Lines[1].DuplicateOfID == nil || *firstImport.Lines[1].DuplicateOfID != firstImport.Lines[0].ID {
+		t.Fatalf("second line duplicate metadata = %+v, want duplicate of %s", firstImport.Lines[1], firstImport.Lines[0].ID)
+	}
+
+	secondImport, err := service.ImportBankStatement(ctx, ImportBankStatementInput{
+		OrganizationID: org.ID,
+		AccountID:      bank.ID,
+		FileName:       "bank-repeat.csv",
+		Format:         "csv",
+		Lines: []ImportBankStatementLineInput{
+			{PostedDate: postedDate, Description: "Owner contribution", AmountMinor: 10000, Reference: "REF-001"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ImportBankStatement(second) error = %v", err)
+	}
+	if !secondImport.Lines[0].IsDuplicate || secondImport.Lines[0].DuplicateOfID == nil || *secondImport.Lines[0].DuplicateOfID != firstImport.Lines[0].ID {
+		t.Fatalf("reimport duplicate metadata = %+v, want duplicate of %s", secondImport.Lines[0], firstImport.Lines[0].ID)
+	}
+}
+
 func TestParseQIFBankStatement(t *testing.T) {
 	lines, err := ParseQIFBankStatement(`!Type:Bank
 D11/07/2026

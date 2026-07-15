@@ -2,9 +2,11 @@ package http
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"accounting.abhashtech.com/internal/auth"
 	"accounting.abhashtech.com/internal/domain"
@@ -15,21 +17,45 @@ import (
 )
 
 type RouterConfig struct {
-	SwaggerEnabled          bool
-	DB                      *gorm.DB
-	Tokens                  auth.TokenManager
-	CORSAllowedOrigins      string
-	AttachmentStorageDriver string
-	AttachmentStoragePath   string
+	SwaggerEnabled                 bool
+	DB                             *gorm.DB
+	Tokens                         auth.TokenManager
+	MFAEncryptionKey               string
+	EmailSender                    services.EmailSender
+	PasswordResetBaseURL           string
+	InvitationBaseURL              string
+	ExposePasswordResetToken       bool
+	SelfServiceRegistrationEnabled bool
+	CORSAllowedOrigins             string
+	AttachmentStorageDriver        string
+	AttachmentStoragePath          string
+	RateLimitEnabled               bool
+	RateLimitRequests              int
+	RateLimitWindow                time.Duration
+	Logger                         *slog.Logger
+	MetricsEnabled                 bool
+	Metrics                        *HTTPMetrics
 }
 
 func NewRouter(cfg RouterConfig) *gin.Engine {
 	router := gin.New()
-	router.Use(RequestIDMiddleware(), CORSMiddleware(cfg.CORSAllowedOrigins), gin.Logger(), gin.Recovery())
+	metrics := cfg.Metrics
+	if metrics == nil {
+		metrics = NewHTTPMetrics()
+	}
+	middleware := []gin.HandlerFunc{RequestIDMiddleware(), CORSMiddleware(cfg.CORSAllowedOrigins)}
+	if cfg.MetricsEnabled {
+		middleware = append(middleware, MetricsMiddleware(metrics))
+	}
+	middleware = append(middleware, StructuredLoggerMiddleware(cfg.Logger), gin.Recovery())
+	router.Use(middleware...)
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	if cfg.MetricsEnabled {
+		router.GET("/metrics", metrics.Handler())
+	}
 
 	api := router.Group("/api/v1")
 	api.GET("/health", func(c *gin.Context) {
@@ -37,8 +63,13 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 	})
 
 	seedService := services.NewSeedService(cfg.DB)
-	authHandler := handlers.NewAuthHandler(services.NewAuthService(cfg.DB, cfg.Tokens))
-	bootstrapHandler := handlers.NewBootstrapHandler(services.NewBootstrapService(cfg.DB), seedService)
+	authHandler := handlers.NewAuthHandler(services.NewAuthServiceWithOptions(cfg.DB, cfg.Tokens, services.AuthServiceOptions{
+		MFAEncryptionKey:         cfg.MFAEncryptionKey,
+		EmailSender:              cfg.EmailSender,
+		PasswordResetBaseURL:     cfg.PasswordResetBaseURL,
+		ExposePasswordResetToken: cfg.ExposePasswordResetToken,
+	}))
+	bootstrapHandler := handlers.NewBootstrapHandler(services.NewBootstrapService(cfg.DB), seedService, cfg.SelfServiceRegistrationEnabled)
 	organizationHandler := handlers.NewOrganizationHandler(services.NewOrganizationService(cfg.DB))
 	accountHandler := handlers.NewAccountHandler(services.NewAccountService(cfg.DB))
 	ledgerHandler := handlers.NewLedgerHandler(services.NewLedgerService(cfg.DB))
@@ -57,7 +88,7 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 		cfg.AttachmentStorageDriver,
 		cfg.AttachmentStoragePath,
 	)
-	reportHandler := handlers.NewReportHandler(services.NewReportService(cfg.DB))
+	reportHandler := handlers.NewReportHandler(services.NewReportServiceWithEmail(cfg.DB, cfg.EmailSender))
 	employeeHandler := handlers.NewEmployeeHandler(services.NewEmployeeService(cfg.DB))
 	payrollHandler := handlers.NewPayrollHandler(services.NewPayrollService(cfg.DB))
 	reconciliationHandler := handlers.NewReconciliationHandler(services.NewReconciliationService(cfg.DB))
@@ -67,14 +98,19 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 	revaluationHandler := handlers.NewRevaluationHandler(services.NewRevaluationService(cfg.DB))
 	closingHandler := handlers.NewClosingHandler(services.NewClosingService(cfg.DB))
 	auditHandler := handlers.NewAuditHandler(services.NewAuditService(cfg.DB))
-	userHandler := handlers.NewUserHandler(services.NewUserService(cfg.DB))
+	userHandler := handlers.NewUserHandler(services.NewUserServiceWithOptions(cfg.DB, cfg.EmailSender, cfg.InvitationBaseURL))
 	dataExportHandler := handlers.NewDataExportHandler(services.NewDataExportService(cfg.DB))
 
-	authHandler.RegisterRoutes(api)
-	bootstrapHandler.RegisterRoutes(api)
+	public := api.Group("")
+	if cfg.RateLimitEnabled {
+		public.Use(RateLimitMiddleware(cfg.RateLimitRequests, cfg.RateLimitWindow))
+	}
+	authHandler.RegisterRoutes(public)
+	bootstrapHandler.RegisterRoutes(public)
 
 	protected := api.Group("")
 	protected.Use(AuthMiddleware(cfg.Tokens))
+	authHandler.RegisterProtectedRoutes(protected)
 	organizationHandler.RegisterRoutes(protected)
 
 	organizationReadRoutes := protected.Group("/organizations/:organizationId")
@@ -141,6 +177,7 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 	paymentHandler.RegisterWriteRoutes(organizationWriteRoutes)
 	commercialDocumentHandler.RegisterWriteRoutes(organizationWriteRoutes)
 	attachmentHandler.RegisterWriteRoutes(organizationWriteRoutes)
+	reportHandler.RegisterWriteRoutes(organizationWriteRoutes)
 	reconciliationHandler.RegisterWriteRoutes(organizationWriteRoutes)
 	budgetHandler.RegisterWriteRoutes(organizationWriteRoutes)
 	exchangeRateHandler.RegisterWriteRoutes(organizationWriteRoutes)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"accounting.abhashtech.com/internal/domain"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -60,6 +61,13 @@ type MatchStatementLineInput struct {
 	LedgerSplitID   string
 }
 
+type bankStatementLineFingerprint struct {
+	PostedDate  string
+	AmountMinor int64
+	Reference   string
+	Description string
+}
+
 func NewReconciliationService(db *gorm.DB) ReconciliationService {
 	return ReconciliationService{db: db}
 }
@@ -81,6 +89,7 @@ func (s ReconciliationService) ImportBankStatement(ctx context.Context, input Im
 	}
 	for _, line := range input.Lines {
 		statementImport.Lines = append(statementImport.Lines, domain.BankStatementLine{
+			BaseModel:      domain.BaseModel{ID: uuid.NewString()},
 			OrganizationID: input.OrganizationID,
 			AccountID:      input.AccountID,
 			PostedDate:     line.PostedDate,
@@ -94,9 +103,50 @@ func (s ReconciliationService) ImportBankStatement(ctx context.Context, input Im
 		if err := validateAccountScope(ctx, tx, input.OrganizationID, input.AccountID); err != nil {
 			return err
 		}
+		seen, err := s.existingStatementLineFingerprints(ctx, tx, input.OrganizationID, input.AccountID)
+		if err != nil {
+			return err
+		}
+		for index := range statementImport.Lines {
+			fingerprint := statementLineFingerprint(statementImport.Lines[index])
+			if duplicateID, ok := seen[fingerprint]; ok {
+				statementImport.Lines[index].IsDuplicate = true
+				statementImport.Lines[index].DuplicateOfID = &duplicateID
+				continue
+			}
+			seen[fingerprint] = statementImport.Lines[index].ID
+		}
 		return tx.Create(&statementImport).Error
 	})
 	return statementImport, err
+}
+
+func (s ReconciliationService) existingStatementLineFingerprints(ctx context.Context, tx *gorm.DB, organizationID string, accountID string) (map[bankStatementLineFingerprint]string, error) {
+	var existing []domain.BankStatementLine
+	if err := tx.WithContext(ctx).
+		Where("organization_id = ? AND account_id = ?", organizationID, accountID).
+		Order("is_duplicate ASC, posted_date ASC, created_at ASC, id ASC").
+		Find(&existing).
+		Error; err != nil {
+		return nil, err
+	}
+	fingerprints := make(map[bankStatementLineFingerprint]string, len(existing))
+	for _, line := range existing {
+		fingerprint := statementLineFingerprint(line)
+		if _, ok := fingerprints[fingerprint]; !ok {
+			fingerprints[fingerprint] = line.ID
+		}
+	}
+	return fingerprints, nil
+}
+
+func statementLineFingerprint(line domain.BankStatementLine) bankStatementLineFingerprint {
+	return bankStatementLineFingerprint{
+		PostedDate:  line.PostedDate.UTC().Format("2006-01-02"),
+		AmountMinor: line.AmountMinor,
+		Reference:   strings.ToUpper(strings.TrimSpace(line.Reference)),
+		Description: strings.ToUpper(strings.Join(strings.Fields(line.Description), " ")),
+	}
 }
 
 func (s ReconciliationService) ImportQIFBankStatement(ctx context.Context, input ImportQIFBankStatementInput) (domain.BankStatementImport, error) {

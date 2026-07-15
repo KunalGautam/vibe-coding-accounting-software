@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-13
+Last updated: 2026-07-15
 
 ## Current Summary
 The platform has a working full-stack foundation across the Go API, React web app, Flutter shell, OpenAPI/Postman documentation, Swagger UI, and CI checks. Core double-entry accounting flows are implemented for chart of accounts, journal posting, invoicing, expenses/AP, GST tax setup/reporting, payroll drafts/posting, reconciliation, budgeting, reports, fiscal close, multi-currency revaluation, investments, attachments, backups, and offline-oriented client caches.
@@ -8,25 +8,22 @@ The platform has a working full-stack foundation across the Go API, React web ap
 The product is not production-ready yet. The remaining work is mainly depth, compliance, deployment, security, and UX completeness rather than initial scaffolding.
 
 ## Recently Completed
-- Renamed the Go module to `accounting.abhashtech.com`.
-- Renamed Flutter native app identifiers to `com.abhashtech.accounting`.
-- Improved Swagger UI routes and UX at `/swagger/index.html`.
-- Added OpenAPI/Postman contract validators:
-  - `ruby scripts/validate_openapi_routes.rb`
-  - `ruby scripts/validate_postman_collection.rb`
-- Added India payroll preview for configurable Basic/HRA/Special/Bonus/Reimbursement earnings plus PF/ESI/PT/TDS deductions.
-- Added payslip preview API, React display, CSV export, and browser-persistent last payslip preview caching.
-- Kept OpenAPI and Postman coverage aligned at 102 route/method pairs.
+- Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
+- Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
+- Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
+- Added managed scheduled report SMTP delivery with configurable recipients.
+- Added PDF downloads for trial balance, profit and loss, and balance sheet.
+- Kept OpenAPI and Postman coverage aligned at 132 documented route/method pairs.
 
 ## Completed By Area
 - Core accounting: chart of accounts, double-entry journal posting, split validation, account registers, audit logs.
-- Auth/RBAC: JWT login, refresh, password reset token flow, first-admin bootstrap, organization-scoped roles.
+- Auth/RBAC: JWT login, optional TOTP MFA with one-time recovery codes, refresh, logout/session revocation, password reset token flow with optional SMTP email delivery, organization invitation emails, gated self-service registration, first-admin bootstrap, organization-scoped roles.
 - Invoicing/AR: customers, invoices, recurring invoice generation, estimates, credit notes, customer payments.
 - Expenses/AP: vendors, expenses, bills, purchase orders, vendor payments.
 - Tax: configurable authorities/rates/groups, India GST seed data, calculation preview, tax liability and summary reports.
-- Payroll: employees, payroll runs, componentized earnings/deductions, India payroll preview, GL posting, payslip preview, payslip CSV export.
-- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment valuation.
-- Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, realized gains, average-cost sales, market prices.
+- Payroll: employees, payroll runs, componentized earnings/deductions, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS, employer contribution cost, GL posting including optional employer contribution expense/liability splits, payroll summary report plus PF/ESI/PT/TDS statutory component CSV downloads, payslip preview, payslip CSV export, payslip PDF download.
+- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment dividends, investment tax lots, investment valuation, core statement PDF exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
+- Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
@@ -34,26 +31,21 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
-- Payroll PDF generation for payslips.
-- Payroll statutory depth: employer PF/ESI, PT state presets, TDS rule configuration, payroll reports, statutory CSV exports.
-- Investment depth: dividends, splits/bonus issues, corporate actions, NAV/price imports, tax-lot reporting.
-- Bank import/reconciliation polish: CSV column mapper, matching rules, duplicate detection, reconciliation summaries.
-- Offline sync depth: conflict resolution, broader cached writes, Flutter SQLite persistence instead of file-backed cache only.
-- Production deployment: Docker/compose, migrations, environment hardening, logging/monitoring, backup restore flow.
-- Security hardening: rate limiting, MFA/session revocation, tenant isolation tests, permission matrix tests.
-- Email flows: password reset email delivery, invitations, self-service registration.
-- Export/reporting polish: PDF/Excel exports, scheduled reports, comparative reports.
+- Investment depth: AMFI, NSE-style equity CSV, Yahoo Finance historical CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
+- Offline sync depth: Flutter queued writes now persist retry/error/conflict metadata and surface conflict review state; broader cached writes and SQLite persistence remain.
+- Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
+- Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
+- Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
+- Export/reporting polish: core statement PDFs and scheduled report SMTP delivery are implemented; broader PDF/Excel exports and comparative reports remain.
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Payroll PDF/statutory exports.
-2. Investment corporate actions and dividend workflows.
-3. Bank reconciliation rules, CSV mapper, and duplicate detection.
-4. Production deployment and migration tooling.
-5. Security hardening and permission/tenant isolation test matrix.
-6. Offline conflict resolution and Flutter SQLite cache.
-7. Email invitation/password reset delivery.
-8. UX polish and broader frontend test coverage.
+1. Flutter SQLite cache migration for file-backed repositories.
+2. Broader offline write queues beyond expense drafts.
+3. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
+4. Deeper operational monitoring runbooks and managed-cloud deployment notes.
+5. Security hardening polish: broader auth UX and account recovery flows.
+6. Richer onboarding flows, frontend account-management polish, and broader frontend test coverage.
 
 ## Validation Commands
 Run these before handing off changes:

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,43 +19,57 @@ type DataExportService struct {
 	db *gorm.DB
 }
 
+var ErrRestoreOrganizationExists = errors.New("restore target organization already exists")
+
 type OrganizationDataExport struct {
-	ExportedAt             time.Time                         `json:"exported_at"`
-	Organization           domain.Organization               `json:"organization"`
-	Accounts               []domain.Account                  `json:"accounts"`
-	JournalTransactions    []domain.JournalTransaction       `json:"journal_transactions"`
-	AuditLogs              []domain.AuditLog                 `json:"audit_logs"`
-	TaxAuthorities         []domain.TaxAuthority             `json:"tax_authorities"`
-	TaxRates               []domain.TaxRate                  `json:"tax_rates"`
-	TaxGroups              []domain.TaxGroup                 `json:"tax_groups"`
-	Customers              []domain.Customer                 `json:"customers"`
-	Invoices               []domain.Invoice                  `json:"invoices"`
-	RecurringInvoices      []domain.RecurringInvoiceTemplate `json:"recurring_invoices"`
-	Estimates              []domain.Estimate                 `json:"estimates"`
-	CreditNotes            []domain.CreditNote               `json:"credit_notes"`
-	CustomerPayments       []domain.CustomerPayment          `json:"customer_payments"`
-	Vendors                []domain.Vendor                   `json:"vendors"`
-	Expenses               []domain.Expense                  `json:"expenses"`
-	Bills                  []domain.Bill                     `json:"bills"`
-	PurchaseOrders         []domain.PurchaseOrder            `json:"purchase_orders"`
-	VendorPayments         []domain.VendorPayment            `json:"vendor_payments"`
-	Attachments            []domain.Attachment               `json:"attachments"`
-	Employees              []domain.Employee                 `json:"employees"`
-	PayrollRuns            []domain.PayrollRun               `json:"payroll_runs"`
-	BankStatementImports   []domain.BankStatementImport      `json:"bank_statement_imports"`
-	Budgets                []domain.Budget                   `json:"budgets"`
-	ExchangeRates          []domain.ExchangeRate             `json:"exchange_rates"`
-	FiscalCloses           []domain.FiscalClose              `json:"fiscal_closes"`
-	InvestmentLots         []domain.InvestmentLot            `json:"investment_lots"`
-	InvestmentDispositions []domain.InvestmentDisposition    `json:"investment_dispositions"`
-	InvestmentPrices       []domain.InvestmentPrice          `json:"investment_prices"`
-	BackupSnapshots        []domain.BackupSnapshot           `json:"backup_snapshots"`
+	ExportedAt             time.Time                          `json:"exported_at"`
+	Organization           domain.Organization                `json:"organization"`
+	Accounts               []domain.Account                   `json:"accounts"`
+	JournalTransactions    []domain.JournalTransaction        `json:"journal_transactions"`
+	AuditLogs              []domain.AuditLog                  `json:"audit_logs"`
+	TaxAuthorities         []domain.TaxAuthority              `json:"tax_authorities"`
+	TaxRates               []domain.TaxRate                   `json:"tax_rates"`
+	TaxGroups              []domain.TaxGroup                  `json:"tax_groups"`
+	Customers              []domain.Customer                  `json:"customers"`
+	Invoices               []domain.Invoice                   `json:"invoices"`
+	RecurringInvoices      []domain.RecurringInvoiceTemplate  `json:"recurring_invoices"`
+	Estimates              []domain.Estimate                  `json:"estimates"`
+	CreditNotes            []domain.CreditNote                `json:"credit_notes"`
+	CustomerPayments       []domain.CustomerPayment           `json:"customer_payments"`
+	Vendors                []domain.Vendor                    `json:"vendors"`
+	Expenses               []domain.Expense                   `json:"expenses"`
+	Bills                  []domain.Bill                      `json:"bills"`
+	PurchaseOrders         []domain.PurchaseOrder             `json:"purchase_orders"`
+	VendorPayments         []domain.VendorPayment             `json:"vendor_payments"`
+	Attachments            []domain.Attachment                `json:"attachments"`
+	Employees              []domain.Employee                  `json:"employees"`
+	PayrollRuns            []domain.PayrollRun                `json:"payroll_runs"`
+	BankStatementImports   []domain.BankStatementImport       `json:"bank_statement_imports"`
+	Budgets                []domain.Budget                    `json:"budgets"`
+	ExchangeRates          []domain.ExchangeRate              `json:"exchange_rates"`
+	FiscalCloses           []domain.FiscalClose               `json:"fiscal_closes"`
+	InvestmentLots         []domain.InvestmentLot             `json:"investment_lots"`
+	InvestmentDispositions []domain.InvestmentDisposition     `json:"investment_dispositions"`
+	InvestmentDividends    []domain.InvestmentDividend        `json:"investment_dividends"`
+	InvestmentActions      []domain.InvestmentCorporateAction `json:"investment_corporate_actions"`
+	InvestmentPrices       []domain.InvestmentPrice           `json:"investment_prices"`
+	BackupSnapshots        []domain.BackupSnapshot            `json:"backup_snapshots"`
 }
 
 type CreateBackupSnapshotInput struct {
 	OrganizationID string
 	StoragePath    string
 	RetentionCount int
+}
+
+type RestoreOrganizationResult struct {
+	OrganizationID      string `json:"organization_id"`
+	Accounts            int    `json:"accounts"`
+	JournalTransactions int    `json:"journal_transactions"`
+	Invoices            int    `json:"invoices"`
+	Expenses            int    `json:"expenses"`
+	PayrollRuns         int    `json:"payroll_runs"`
+	InvestmentLots      int    `json:"investment_lots"`
 }
 
 func NewDataExportService(db *gorm.DB) DataExportService {
@@ -197,6 +212,12 @@ func (s DataExportService) ExportOrganization(ctx context.Context, organizationI
 			return s.list(ctx, organizationID, "sale_date ASC, created_at ASC", &export.InvestmentDispositions)
 		},
 		func() error {
+			return s.list(ctx, organizationID, "dividend_date ASC, created_at ASC", &export.InvestmentDividends)
+		},
+		func() error {
+			return s.list(ctx, organizationID, "action_date ASC, created_at ASC", &export.InvestmentActions)
+		},
+		func() error {
 			return s.list(ctx, organizationID, "symbol ASC, price_date ASC", &export.InvestmentPrices)
 		},
 		func() error {
@@ -211,6 +232,100 @@ func (s DataExportService) ExportOrganization(ctx context.Context, organizationI
 	}
 
 	return export, nil
+}
+
+func (s DataExportService) RestoreOrganization(ctx context.Context, export OrganizationDataExport) (RestoreOrganizationResult, error) {
+	if export.Organization.ID == "" {
+		return RestoreOrganizationResult{}, fmt.Errorf("restore export is missing organization")
+	}
+
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&domain.Organization{}).Where("id = ?", export.Organization.ID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrRestoreOrganizationExists
+		}
+
+		if err := tx.Create(&export.Organization).Error; err != nil {
+			return err
+		}
+
+		creates := []func() error{
+			func() error { return createIfAny(tx, &export.Accounts) },
+			func() error { return createIfAny(tx, &export.TaxAuthorities) },
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.TaxRates)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.TaxGroups)
+			},
+			func() error { return createIfAny(tx, &export.Customers) },
+			func() error { return createIfAny(tx, &export.Vendors) },
+			func() error { return createIfAny(tx, &export.Attachments) },
+			func() error { return createIfAny(tx, &export.Employees) },
+			func() error { return createIfAny(tx, &export.ExchangeRates) },
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.JournalTransactions)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.Invoices)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.RecurringInvoices)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.Estimates)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.CreditNotes)
+			},
+			func() error { return createIfAny(tx, &export.CustomerPayments) },
+			func() error { return createIfAny(tx, &export.Expenses) },
+			func() error { return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.Bills) },
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.PurchaseOrders)
+			},
+			func() error { return createIfAny(tx, &export.VendorPayments) },
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.PayrollRuns)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.BankStatementImports)
+			},
+			func() error {
+				return createIfAny(tx.Session(&gorm.Session{FullSaveAssociations: true}), &export.Budgets)
+			},
+			func() error { return createIfAny(tx, &export.FiscalCloses) },
+			func() error { return createIfAny(tx, &export.InvestmentLots) },
+			func() error { return createIfAny(tx, &export.InvestmentDispositions) },
+			func() error { return createIfAny(tx, &export.InvestmentDividends) },
+			func() error { return createIfAny(tx, &export.InvestmentActions) },
+			func() error { return createIfAny(tx, &export.InvestmentPrices) },
+			func() error { return createIfAny(tx, &export.AuditLogs) },
+			func() error { return createIfAny(tx, &export.BackupSnapshots) },
+		}
+		for _, create := range creates {
+			if err := create(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return RestoreOrganizationResult{}, err
+	}
+
+	return RestoreOrganizationResult{
+		OrganizationID:      export.Organization.ID,
+		Accounts:            len(export.Accounts),
+		JournalTransactions: len(export.JournalTransactions),
+		Invoices:            len(export.Invoices),
+		Expenses:            len(export.Expenses),
+		PayrollRuns:         len(export.PayrollRuns),
+		InvestmentLots:      len(export.InvestmentLots),
+	}, nil
 }
 
 func (s DataExportService) list(ctx context.Context, organizationID string, order string, out any) error {
@@ -246,4 +361,11 @@ func (s DataExportService) pruneBackups(ctx context.Context, organizationID stri
 		}
 	}
 	return nil
+}
+
+func createIfAny[T any](tx *gorm.DB, values *[]T) error {
+	if values == nil || len(*values) == 0 {
+		return nil
+	}
+	return tx.Create(values).Error
 }

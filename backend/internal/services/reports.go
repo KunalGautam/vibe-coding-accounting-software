@@ -1,7 +1,11 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
+	"strconv"
+	"strings"
 	"time"
 
 	"accounting.abhashtech.com/internal/domain"
@@ -9,7 +13,8 @@ import (
 )
 
 type ReportService struct {
-	db *gorm.DB
+	db          *gorm.DB
+	emailSender EmailSender
 }
 
 type ReportRow struct {
@@ -149,6 +154,35 @@ type TaxReportRow struct {
 	NetPayableMinor int64  `json:"net_payable_minor"`
 }
 
+type PayrollSummaryReport struct {
+	FromDate                        time.Time           `json:"from_date"`
+	ToDate                          time.Time           `json:"to_date"`
+	Rows                            []PayrollSummaryRow `json:"rows"`
+	TotalRuns                       int                 `json:"total_runs"`
+	TotalEmployees                  int                 `json:"total_employees"`
+	TotalGrossPayMinor              int64               `json:"total_gross_pay_minor"`
+	TotalDeductionsMinor            int64               `json:"total_deductions_minor"`
+	TotalNetPayMinor                int64               `json:"total_net_pay_minor"`
+	TotalEmployerContributionsMinor int64               `json:"total_employer_contributions_minor"`
+	TotalPayrollCostMinor           int64               `json:"total_payroll_cost_minor"`
+}
+
+type PayrollSummaryRow struct {
+	PayrollRunID               string    `json:"payroll_run_id"`
+	RunNumber                  string    `json:"run_number"`
+	PeriodStart                time.Time `json:"period_start"`
+	PeriodEnd                  time.Time `json:"period_end"`
+	PayDate                    time.Time `json:"pay_date"`
+	Currency                   string    `json:"currency"`
+	EmployeeCount              int       `json:"employee_count"`
+	GrossPayMinor              int64     `json:"gross_pay_minor"`
+	DeductionsMinor            int64     `json:"deductions_minor"`
+	NetPayMinor                int64     `json:"net_pay_minor"`
+	EmployerContributionsMinor int64     `json:"employer_contributions_minor"`
+	PayrollCostMinor           int64     `json:"payroll_cost_minor"`
+	JournalTransactionID       string    `json:"journal_transaction_id,omitempty"`
+}
+
 type accountActivity struct {
 	AccountID   string
 	AccountCode string
@@ -160,6 +194,10 @@ type accountActivity struct {
 
 func NewReportService(db *gorm.DB) ReportService {
 	return ReportService{db: db}
+}
+
+func NewReportServiceWithEmail(db *gorm.DB, emailSender EmailSender) ReportService {
+	return ReportService{db: db, emailSender: emailSender}
 }
 
 func (s ReportService) TrialBalance(ctx context.Context, organizationID string, asOf time.Time) (TrialBalanceReport, error) {
@@ -384,6 +422,161 @@ func (s ReportService) TaxSummary(ctx context.Context, organizationID string, fr
 		report.Rows = append(report.Rows, row)
 	}
 	return report, nil
+}
+
+func (s ReportService) PayrollSummary(ctx context.Context, organizationID string, from time.Time, to time.Time) (PayrollSummaryReport, error) {
+	var runs []domain.PayrollRun
+	if err := s.db.WithContext(ctx).
+		Preload("Items").
+		Where("organization_id = ? AND status = ? AND pay_date >= ? AND pay_date <= ?", organizationID, domain.PayrollRunStatusPosted, from, to).
+		Order("pay_date ASC, run_number ASC").
+		Find(&runs).Error; err != nil {
+		return PayrollSummaryReport{}, err
+	}
+
+	report := PayrollSummaryReport{FromDate: from, ToDate: to, Rows: make([]PayrollSummaryRow, 0, len(runs))}
+	for _, run := range runs {
+		payrollCost := run.PayrollCostMinor
+		if payrollCost == 0 {
+			payrollCost = run.GrossPayMinor + run.EmployerContributionsMinor
+		}
+		journalTransactionID := ""
+		if run.JournalTransactionID != nil {
+			journalTransactionID = *run.JournalTransactionID
+		}
+		row := PayrollSummaryRow{
+			PayrollRunID:               run.ID,
+			RunNumber:                  run.RunNumber,
+			PeriodStart:                run.PeriodStart,
+			PeriodEnd:                  run.PeriodEnd,
+			PayDate:                    run.PayDate,
+			Currency:                   run.Currency,
+			EmployeeCount:              len(run.Items),
+			GrossPayMinor:              run.GrossPayMinor,
+			DeductionsMinor:            run.DeductionsMinor,
+			NetPayMinor:                run.NetPayMinor,
+			EmployerContributionsMinor: run.EmployerContributionsMinor,
+			PayrollCostMinor:           payrollCost,
+			JournalTransactionID:       journalTransactionID,
+		}
+		report.Rows = append(report.Rows, row)
+		report.TotalRuns++
+		report.TotalEmployees += row.EmployeeCount
+		report.TotalGrossPayMinor += row.GrossPayMinor
+		report.TotalDeductionsMinor += row.DeductionsMinor
+		report.TotalNetPayMinor += row.NetPayMinor
+		report.TotalEmployerContributionsMinor += row.EmployerContributionsMinor
+		report.TotalPayrollCostMinor += row.PayrollCostMinor
+	}
+	return report, nil
+}
+
+func (s ReportService) PayrollSummaryCSV(ctx context.Context, organizationID string, from time.Time, to time.Time) ([]byte, string, error) {
+	report, err := s.PayrollSummary(ctx, organizationID, from, to)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	_ = writer.Write([]string{"Run", "Period start", "Period end", "Pay date", "Currency", "Employees", "Gross minor", "Deductions minor", "Net minor", "Employer contributions minor", "Payroll cost minor", "Journal transaction ID"})
+	for _, row := range report.Rows {
+		_ = writer.Write([]string{
+			row.RunNumber,
+			formatReportDate(row.PeriodStart),
+			formatReportDate(row.PeriodEnd),
+			formatReportDate(row.PayDate),
+			row.Currency,
+			strconv.Itoa(row.EmployeeCount),
+			strconv.FormatInt(row.GrossPayMinor, 10),
+			strconv.FormatInt(row.DeductionsMinor, 10),
+			strconv.FormatInt(row.NetPayMinor, 10),
+			strconv.FormatInt(row.EmployerContributionsMinor, 10),
+			strconv.FormatInt(row.PayrollCostMinor, 10),
+			row.JournalTransactionID,
+		})
+	}
+	_ = writer.Write([]string{
+		"Total",
+		"",
+		"",
+		"",
+		"",
+		strconv.Itoa(report.TotalEmployees),
+		strconv.FormatInt(report.TotalGrossPayMinor, 10),
+		strconv.FormatInt(report.TotalDeductionsMinor, 10),
+		strconv.FormatInt(report.TotalNetPayMinor, 10),
+		strconv.FormatInt(report.TotalEmployerContributionsMinor, 10),
+		strconv.FormatInt(report.TotalPayrollCostMinor, 10),
+		"",
+	})
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, "", err
+	}
+	filename := "payroll-summary-" + from.Format("2006-01-02") + "-to-" + to.Format("2006-01-02") + ".csv"
+	return buffer.Bytes(), filename, nil
+}
+
+func (s ReportService) PayrollStatutoryComponentCSV(ctx context.Context, organizationID string, from time.Time, to time.Time, componentCode string) ([]byte, string, error) {
+	code := strings.ToUpper(strings.TrimSpace(componentCode))
+	if code == "" {
+		code = "TDS"
+	}
+
+	var runs []domain.PayrollRun
+	if err := s.db.WithContext(ctx).
+		Preload("Items.Employee").
+		Preload("Items.Components").
+		Where("organization_id = ? AND status = ? AND pay_date >= ? AND pay_date <= ?", organizationID, domain.PayrollRunStatusPosted, from, to).
+		Order("pay_date ASC, run_number ASC").
+		Find(&runs).Error; err != nil {
+		return nil, "", err
+	}
+
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	_ = writer.Write([]string{"Run", "Period start", "Period end", "Pay date", "Employee code", "Employee name", "PAN", "UAN", "Component code", "Component name", "Amount minor", "Gross pay minor", "Net pay minor"})
+	var totalAmount int64
+	for _, run := range runs {
+		for _, item := range run.Items {
+			for _, component := range item.Components {
+				if !component.IsStatutory || strings.ToUpper(component.Code) != code {
+					continue
+				}
+				totalAmount += component.AmountMinor
+				_ = writer.Write([]string{
+					run.RunNumber,
+					formatReportDate(run.PeriodStart),
+					formatReportDate(run.PeriodEnd),
+					formatReportDate(run.PayDate),
+					item.Employee.EmployeeCode,
+					item.Employee.DisplayName,
+					item.Employee.PAN,
+					item.Employee.UAN,
+					component.Code,
+					component.Name,
+					strconv.FormatInt(component.AmountMinor, 10),
+					strconv.FormatInt(item.GrossPayMinor, 10),
+					strconv.FormatInt(item.NetPayMinor, 10),
+				})
+			}
+		}
+	}
+	_ = writer.Write([]string{"Total", "", "", "", "", "", "", "", code, "", strconv.FormatInt(totalAmount, 10), "", ""})
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, "", err
+	}
+	filename := "payroll-" + strings.ToLower(code) + "-statutory-" + from.Format("2006-01-02") + "-to-" + to.Format("2006-01-02") + ".csv"
+	return buffer.Bytes(), filename, nil
+}
+
+func formatReportDate(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Format("2006-01-02")
 }
 
 func (s ReportService) cashFlowRows(ctx context.Context, organizationID string, from time.Time, to time.Time) ([]CashFlowRow, error) {

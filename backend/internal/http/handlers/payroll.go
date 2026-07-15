@@ -23,6 +23,9 @@ type createPayrollRunRequest struct {
 	PayrollExpenseAccountID     string                     `json:"payroll_expense_account_id" binding:"required"`
 	PayrollLiabilityAccountID   string                     `json:"payroll_liability_account_id" binding:"required"`
 	DeductionLiabilityAccountID string                     `json:"deduction_liability_account_id" binding:"required"`
+	EmployerExpenseAccountID    string                     `json:"employer_expense_account_id"`
+	EmployerLiabilityAccountID  string                     `json:"employer_liability_account_id"`
+	EmployerContributionsMinor  int64                      `json:"employer_contributions_minor" binding:"min=0"`
 	Items                       []createPayrollItemRequest `json:"items" binding:"required,min=1"`
 }
 
@@ -43,19 +46,33 @@ type createPayrollComponentRequest struct {
 }
 
 type previewIndiaPayrollRequest struct {
-	BasicMinor           int64 `json:"basic_minor" binding:"min=0"`
-	HRAMinor             int64 `json:"hra_minor" binding:"min=0"`
-	SpecialMinor         int64 `json:"special_minor" binding:"min=0"`
-	BonusMinor           int64 `json:"bonus_minor" binding:"min=0"`
-	ReimbursementMinor   int64 `json:"reimbursement_minor" binding:"min=0"`
-	EmployeePFEnabled    bool  `json:"employee_pf_enabled"`
-	EmployeePFRateBps    int64 `json:"employee_pf_rate_bps" binding:"min=0"`
-	PFWageCeilingMinor   int64 `json:"pf_wage_ceiling_minor" binding:"min=0"`
-	EmployeeESIEnabled   bool  `json:"employee_esi_enabled"`
-	EmployeeESIRateBps   int64 `json:"employee_esi_rate_bps" binding:"min=0"`
-	ESIGrossLimitMinor   int64 `json:"esi_gross_limit_minor" binding:"min=0"`
-	ProfessionalTaxMinor int64 `json:"professional_tax_minor" binding:"min=0"`
-	TDSMinor             int64 `json:"tds_minor" binding:"min=0"`
+	BasicMinor           int64                        `json:"basic_minor" binding:"min=0"`
+	HRAMinor             int64                        `json:"hra_minor" binding:"min=0"`
+	SpecialMinor         int64                        `json:"special_minor" binding:"min=0"`
+	BonusMinor           int64                        `json:"bonus_minor" binding:"min=0"`
+	ReimbursementMinor   int64                        `json:"reimbursement_minor" binding:"min=0"`
+	EmployeePFEnabled    bool                         `json:"employee_pf_enabled"`
+	EmployeePFRateBps    int64                        `json:"employee_pf_rate_bps" binding:"min=0"`
+	PFWageCeilingMinor   int64                        `json:"pf_wage_ceiling_minor" binding:"min=0"`
+	EmployerPFEnabled    bool                         `json:"employer_pf_enabled"`
+	EmployerPFRateBps    int64                        `json:"employer_pf_rate_bps" binding:"min=0"`
+	EmployeeESIEnabled   bool                         `json:"employee_esi_enabled"`
+	EmployeeESIRateBps   int64                        `json:"employee_esi_rate_bps" binding:"min=0"`
+	EmployerESIEnabled   bool                         `json:"employer_esi_enabled"`
+	EmployerESIRateBps   int64                        `json:"employer_esi_rate_bps" binding:"min=0"`
+	ESIGrossLimitMinor   int64                        `json:"esi_gross_limit_minor" binding:"min=0"`
+	ProfessionalTaxMinor int64                        `json:"professional_tax_minor" binding:"min=0"`
+	TDSRateBps           int64                        `json:"tds_rate_bps" binding:"min=0"`
+	TDSMinor             int64                        `json:"tds_minor" binding:"min=0"`
+	TDSAnnualIncomeMinor int64                        `json:"tds_annual_income_minor" binding:"min=0"`
+	TDSPeriodsInYear     int64                        `json:"tds_periods_in_year" binding:"min=0"`
+	TDSSlabs             []previewIndiaTDSSlabRequest `json:"tds_slabs"`
+}
+
+type previewIndiaTDSSlabRequest struct {
+	FromMinor int64 `json:"from_minor" binding:"min=0"`
+	ToMinor   int64 `json:"to_minor" binding:"min=0"`
+	RateBps   int64 `json:"rate_bps" binding:"min=0"`
 }
 
 func NewPayrollHandler(payroll services.PayrollService) PayrollHandler {
@@ -64,7 +81,9 @@ func NewPayrollHandler(payroll services.PayrollService) PayrollHandler {
 
 func (h PayrollHandler) RegisterReadRoutes(router gin.IRoutes) {
 	router.GET("/payroll/runs", h.ListRuns)
+	router.GET("/payroll/india-professional-tax-presets", h.IndiaProfessionalTaxPresets)
 	router.GET("/payroll/runs/:payrollRunId/items/:payrollItemId/payslip", h.PayslipPreview)
+	router.GET("/payroll/runs/:payrollRunId/items/:payrollItemId/payslip.pdf", h.DownloadPayslipPDF)
 }
 
 func (h PayrollHandler) RegisterWriteRoutes(router gin.IRoutes) {
@@ -82,6 +101,10 @@ func (h PayrollHandler) ListRuns(c *gin.Context) {
 	c.JSON(http.StatusOK, runs)
 }
 
+func (h PayrollHandler) IndiaProfessionalTaxPresets(c *gin.Context) {
+	c.JSON(http.StatusOK, h.payroll.IndiaProfessionalTaxPresets())
+}
+
 func (h PayrollHandler) PayslipPreview(c *gin.Context) {
 	preview, err := h.payroll.PayslipPreview(
 		c.Request.Context(),
@@ -95,6 +118,23 @@ func (h PayrollHandler) PayslipPreview(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, preview)
+}
+
+func (h PayrollHandler) DownloadPayslipPDF(c *gin.Context) {
+	pdf, filename, err := h.payroll.PayslipPDF(
+		c.Request.Context(),
+		c.Param("organizationId"),
+		c.Param("payrollRunId"),
+		c.Param("payrollItemId"),
+	)
+	if err != nil {
+		status, code := payrollErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "application/pdf", pdf)
 }
 
 func (h PayrollHandler) CreateRun(c *gin.Context) {
@@ -151,6 +191,9 @@ func (h PayrollHandler) CreateRun(c *gin.Context) {
 		PayrollExpenseAccountID:     request.PayrollExpenseAccountID,
 		PayrollLiabilityAccountID:   request.PayrollLiabilityAccountID,
 		DeductionLiabilityAccountID: request.DeductionLiabilityAccountID,
+		EmployerExpenseAccountID:    request.EmployerExpenseAccountID,
+		EmployerLiabilityAccountID:  request.EmployerLiabilityAccountID,
+		EmployerContributionsMinor:  request.EmployerContributionsMinor,
 		Items:                       items,
 	})
 	if err != nil {
@@ -168,6 +211,15 @@ func (h PayrollHandler) PreviewIndiaPayroll(c *gin.Context) {
 		return
 	}
 
+	tdsSlabs := make([]services.IndiaTDSSlabInput, 0, len(request.TDSSlabs))
+	for _, slab := range request.TDSSlabs {
+		tdsSlabs = append(tdsSlabs, services.IndiaTDSSlabInput{
+			FromMinor: slab.FromMinor,
+			ToMinor:   slab.ToMinor,
+			RateBps:   slab.RateBps,
+		})
+	}
+
 	preview := h.payroll.PreviewIndiaPayroll(services.IndiaPayrollPreviewInput{
 		BasicMinor:           request.BasicMinor,
 		HRAMinor:             request.HRAMinor,
@@ -177,11 +229,19 @@ func (h PayrollHandler) PreviewIndiaPayroll(c *gin.Context) {
 		EmployeePFEnabled:    request.EmployeePFEnabled,
 		EmployeePFRateBps:    request.EmployeePFRateBps,
 		PFWageCeilingMinor:   request.PFWageCeilingMinor,
+		EmployerPFEnabled:    request.EmployerPFEnabled,
+		EmployerPFRateBps:    request.EmployerPFRateBps,
 		EmployeeESIEnabled:   request.EmployeeESIEnabled,
 		EmployeeESIRateBps:   request.EmployeeESIRateBps,
+		EmployerESIEnabled:   request.EmployerESIEnabled,
+		EmployerESIRateBps:   request.EmployerESIRateBps,
 		ESIGrossLimitMinor:   request.ESIGrossLimitMinor,
 		ProfessionalTaxMinor: request.ProfessionalTaxMinor,
+		TDSRateBps:           request.TDSRateBps,
 		TDSMinor:             request.TDSMinor,
+		TDSAnnualIncomeMinor: request.TDSAnnualIncomeMinor,
+		TDSPeriodsInYear:     request.TDSPeriodsInYear,
+		TDSSlabs:             tdsSlabs,
 	})
 	c.JSON(http.StatusOK, preview)
 }

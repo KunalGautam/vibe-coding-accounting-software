@@ -77,6 +77,28 @@ paths:
                 $ref: '#/components/schemas/AuthTokenResponse'
         default:
           $ref: '#/components/responses/Error'
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register a new organization and owner account
+      description: Disabled by default. Requires SELF_SERVICE_REGISTRATION_ENABLED=true.
+      operationId: registerOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapFirstAdminRequest'
+      responses:
+        '201':
+          description: Organization registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapFirstAdminResponse'
+        default:
+          $ref: '#/components/responses/Error'
   /auth/refresh:
     post:
       tags: [Auth]
@@ -96,6 +118,119 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthTokenResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Revoke a refresh token
+      description: Revokes the supplied refresh token so it cannot be used again.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Refresh token revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeSessionResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/sessions/revoke-all:
+    post:
+      tags: [Auth]
+      summary: Revoke all sessions for the current user
+      description: Revokes every active refresh token belonging to the authenticated user.
+      operationId: revokeAllSessions
+      responses:
+        '200':
+          description: Sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeAllSessionsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/mfa/setup:
+    post:
+      tags: [Auth]
+      summary: Generate MFA setup secret
+      description: Generates or rotates a TOTP MFA secret for the authenticated user and returns an otpauth URI for authenticator apps.
+      operationId: setupMFA
+      responses:
+        '200':
+          description: MFA setup secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFASetupResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/mfa/enable:
+    post:
+      tags: [Auth]
+      summary: Enable MFA for the current user
+      operationId: enableMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFACodeRequest'
+      responses:
+        '200':
+          description: MFA enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFAStatusResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/mfa/disable:
+    post:
+      tags: [Auth]
+      summary: Disable MFA for the current user
+      operationId: disableMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFACodeRequest'
+      responses:
+        '200':
+          description: MFA disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFAStatusResponse'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/mfa/recovery-codes/regenerate:
+    post:
+      tags: [Auth]
+      summary: Regenerate one-time MFA recovery codes
+      description: Requires a current authenticator code. Old recovery codes are invalidated and the new codes are returned once.
+      operationId: regenerateMFARecoveryCodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFACodeRequest'
+      responses:
+        '200':
+          description: Recovery codes regenerated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFAStatusResponse'
         default:
           $ref: '#/components/responses/Error'
   /auth/password-reset/request:
@@ -1085,7 +1220,7 @@ paths:
     get:
       tags: [Payroll]
       summary: Preview a payroll item payslip
-      description: Returns printable payslip data for one employee item in a payroll run. PDF rendering can be layered on top of this stable data contract.
+      description: Returns printable payslip data for one employee item in a payroll run.
       operationId: getPayslipPreview
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
@@ -1108,6 +1243,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PayslipPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/runs/{payrollRunId}/items/{payrollItemId}/payslip.pdf:
+    get:
+      tags: [Payroll]
+      summary: Download a payroll item payslip PDF
+      description: Generates a compact payslip PDF from the same payroll item data used by the JSON payslip preview.
+      operationId: downloadPayslipPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: payrollRunId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: payrollItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payslip PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/payroll/runs/{payrollRunId}/post:
@@ -1157,6 +1322,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IndiaPayrollPreview'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/payroll/india-professional-tax-presets:
+    get:
+      tags: [Payroll]
+      summary: List India professional tax starter presets
+      description: >
+        Returns editable starter monthly professional-tax preset amounts for
+        common India states. These are implementation aids only; admins should
+        verify current state slabs and applicability before filing payroll.
+      operationId: listIndiaProfessionalTaxPresets
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: India professional tax presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IndiaProfessionalTaxPreset'
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/employees:
@@ -1370,6 +1557,24 @@ paths:
                 $ref: '#/components/schemas/TrialBalanceReport'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/trial-balance.pdf:
+    get:
+      tags: [Reports]
+      summary: Download trial balance PDF
+      operationId: downloadTrialBalancePDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Trial balance PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/profit-and-loss:
     get:
       tags: [Reports]
@@ -1388,6 +1593,25 @@ paths:
                 $ref: '#/components/schemas/ProfitAndLossReport'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/profit-and-loss.pdf:
+    get:
+      tags: [Reports]
+      summary: Download profit and loss PDF
+      operationId: downloadProfitAndLossPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Profit and loss PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/balance-sheet:
     get:
       tags: [Reports]
@@ -1403,6 +1627,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BalanceSheetReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/balance-sheet.pdf:
+    get:
+      tags: [Reports]
+      summary: Download balance sheet PDF
+      operationId: downloadBalanceSheetPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Balance sheet PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/cash-flow:
@@ -1491,6 +1733,141 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaxSummaryReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/payroll-summary:
+    get:
+      tags: [Reports, Payroll]
+      summary: Generate posted payroll summary report
+      description: Aggregates posted payroll runs by pay date for payroll cost, employee deduction, net pay, and employer contribution review.
+      operationId: getPayrollSummary
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Payroll summary report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollSummaryReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/payroll-summary.csv:
+    get:
+      tags: [Reports, Payroll]
+      summary: Download posted payroll summary as CSV
+      description: Exports posted payroll summary rows and totals in a generic statutory-review CSV format.
+      operationId: downloadPayrollSummaryCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Payroll summary CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/payroll-statutory-components.csv:
+    get:
+      tags: [Reports, Payroll]
+      summary: Download payroll statutory component CSV
+      description: >
+        Exports posted payroll item rows for one statutory component code such
+        as TDS, PF, ESI, or PT, including employee PAN/UAN identifiers for
+        filing-review workflows.
+      operationId: downloadPayrollStatutoryComponentCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: component
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [TDS, PF, ESI, PT]
+          description: Statutory payroll component code to export.
+      responses:
+        '200':
+          description: Payroll statutory component CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/scheduled:
+    get:
+      tags: [Reports]
+      summary: List scheduled reports
+      description: Lists recurring report schedules for core financial statement snapshots.
+      operationId: listScheduledReports
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Scheduled reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduledReport'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Reports]
+      summary: Create scheduled report
+      description: Creates a recurring schedule for trial balance, profit and loss, or balance sheet snapshots.
+      operationId: createScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduledReportRequest'
+      responses:
+        '201':
+          description: Scheduled report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduledReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/scheduled/{scheduledReportId}/runs:
+    get:
+      tags: [Reports]
+      summary: List scheduled report runs
+      description: Lists stored JSON snapshots and run status history for one scheduled report.
+      operationId: listScheduledReportRuns
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: scheduledReportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Scheduled report runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduledReportRun'
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/budgets:
@@ -1760,6 +2137,153 @@ paths:
                 $ref: '#/components/schemas/InvestmentPrice'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import:
+    post:
+      tags: [Investments]
+      summary: Import investment market prices from CSV
+      description: Accepts CSV text with columns `symbol,price_date,price_minor,currency,source`; header row is optional and duplicate symbol/date rows update existing prices.
+      operationId: importInvestmentPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported investment prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/amfi:
+    post:
+      tags: [Investments]
+      summary: Import India AMFI mutual fund NAV feed text
+      description: Parses AMFI semicolon-delimited NAV feed rows and imports prices using scheme code, growth ISIN, or scheme name as the local investment symbol.
+      operationId: importAMFINAV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportAMFINAVRequest'
+      responses:
+        '201':
+          description: Imported AMFI NAV prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/yahoo:
+    post:
+      tags: [Investments]
+      summary: Import Yahoo Finance historical price CSV
+      description: Parses Yahoo Finance historical CSV rows with Date and Close columns. Provide `symbol` for raw single-symbol downloads, or include a Symbol/Ticker column for multi-symbol files.
+      operationId: importYahooFinancePrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Yahoo Finance prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/dividends:
+    get:
+      tags: [Investments]
+      summary: List investment dividends
+      operationId: listInvestmentDividends
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Investment dividends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentDividend'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Investments]
+      summary: Record an investment dividend
+      operationId: createInvestmentDividend
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentDividendRequest'
+      responses:
+        '201':
+          description: Created investment dividend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentDividend'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/corporate-actions:
+    get:
+      tags: [Investments]
+      summary: List investment corporate actions
+      operationId: listInvestmentCorporateActions
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      responses:
+        '200':
+          description: Investment corporate actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentCorporateAction'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Investments]
+      summary: Apply an investment corporate action to open lots
+      operationId: createInvestmentCorporateAction
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestmentCorporateActionRequest'
+      responses:
+        '201':
+          description: Applied investment corporate action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentCorporateAction'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/realized-gains:
     get:
       tags: [Reports, Investments]
@@ -1776,6 +2300,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RealizedGainsReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-dividends:
+    get:
+      tags: [Reports, Investments]
+      summary: Get investment dividend income report
+      operationId: getInvestmentDividends
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Investment dividend report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentDividendReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-corporate-actions:
+    get:
+      tags: [Reports, Investments]
+      summary: Get investment corporate-action report
+      operationId: getInvestmentCorporateActions
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Investment corporate-action report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentCorporateActionReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-corporate-actions.csv:
+    get:
+      tags: [Reports, Investments]
+      summary: Download investment corporate-action report as CSV
+      operationId: downloadInvestmentCorporateActionsCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Investment corporate-action CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-tax-lots:
+    get:
+      tags: [Reports, Investments]
+      summary: Get investment tax-lot report
+      operationId: getInvestmentTaxLots
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Investment tax-lot report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentTaxLotReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/investment-tax-adjustments:
+    get:
+      tags: [Reports, Investments]
+      summary: Get investment tax adjustment candidates
+      description: Finds realized investment losses with replacement purchases in a configurable post-sale window, returning potential deferred-loss review rows without mutating posted ledger entries.
+      operationId: getInvestmentTaxAdjustments
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: window_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 30
+          description: Number of days after a loss sale to search for replacement purchases.
+      responses:
+        '200':
+          description: Investment tax adjustment candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentTaxAdjustmentReport'
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/investment-valuation:
@@ -2231,6 +2854,9 @@ components:
         password:
           type: string
           format: password
+        mfa_code:
+          type: string
+          description: Required when MFA is enabled for the user.
     BootstrapFirstAdminRequest:
       type: object
       required: [organization_name, admin_name, admin_email, admin_password]
@@ -2294,6 +2920,49 @@ components:
       properties:
         refresh_token:
           type: string
+    RevokeSessionResponse:
+      type: object
+      required: [revoked]
+      properties:
+        revoked:
+          type: boolean
+    RevokeAllSessionsResponse:
+      type: object
+      required: [revoked, revoked_count]
+      properties:
+        revoked:
+          type: boolean
+        revoked_count:
+          type: integer
+    MFASetupResponse:
+      type: object
+      required: [secret, otpauth_url, mfa_enabled]
+      properties:
+        secret:
+          type: string
+        otpauth_url:
+          type: string
+        mfa_enabled:
+          type: boolean
+    MFACodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          description: Current 6-digit authenticator code, or a one-time recovery code where supported.
+    MFAStatusResponse:
+      type: object
+      required: [mfa_enabled]
+      properties:
+        mfa_enabled:
+          type: boolean
+        recovery_codes:
+          type: array
+          description: One-time recovery codes returned only immediately after enabling MFA or regenerating codes.
+          items:
+            type: string
     RequestPasswordResetRequest:
       type: object
       required: [email]
@@ -2303,13 +2972,16 @@ components:
           format: email
     RequestPasswordResetResponse:
       type: object
-      required: [requested]
+      required: [requested, email_sent]
       properties:
         requested:
           type: boolean
+        email_sent:
+          type: boolean
+          description: True when the reset instructions were sent through configured email delivery.
         reset_token:
           type: string
-          description: Development/staging reset token for local delivery until email transport is configured.
+          description: Development/staging reset token. Omitted when email delivery is configured and token exposure is disabled.
         reset_token_expires_at:
           type: string
           format: date-time
@@ -3641,7 +4313,7 @@ components:
           type: string
     PayrollRun:
       type: object
-      required: [id, organization_id, run_number, period_start, period_end, pay_date, status, gross_pay_minor, deductions_minor, net_pay_minor]
+      required: [id, organization_id, run_number, period_start, period_end, pay_date, status, gross_pay_minor, deductions_minor, net_pay_minor, employer_contributions_minor, payroll_cost_minor]
       properties:
         id:
           type: string
@@ -3675,6 +4347,12 @@ components:
         deduction_liability_account_id:
           type: string
           format: uuid
+        employer_expense_account_id:
+          type: string
+          format: uuid
+        employer_liability_account_id:
+          type: string
+          format: uuid
         gross_pay_minor:
           type: integer
           format: int64
@@ -3682,6 +4360,12 @@ components:
           type: integer
           format: int64
         net_pay_minor:
+          type: integer
+          format: int64
+        employer_contributions_minor:
+          type: integer
+          format: int64
+        payroll_cost_minor:
           type: integer
           format: int64
         journal_transaction_id:
@@ -3825,6 +4509,14 @@ components:
           format: int64
           description: PF wage ceiling in minor currency units. Zero uses the API default starter value.
           example: 1500000
+        employer_pf_enabled:
+          type: boolean
+          default: true
+        employer_pf_rate_bps:
+          type: integer
+          format: int64
+          description: Employer PF rate in basis points. Zero uses the API default starter value.
+          example: 1200
         employee_esi_enabled:
           type: boolean
           default: true
@@ -3833,6 +4525,14 @@ components:
           format: int64
           description: Employee ESI rate in basis points. Zero uses the API default starter value.
           example: 75
+        employer_esi_enabled:
+          type: boolean
+          default: true
+        employer_esi_rate_bps:
+          type: integer
+          format: int64
+          description: Employer ESI rate in basis points. Zero uses the API default starter value.
+          example: 325
         esi_gross_limit_minor:
           type: integer
           format: int64
@@ -3843,14 +4543,34 @@ components:
           format: int64
           description: Fixed professional tax deduction in minor currency units.
           example: 20000
+        tds_rate_bps:
+          type: integer
+          format: int64
+          description: Optional flat TDS rate in basis points used when tds_minor is zero. This is a configurable starter rule, not a statutory slab engine.
+          example: 1000
         tds_minor:
           type: integer
           format: int64
-          description: Fixed TDS deduction in minor currency units.
+          description: Fixed TDS deduction in minor currency units. Takes precedence over tds_rate_bps when provided.
           example: 150000
+        tds_annual_income_minor:
+          type: integer
+          format: int64
+          description: Annual taxable income used for configurable progressive TDS slab calculation when fixed TDS and flat TDS rate are not provided.
+          example: 90000000
+        tds_periods_in_year:
+          type: integer
+          format: int64
+          description: Number of payroll periods used to convert annual slab tax into per-period TDS. Zero uses the API default of 12.
+          example: 12
+        tds_slabs:
+          type: array
+          description: Configurable progressive TDS slabs. This is policy data supplied by admins, not hardcoded statutory logic.
+          items:
+            $ref: '#/components/schemas/IndiaTDSSlabInput'
     IndiaPayrollPreview:
       type: object
-      required: [gross_pay_minor, deductions_minor, net_pay_minor, components, rule_summary]
+      required: [gross_pay_minor, deductions_minor, net_pay_minor, employer_contributions_minor, payroll_cost_minor, components, employer_contributions, rule_summary]
       properties:
         gross_pay_minor:
           type: integer
@@ -3861,15 +4581,76 @@ components:
         net_pay_minor:
           type: integer
           format: int64
+        employer_contributions_minor:
+          type: integer
+          format: int64
+        payroll_cost_minor:
+          type: integer
+          format: int64
         components:
           type: array
           items:
             $ref: '#/components/schemas/CreatePayrollComponentRequest'
+        employer_contributions:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndiaPayrollEmployerContribution'
         rule_summary:
           $ref: '#/components/schemas/IndiaPayrollRuleSummary'
+    IndiaPayrollEmployerContribution:
+      type: object
+      required: [code, name, amount_minor, is_statutory]
+      properties:
+        code:
+          type: string
+          example: ER_PF
+        name:
+          type: string
+          example: Employer Provident Fund
+        amount_minor:
+          type: integer
+          format: int64
+        is_statutory:
+          type: boolean
+    IndiaTDSSlabInput:
+      type: object
+      required: [from_minor, rate_bps]
+      properties:
+        from_minor:
+          type: integer
+          format: int64
+          description: Inclusive lower bound of this slab in minor currency units.
+          example: 30000000
+        to_minor:
+          type: integer
+          format: int64
+          description: Exclusive upper bound in minor currency units. Use zero or omit for an open-ended top slab.
+          example: 60000000
+        rate_bps:
+          type: integer
+          format: int64
+          description: Slab rate in basis points.
+          example: 500
+    IndiaProfessionalTaxPreset:
+      type: object
+      required: [state_code, state_name, monthly_amount_minor, notes]
+      properties:
+        state_code:
+          type: string
+          example: KA
+        state_name:
+          type: string
+          example: Karnataka
+        monthly_amount_minor:
+          type: integer
+          format: int64
+          example: 20000
+        notes:
+          type: string
+          example: Starter monthly preset; verify current slabs before filing.
     IndiaPayrollRuleSummary:
       type: object
-      required: [employee_pf_enabled, employee_pf_rate_bps, pf_wage_ceiling_minor, employee_esi_enabled, employee_esi_rate_bps, esi_gross_limit_minor, professional_tax_minor, tds_minor]
+      required: [employee_pf_enabled, employee_pf_rate_bps, pf_wage_ceiling_minor, employer_pf_enabled, employer_pf_rate_bps, employee_esi_enabled, employee_esi_rate_bps, employer_esi_enabled, employer_esi_rate_bps, esi_gross_limit_minor, professional_tax_minor, tds_rate_bps, tds_minor, tds_annual_income_minor, tds_annual_tax_minor, tds_periods_in_year, tds_slab_count]
       properties:
         employee_pf_enabled:
           type: boolean
@@ -3879,9 +4660,19 @@ components:
         pf_wage_ceiling_minor:
           type: integer
           format: int64
+        employer_pf_enabled:
+          type: boolean
+        employer_pf_rate_bps:
+          type: integer
+          format: int64
         employee_esi_enabled:
           type: boolean
         employee_esi_rate_bps:
+          type: integer
+          format: int64
+        employer_esi_enabled:
+          type: boolean
+        employer_esi_rate_bps:
           type: integer
           format: int64
         esi_gross_limit_minor:
@@ -3890,9 +4681,23 @@ components:
         professional_tax_minor:
           type: integer
           format: int64
+        tds_rate_bps:
+          type: integer
+          format: int64
         tds_minor:
           type: integer
           format: int64
+        tds_annual_income_minor:
+          type: integer
+          format: int64
+        tds_annual_tax_minor:
+          type: integer
+          format: int64
+        tds_periods_in_year:
+          type: integer
+          format: int64
+        tds_slab_count:
+          type: integer
     CreatePayrollRunRequest:
       type: object
       required: [run_number, period_start, period_end, pay_date, payroll_expense_account_id, payroll_liability_account_id, deduction_liability_account_id, items]
@@ -3921,6 +4726,19 @@ components:
         deduction_liability_account_id:
           type: string
           format: uuid
+        employer_expense_account_id:
+          type: string
+          format: uuid
+          description: Required when employer_contributions_minor is greater than zero.
+        employer_liability_account_id:
+          type: string
+          format: uuid
+          description: Required when employer_contributions_minor is greater than zero.
+        employer_contributions_minor:
+          type: integer
+          format: int64
+          description: Employer statutory contribution cost in minor currency units.
+          example: 180000
         items:
           type: array
           minItems: 1
@@ -4479,6 +5297,80 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaxReportRow'
+    PayrollSummaryReport:
+      type: object
+      required: [from_date, to_date, rows, total_runs, total_employees, total_gross_pay_minor, total_deductions_minor, total_net_pay_minor, total_employer_contributions_minor, total_payroll_cost_minor]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollSummaryRow'
+        total_runs:
+          type: integer
+        total_employees:
+          type: integer
+        total_gross_pay_minor:
+          type: integer
+          format: int64
+        total_deductions_minor:
+          type: integer
+          format: int64
+        total_net_pay_minor:
+          type: integer
+          format: int64
+        total_employer_contributions_minor:
+          type: integer
+          format: int64
+        total_payroll_cost_minor:
+          type: integer
+          format: int64
+    PayrollSummaryRow:
+      type: object
+      required: [payroll_run_id, run_number, period_start, period_end, pay_date, currency, employee_count, gross_pay_minor, deductions_minor, net_pay_minor, employer_contributions_minor, payroll_cost_minor]
+      properties:
+        payroll_run_id:
+          type: string
+          format: uuid
+        run_number:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        pay_date:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          example: INR
+        employee_count:
+          type: integer
+        gross_pay_minor:
+          type: integer
+          format: int64
+        deductions_minor:
+          type: integer
+          format: int64
+        net_pay_minor:
+          type: integer
+          format: int64
+        employer_contributions_minor:
+          type: integer
+          format: int64
+        payroll_cost_minor:
+          type: integer
+          format: int64
+        journal_transaction_id:
+          type: string
+          format: uuid
     TaxReportRow:
       type: object
       required: [name, output_tax_minor, input_tax_minor, net_payable_minor]
@@ -4501,6 +5393,97 @@ components:
         net_payable_minor:
           type: integer
           format: int64
+    CreateScheduledReportRequest:
+      type: object
+      required: [name, report_type, frequency, next_run_at]
+      properties:
+        name:
+          type: string
+          example: Monthly P&L
+        report_type:
+          type: string
+          enum: [trial_balance, profit_and_loss, balance_sheet]
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        parameters_json:
+          type: string
+          description: Optional JSON string with from_date/to_date or as_of_date in YYYY-MM-DD format.
+          example: '{"from_date":"2026-07-01","to_date":"2026-07-31"}'
+        email_recipients:
+          type: string
+          description: Optional comma, semicolon, or newline separated email recipients for successful scheduled report snapshots.
+          example: owner@example.com, accountant@example.com
+        next_run_at:
+          type: string
+          description: Next run date as YYYY-MM-DD or RFC3339 timestamp.
+          example: "2026-08-01"
+    ScheduledReport:
+      type: object
+      required: [id, organization_id, name, report_type, frequency, next_run_at, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        report_type:
+          type: string
+          enum: [trial_balance, profit_and_loss, balance_sheet]
+        frequency:
+          type: string
+          enum: [daily, weekly, monthly]
+        parameters_json:
+          type: string
+        email_recipients:
+          type: string
+        next_run_at:
+          type: string
+          format: date-time
+        last_run_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+    ScheduledReportRun:
+      type: object
+      required: [id, organization_id, scheduled_report_id, report_type, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        scheduled_report_id:
+          type: string
+          format: uuid
+        report_type:
+          type: string
+          enum: [trial_balance, profit_and_loss, balance_sheet]
+        status:
+          type: string
+          enum: [completed, failed]
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        as_of_date:
+          type: string
+          format: date-time
+        report_json:
+          type: string
+          description: Stored JSON snapshot of the generated report.
+        error_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
     Budget:
       type: object
       required: [id, organization_id, name, start_date, end_date, status]
@@ -4921,6 +5904,142 @@ components:
           type: string
           format: uuid
           nullable: true
+    InvestmentDividend:
+      type: object
+      required: [id, organization_id, account_id, symbol, dividend_date, amount_minor, currency]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        dividend_date:
+          type: string
+          format: date-time
+        amount_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        cash_account_id:
+          type: string
+          format: uuid
+        income_account_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+    CreateInvestmentDividendRequest:
+      type: object
+      required: [account_id, symbol, dividend_date, amount_minor]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        dividend_date:
+          type: string
+          format: date
+        amount_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: INR
+        cash_account_id:
+          type: string
+          format: uuid
+          description: Required with income_account_id when posting dividend income to the ledger.
+        income_account_id:
+          type: string
+          format: uuid
+          description: Required with cash_account_id when posting dividend income to the ledger.
+        notes:
+          type: string
+    InvestmentCorporateAction:
+      type: object
+      required: [id, organization_id, account_id, symbol, action_type, action_date, ratio_numerator, ratio_denominator, affected_lots, quantity_delta_millis, cost_basis_delta_minor]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        action_type:
+          type: string
+          enum: [split, bonus]
+        action_date:
+          type: string
+          format: date-time
+        ratio_numerator:
+          type: integer
+          format: int64
+          example: 2
+        ratio_denominator:
+          type: integer
+          format: int64
+          example: 1
+        affected_lots:
+          type: integer
+          format: int64
+        quantity_delta_millis:
+          type: integer
+          format: int64
+        cost_basis_delta_minor:
+          type: integer
+          format: int64
+          description: Corporate split/bonus actions preserve total cost basis, so this is normally zero.
+        notes:
+          type: string
+    CreateInvestmentCorporateActionRequest:
+      type: object
+      required: [account_id, symbol, action_type, action_date, ratio_numerator, ratio_denominator]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+          example: NIFTYBEES
+        action_type:
+          type: string
+          enum: [split, bonus]
+        action_date:
+          type: string
+          format: date
+        ratio_numerator:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 2
+        ratio_denominator:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        notes:
+          type: string
     InvestmentPrice:
       type: object
       required: [id, organization_id, symbol, price_date, price_minor, currency]
@@ -4965,6 +6084,50 @@ components:
         source:
           type: string
           example: manual
+    ImportInvestmentPricesRequest:
+      type: object
+      required: [csv]
+      properties:
+        csv:
+          type: string
+          description: CSV text with optional header. Columns are symbol, price_date, price_minor, currency, source.
+          example: "symbol,price_date,price_minor,currency\nNIFTYBEES,2026-07-31,7200,INR"
+        source:
+          type: string
+          example: amfi_nav
+        symbol:
+          type: string
+          description: Optional provider-level symbol for single-symbol CSV formats such as Yahoo Finance historical downloads.
+          example: RELIANCE
+    ImportAMFINAVRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: AMFI semicolon-delimited NAV feed text. Rows with N.A. NAV values are ignored.
+          example: "Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\nINF204K01UN5;INF204K01UN5;;Nifty Index Fund Growth;123.4567;31-Jul-2026"
+        symbol_mode:
+          type: string
+          enum: [scheme_code, isin_growth, scheme_name]
+          default: scheme_code
+          description: Which AMFI field should be used as the local investment symbol.
+    InvestmentPriceImportResult:
+      type: object
+      required: [imported, skipped, errors, prices]
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentPrice'
     RealizedGainsReport:
       type: object
       required: [from_date, to_date, rows, total_proceeds_minor, total_cost_basis_minor, total_gain_loss_minor]
@@ -4988,6 +6151,206 @@ components:
         total_gain_loss_minor:
           type: integer
           format: int64
+    InvestmentDividendReport:
+      type: object
+      required: [from_date, to_date, rows, total_amount_minor]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentDividend'
+        total_amount_minor:
+          type: integer
+          format: int64
+    InvestmentCorporateActionReport:
+      type: object
+      required: [from_date, to_date, rows, total_actions, total_affected_lots, total_quantity_delta_millis, total_cost_basis_delta_minor]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentCorporateAction'
+        total_actions:
+          type: integer
+        total_affected_lots:
+          type: integer
+          format: int64
+        total_quantity_delta_millis:
+          type: integer
+          format: int64
+        total_cost_basis_delta_minor:
+          type: integer
+          format: int64
+    InvestmentTaxLotReport:
+      type: object
+      required: [as_of_date, rows, total_quantity_millis, total_remaining_quantity_millis, total_cost_basis_minor, total_remaining_cost_basis_minor, total_proceeds_minor, total_realized_gain_loss_minor]
+      properties:
+        as_of_date:
+          type: string
+          format: date-time
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentTaxLotRow'
+        total_quantity_millis:
+          type: integer
+          format: int64
+        total_remaining_quantity_millis:
+          type: integer
+          format: int64
+        total_cost_basis_minor:
+          type: integer
+          format: int64
+        total_remaining_cost_basis_minor:
+          type: integer
+          format: int64
+        total_proceeds_minor:
+          type: integer
+          format: int64
+        total_realized_gain_loss_minor:
+          type: integer
+          format: int64
+    InvestmentTaxAdjustmentReport:
+      type: object
+      required: [from_date, to_date, rule, window_days, rows, total_loss_minor, total_deferred_loss_minor, total_replacement_quantity_millis]
+      properties:
+        from_date:
+          type: string
+          format: date-time
+        to_date:
+          type: string
+          format: date-time
+        rule:
+          type: string
+          example: loss_repurchase_window
+        window_days:
+          type: integer
+          example: 30
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvestmentTaxAdjustmentRow'
+        total_loss_minor:
+          type: integer
+          format: int64
+        total_deferred_loss_minor:
+          type: integer
+          format: int64
+        total_replacement_quantity_millis:
+          type: integer
+          format: int64
+    InvestmentTaxAdjustmentRow:
+      type: object
+      required: [disposition_id, lot_id, account_id, symbol, sale_date, quantity_millis, proceeds_minor, allocated_cost_basis_minor, realized_loss_minor, replacement_quantity_millis, deferred_loss_minor, replacement_lot_ids, window_start, window_end, currency]
+      properties:
+        disposition_id:
+          type: string
+          format: uuid
+        lot_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        sale_date:
+          type: string
+          format: date-time
+        quantity_millis:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        allocated_cost_basis_minor:
+          type: integer
+          format: int64
+        realized_loss_minor:
+          type: integer
+          format: int64
+        replacement_quantity_millis:
+          type: integer
+          format: int64
+        deferred_loss_minor:
+          type: integer
+          format: int64
+        replacement_lot_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        window_start:
+          type: string
+          format: date-time
+        window_end:
+          type: string
+          format: date-time
+        currency:
+          type: string
+        notes:
+          type: string
+    InvestmentTaxLotRow:
+      type: object
+      required: [lot_id, account_id, symbol, acquisition_date, quantity_millis, remaining_quantity_millis, disposed_quantity_millis, cost_basis_minor, remaining_cost_basis_minor, disposed_cost_basis_minor, proceeds_minor, realized_gain_loss_minor, unit_cost_minor, currency, cost_method]
+      properties:
+        lot_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        security_name:
+          type: string
+        acquisition_date:
+          type: string
+          format: date-time
+        quantity_millis:
+          type: integer
+          format: int64
+        remaining_quantity_millis:
+          type: integer
+          format: int64
+        disposed_quantity_millis:
+          type: integer
+          format: int64
+        cost_basis_minor:
+          type: integer
+          format: int64
+        remaining_cost_basis_minor:
+          type: integer
+          format: int64
+        disposed_cost_basis_minor:
+          type: integer
+          format: int64
+        proceeds_minor:
+          type: integer
+          format: int64
+        realized_gain_loss_minor:
+          type: integer
+          format: int64
+        unit_cost_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        cost_method:
+          type: string
+          enum: [specific_lot, average_cost]
     InvestmentValuationReport:
       type: object
       required: [as_of_date, rows, total_cost_basis_minor, total_market_value_minor, total_unrealized_gain_loss_minor]
@@ -5139,6 +6502,12 @@ components:
           enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
         is_active:
           type: boolean
+        invite_email_sent:
+          type: boolean
+          description: True when an invitation email was sent for this create-user response.
+        invite_email_error:
+          type: string
+          description: Email delivery error when invitation sending was attempted but failed.
     CreateOrganizationUserRequest:
       type: object
       required: [name, email, password, role]
@@ -5218,7 +6587,7 @@ components:
             $ref: '#/components/schemas/BankStatementLine'
     BankStatementLine:
       type: object
-      required: [id, organization_id, account_id, posted_date, amount_minor]
+      required: [id, organization_id, account_id, posted_date, amount_minor, is_duplicate]
       properties:
         id:
           type: string
@@ -5247,6 +6616,14 @@ components:
           type: string
           format: date-time
           nullable: true
+        is_duplicate:
+          type: boolean
+          description: True when this line matches an earlier imported statement-line fingerprint for the same account.
+        duplicate_of_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Earlier statement line this duplicate candidate matched, when known.
     ImportBankStatementRequest:
       type: object
       required: [account_id, lines]

@@ -95,7 +95,51 @@ void main() {
     expect(result.synced, 0);
     expect(result.skipped, 0);
     expect(result.failed.single.operationId, 'expense-local-1');
+    expect(result.conflicts, 0);
     expect(queue.pendingCount, 1);
+    expect(queue.pending.single.retryCount, 1);
+    expect(queue.pending.single.lastError, contains('account missing'));
+    expect(queue.pending.single.hasConflict, false);
+  });
+
+  test('marks conflict failures for manual review', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'expense-local-1',
+        module: 'expenses',
+        action: 'create_draft',
+        createdAt: DateTime.utc(2026, 7, 11),
+        payload: const {
+          'expense_number': 'EXP-MOB-001',
+          'amount_minor': 125000,
+          'expense_account_id': 'acct-expense',
+          'payment_account_id': 'acct-cash',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'error': {'message': 'duplicate expense number'},
+          }),
+          409,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 0);
+    expect(result.failed.single.isConflict, true);
+    expect(result.conflicts, 1);
+    expect(queue.pending.single.retryCount, 1);
+    expect(queue.pending.single.conflictReason, contains('duplicate expense'));
+    expect(queue.pending.single.hasConflict, true);
   });
 
   test('hydrates and saves pending operations through repository', () async {

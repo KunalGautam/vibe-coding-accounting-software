@@ -1428,6 +1428,11 @@ class PendingDraftTile extends StatelessWidget {
     final accountStatus = hasExpenseAccount && hasPaymentAccount
         ? 'Ready to sync'
         : 'Needs posting accounts';
+    final syncStatus = operation.hasConflict
+        ? 'Needs review'
+        : operation.lastError == null
+        ? 'Waiting'
+        : 'Retry queued';
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -1443,8 +1448,21 @@ class PendingDraftTile extends StatelessWidget {
           children: [
             Text(merchantName, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('${formatMinorAsInr(amountMinor)} · $accountStatus'),
+            Text(
+              '${formatMinorAsInr(amountMinor)} · $accountStatus · $syncStatus',
+            ),
             Text(reimbursable ? 'Reimbursable' : 'Not reimbursable'),
+            if (operation.retryCount > 0)
+              Text('Attempts: ${operation.retryCount}'),
+            if (operation.lastAttemptAt != null)
+              Text(
+                'Last attempted: ${formatDateTime(operation.lastAttemptAt!)}',
+              ),
+            if (operation.conflictReason?.trim().isNotEmpty ?? false)
+              Text('Conflict: ${operation.conflictReason}'),
+            if (!operation.hasConflict &&
+                (operation.lastError?.trim().isNotEmpty ?? false))
+              Text('Last error: ${operation.lastError}'),
             if (receiptAttachmentId?.trim().isNotEmpty ?? false)
               Text('Receipt attachment: $receiptAttachmentId'),
             if (taxRateId?.trim().isNotEmpty ?? false)
@@ -1497,6 +1515,15 @@ String formatDateOnly(DateTime date) {
   final month = normalized.month.toString().padLeft(2, '0');
   final day = normalized.day.toString().padLeft(2, '0');
   return '${normalized.year}-$month-$day';
+}
+
+String formatDateTime(DateTime date) {
+  final normalized = date.toLocal();
+  final month = normalized.month.toString().padLeft(2, '0');
+  final day = normalized.day.toString().padLeft(2, '0');
+  final hour = normalized.hour.toString().padLeft(2, '0');
+  final minute = normalized.minute.toString().padLeft(2, '0');
+  return '${normalized.year}-$month-$day $hour:$minute';
 }
 
 String formatQuantityMillis(int quantityMillis) {
@@ -2450,7 +2477,8 @@ class SyncPage extends StatelessWidget {
                   Text(
                     'Last sync: ${lastSyncResult!.synced} synced, '
                     '${lastSyncResult!.skipped} waiting, '
-                    '${lastSyncResult!.failed.length} failed.',
+                    '${lastSyncResult!.failed.length} failed, '
+                    '${lastSyncResult!.conflicts} need review.',
                   ),
                 ],
               ],

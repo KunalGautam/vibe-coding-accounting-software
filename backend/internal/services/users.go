@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"accounting.abhashtech.com/internal/domain"
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +13,9 @@ import (
 var ErrUserAlreadyMember = errors.New("user is already a member of this organization")
 
 type UserService struct {
-	db *gorm.DB
+	db                *gorm.DB
+	emailSender       EmailSender
+	invitationBaseURL string
 }
 
 type CreateOrganizationUserInput struct {
@@ -24,16 +27,22 @@ type CreateOrganizationUserInput struct {
 }
 
 type OrganizationUser struct {
-	UserID         string      `json:"user_id"`
-	OrganizationID string      `json:"organization_id"`
-	Name           string      `json:"name"`
-	Email          string      `json:"email"`
-	Role           domain.Role `json:"role"`
-	IsActive       bool        `json:"is_active"`
+	UserID           string      `json:"user_id"`
+	OrganizationID   string      `json:"organization_id"`
+	Name             string      `json:"name"`
+	Email            string      `json:"email"`
+	Role             domain.Role `json:"role"`
+	IsActive         bool        `json:"is_active"`
+	InviteEmailSent  bool        `json:"invite_email_sent,omitempty"`
+	InviteEmailError string      `json:"invite_email_error,omitempty"`
 }
 
 func NewUserService(db *gorm.DB) UserService {
 	return UserService{db: db}
+}
+
+func NewUserServiceWithOptions(db *gorm.DB, emailSender EmailSender, invitationBaseURL string) UserService {
+	return UserService{db: db, emailSender: emailSender, invitationBaseURL: invitationBaseURL}
 }
 
 func (s UserService) ListOrganizationUsers(ctx context.Context, organizationID string) ([]OrganizationUser, error) {
@@ -73,7 +82,12 @@ func (s UserService) CreateOrganizationUser(ctx context.Context, input CreateOrg
 	}
 
 	var result OrganizationUser
+	var organization domain.Organization
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.First(&organization, "id = ?", input.OrganizationID).Error; err != nil {
+			return err
+		}
+
 		var user domain.User
 		err := tx.Where("email = ?", input.Email).First(&user).Error
 		switch {
@@ -128,5 +142,29 @@ func (s UserService) CreateOrganizationUser(ctx context.Context, input CreateOrg
 			After:          result,
 		})
 	})
-	return result, err
+	if err != nil {
+		return result, err
+	}
+	if s.emailSender != nil {
+		if err := s.emailSender.Send(ctx, s.invitationEmail(result, organization.Name)); err != nil {
+			result.InviteEmailError = err.Error()
+		} else {
+			result.InviteEmailSent = true
+		}
+	}
+	return result, nil
+}
+
+func (s UserService) invitationEmail(user OrganizationUser, organizationName string) EmailMessage {
+	link := strings.TrimSpace(s.invitationBaseURL)
+	body := "You have been added to " + organizationName + " in AbhashTech Accounting as " + string(user.Role) + ".\n\n"
+	if link != "" {
+		body += "Open the app here:\n" + link + "\n\n"
+	}
+	body += "Use the email address " + user.Email + " to sign in. If you do not have your temporary password, contact your organization admin or use the password reset flow.\n"
+	return EmailMessage{
+		To:      user.Email,
+		Subject: "You have been invited to AbhashTech Accounting",
+		Text:    body,
+	}
 }

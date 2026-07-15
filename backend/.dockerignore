@@ -1,0 +1,11 @@
+.git
+.gitrepo
+accounting.db
+*.db
+*.sqlite
+*.sqlite3
+storage/
+tmp/
+coverage/
+*.log
+Dockerfile
