@@ -131,6 +131,21 @@ class AccountingApiClient {
     return createExpense(CreateExpenseDraft.fromSyncOperation(operation));
   }
 
+  Future<InvoiceSummary> createInvoice(CreateInvoiceDraft draft) async {
+    final response = await _send('POST', '/invoices', body: draft.toJson());
+    return InvoiceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvoiceSummary> syncInvoiceDraft(SyncOperation operation) {
+    return createInvoice(CreateInvoiceDraft.fromSyncOperation(operation));
+  }
+
+  Future<AttachmentSummary> syncAttachmentMetadata(SyncOperation operation) {
+    return createAttachment(
+      CreateAttachmentMetadata.fromSyncOperation(operation),
+    );
+  }
+
   Future<List<InvestmentLotSummary>> listInvestmentLots() async {
     final response = await _send('GET', '/investments/lots');
     return _decodeList(response, InvestmentLotSummary.fromJson);
@@ -161,6 +176,12 @@ class AccountingApiClient {
       body: request.toJson(),
     );
     return InvestmentPriceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentPriceSummary> syncInvestmentPrice(SyncOperation operation) {
+    return createInvestmentPrice(
+      CreateInvestmentPriceRequest.fromSyncOperation(operation),
+    );
   }
 
   Future<InvestmentValuationReport> getInvestmentValuation({
@@ -664,6 +685,19 @@ class CreateInvestmentPriceRequest {
   final String currency;
   final String source;
 
+  factory CreateInvestmentPriceRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return CreateInvestmentPriceRequest(
+      symbol: payload['symbol']! as String,
+      priceDate: DateTime.parse(payload['price_date']! as String),
+      priceMinor: payload['price_minor']! as int,
+      currency: payload['currency'] as String? ?? 'INR',
+      source: payload['source'] as String? ?? 'mobile-offline',
+    );
+  }
+
   Map<String, Object?> toJson() {
     return {
       'symbol': symbol,
@@ -904,6 +938,17 @@ class CreateAttachmentMetadata {
   final String storageDriver;
   final int sizeBytes;
 
+  factory CreateAttachmentMetadata.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    return CreateAttachmentMetadata(
+      fileName: payload['file_name']! as String,
+      storageKey: payload['storage_key']! as String,
+      contentType: payload['content_type'] as String? ?? '',
+      storageDriver: payload['storage_driver'] as String? ?? 'local',
+      sizeBytes: payload['size_bytes'] as int? ?? 0,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return {
       'file_name': fileName,
@@ -1067,6 +1112,103 @@ class TaxCalculationComponent {
       percentageBasis: json['percentage_basis'] as int? ?? 0,
       taxAmountMinor: json['tax_amount_minor'] as int? ?? 0,
     );
+  }
+}
+
+class CreateInvoiceDraft {
+  const CreateInvoiceDraft({
+    required this.customerId,
+    required this.invoiceNumber,
+    required this.issueDate,
+    required this.dueDate,
+    required this.accountsReceivableId,
+    required this.lines,
+    this.currency = 'INR',
+    this.taxInclusive = false,
+    this.pdfAttachmentId,
+  });
+
+  final String customerId;
+  final String invoiceNumber;
+  final DateTime issueDate;
+  final DateTime dueDate;
+  final String accountsReceivableId;
+  final List<CreateInvoiceLineDraft> lines;
+  final String currency;
+  final bool taxInclusive;
+  final String? pdfAttachmentId;
+
+  factory CreateInvoiceDraft.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    final lines = (payload['lines'] as List? ?? const [])
+        .cast<Map<String, Object?>>()
+        .map(CreateInvoiceLineDraft.fromJson)
+        .toList(growable: false);
+    return CreateInvoiceDraft(
+      customerId: payload['customer_id']! as String,
+      invoiceNumber: payload['invoice_number'] as String? ?? operation.id,
+      issueDate: DateTime.parse(payload['issue_date']! as String),
+      dueDate: DateTime.parse(payload['due_date']! as String),
+      currency: payload['currency'] as String? ?? 'INR',
+      taxInclusive: payload['tax_inclusive'] as bool? ?? false,
+      accountsReceivableId: payload['accounts_receivable_id']! as String,
+      pdfAttachmentId: payload['pdf_attachment_id'] as String?,
+      lines: lines,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'customer_id': customerId,
+      'invoice_number': invoiceNumber,
+      'issue_date': _dateOnly(issueDate),
+      'due_date': _dateOnly(dueDate),
+      'currency': currency,
+      'tax_inclusive': taxInclusive,
+      'accounts_receivable_id': accountsReceivableId,
+      'pdf_attachment_id': pdfAttachmentId,
+      'lines': lines.map((line) => line.toJson()).toList(growable: false),
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class CreateInvoiceLineDraft {
+  const CreateInvoiceLineDraft({
+    required this.description,
+    required this.quantityMillis,
+    required this.unitPriceMinor,
+    required this.incomeAccountId,
+    this.taxRateId,
+    this.taxGroupId,
+  });
+
+  final String description;
+  final int quantityMillis;
+  final int unitPriceMinor;
+  final String incomeAccountId;
+  final String? taxRateId;
+  final String? taxGroupId;
+
+  factory CreateInvoiceLineDraft.fromJson(Map<String, Object?> json) {
+    return CreateInvoiceLineDraft(
+      description: json['description']! as String,
+      quantityMillis: json['quantity_millis'] as int? ?? 1000,
+      unitPriceMinor: json['unit_price_minor']! as int,
+      incomeAccountId: json['income_account_id']! as String,
+      taxRateId: json['tax_rate_id'] as String?,
+      taxGroupId: json['tax_group_id'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'description': description,
+      'quantity_millis': quantityMillis,
+      'unit_price_minor': unitPriceMinor,
+      'income_account_id': incomeAccountId,
+      'tax_rate_id': taxRateId,
+      'tax_group_id': taxGroupId,
+    }..removeWhere((_, value) => value == null);
   }
 }
 

@@ -170,6 +170,111 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvoiceDraft({
+    required String customerId,
+    required String invoiceNumber,
+    required String accountsReceivableId,
+    required String description,
+    required int unitPriceMinor,
+    required String incomeAccountId,
+    DateTime? issueDate,
+    DateTime? dueDate,
+    int quantityMillis = 1000,
+    String? pdfAttachmentId,
+    String? taxRateId,
+    String? taxGroupId,
+    bool taxInclusive = false,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final selectedTaxGroupId = normalizedOptional(taxGroupId);
+    final selectedTaxRateId = selectedTaxGroupId == null
+        ? normalizedOptional(taxRateId)
+        : null;
+    final operation = SyncOperation(
+      id: 'invoice-${timestamp.microsecondsSinceEpoch}',
+      module: 'invoices',
+      action: 'create_draft',
+      createdAt: timestamp,
+      payload: {
+        'customer_id': customerId,
+        'invoice_number': invoiceNumber,
+        'issue_date': dateOnlyString(issueDate ?? timestamp),
+        'due_date': dateOnlyString(
+          dueDate ?? timestamp.add(const Duration(days: 30)),
+        ),
+        'currency': 'INR',
+        'tax_inclusive': taxInclusive,
+        'accounts_receivable_id': accountsReceivableId,
+        'pdf_attachment_id': ?normalizedOptional(pdfAttachmentId),
+        'lines': [
+          {
+            'description': description,
+            'quantity_millis': quantityMillis,
+            'unit_price_minor': unitPriceMinor,
+            'income_account_id': incomeAccountId,
+            'tax_rate_id': ?selectedTaxRateId,
+            'tax_group_id': ?selectedTaxGroupId,
+          },
+        ],
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
+  SyncOperation enqueueAttachmentMetadata({
+    required String fileName,
+    required String storageKey,
+    String contentType = '',
+    String storageDriver = 'local',
+    int sizeBytes = 0,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'attachment-${timestamp.microsecondsSinceEpoch}',
+      module: 'attachments',
+      action: 'create_metadata',
+      createdAt: timestamp,
+      payload: {
+        'file_name': fileName,
+        'content_type': contentType,
+        'storage_driver': storageDriver,
+        'storage_key': storageKey,
+        'size_bytes': sizeBytes,
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
+  SyncOperation enqueueInvestmentPrice({
+    required String symbol,
+    required DateTime priceDate,
+    required int priceMinor,
+    String currency = 'INR',
+    String source = 'mobile-offline',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'investment-price-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'create_price',
+      createdAt: timestamp,
+      payload: {
+        'symbol': symbol,
+        'price_date': dateOnlyString(priceDate),
+        'price_minor': priceMinor,
+        'currency': currency,
+        'source': source,
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   void updateExpenseDraft({
     required String id,
     required String merchantName,
@@ -230,4 +335,11 @@ String? normalizedOptional(String? value) {
     return null;
   }
   return normalized;
+}
+
+String dateOnlyString(DateTime date) {
+  final normalized = date.toUtc();
+  final month = normalized.month.toString().padLeft(2, '0');
+  final day = normalized.day.toString().padLeft(2, '0');
+  return '${normalized.year}-$month-$day';
 }

@@ -211,4 +211,133 @@ void main() {
     expect(result.hasFailures, false);
     expect(queue.pendingCount, 1);
   });
+
+  test('syncs broader offline writes across supported modules', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'invoice-local-1',
+        module: 'invoices',
+        action: 'create_draft',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'customer_id': 'customer-1',
+          'invoice_number': 'INV-MOB-001',
+          'issue_date': '2026-07-15',
+          'due_date': '2026-08-14',
+          'currency': 'INR',
+          'tax_inclusive': false,
+          'accounts_receivable_id': 'acct-ar',
+          'lines': [
+            {
+              'description': 'Field service',
+              'quantity_millis': 1000,
+              'unit_price_minor': 125000,
+              'income_account_id': 'acct-income',
+            },
+          ],
+        },
+      ),
+      SyncOperation(
+        id: 'attachment-local-1',
+        module: 'attachments',
+        action: 'create_metadata',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'file_name': 'receipt.jpg',
+          'content_type': 'image/jpeg',
+          'storage_driver': 'local',
+          'storage_key': 'offline/receipt.jpg',
+          'size_bytes': 42,
+        },
+      ),
+      SyncOperation(
+        id: 'price-local-1',
+        module: 'investments',
+        action: 'create_price',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'symbol': 'INFY',
+          'price_date': '2026-07-14',
+          'price_minor': 158900,
+          'currency': 'INR',
+          'source': 'mobile-offline',
+        },
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith('/invoices')) {
+          expect(body['invoice_number'], 'INV-MOB-001');
+          return http.Response(
+            jsonEncode({
+              'id': 'invoice-server-1',
+              'invoice_number': 'INV-MOB-001',
+              'status': 'draft',
+              'subtotal_minor': 125000,
+              'tax_total_minor': 0,
+              'total_minor': 125000,
+              'currency': 'INR',
+              'lines': [],
+            }),
+            201,
+          );
+        }
+
+        if (request.url.path.endsWith('/attachments')) {
+          expect(body['storage_key'], 'offline/receipt.jpg');
+          return http.Response(
+            jsonEncode({
+              'id': 'attachment-server-1',
+              'file_name': 'receipt.jpg',
+              'content_type': 'image/jpeg',
+              'storage_driver': 'local',
+              'storage_key': 'offline/receipt.jpg',
+              'size_bytes': 42,
+            }),
+            201,
+          );
+        }
+
+        if (request.url.path.endsWith('/investments/prices')) {
+          expect(body['symbol'], 'INFY');
+          return http.Response(
+            jsonEncode({
+              'id': 'price-server-1',
+              'symbol': 'INFY',
+              'price_date': '2026-07-14T00:00:00Z',
+              'price_minor': 158900,
+              'currency': 'INR',
+              'source': 'mobile-offline',
+            }),
+            201,
+          );
+        }
+
+        fail('unexpected path: ${request.url.path}');
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 3);
+    expect(result.skipped, 0);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(
+      requestedPaths,
+      containsAll([
+        '/api/v1/organizations/org-1/invoices',
+        '/api/v1/organizations/org-1/attachments',
+        '/api/v1/organizations/org-1/investments/prices',
+      ]),
+    );
+  });
 }

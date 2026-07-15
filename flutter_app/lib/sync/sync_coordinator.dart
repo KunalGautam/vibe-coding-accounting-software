@@ -51,11 +51,15 @@ class SyncCoordinator {
   }
 
   bool _canSync(SyncOperation operation) {
-    return operation.module == 'expenses' && operation.action == 'create_draft';
+    return _syncHandlers.containsKey(_operationKey(operation));
   }
 
   Future<void> _syncOperation(SyncOperation operation) async {
-    await _apiClient.syncExpenseDraft(operation);
+    final handler = _syncHandlers[_operationKey(operation)];
+    if (handler == null) {
+      return;
+    }
+    await handler(_apiClient, operation);
   }
 
   bool _isConflict(Object error) {
@@ -65,6 +69,28 @@ class SyncCoordinator {
     return false;
   }
 }
+
+String _operationKey(SyncOperation operation) {
+  return '${operation.module}.${operation.action}';
+}
+
+typedef _SyncHandler =
+    Future<void> Function(AccountingApiClient client, SyncOperation operation);
+
+final Map<String, _SyncHandler> _syncHandlers = {
+  'expenses.create_draft': (client, operation) async {
+    await client.syncExpenseDraft(operation);
+  },
+  'invoices.create_draft': (client, operation) async {
+    await client.syncInvoiceDraft(operation);
+  },
+  'attachments.create_metadata': (client, operation) async {
+    await client.syncAttachmentMetadata(operation);
+  },
+  'investments.create_price': (client, operation) async {
+    await client.syncInvestmentPrice(operation);
+  },
+};
 
 class SyncResult {
   const SyncResult({

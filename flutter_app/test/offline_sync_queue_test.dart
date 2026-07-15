@@ -201,4 +201,65 @@ void main() {
     expect(queue.pendingCount, 1);
     expect(queue.pending.single.id, 'new');
   });
+
+  test('queues invoice drafts with one line and normalized tax selection', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvoiceDraft(
+      customerId: 'customer-1',
+      invoiceNumber: 'INV-MOB-001',
+      accountsReceivableId: 'acct-ar',
+      description: 'Field service',
+      unitPriceMinor: 150000,
+      incomeAccountId: 'acct-income',
+      taxRateId: 'tax-rate-ignored',
+      taxGroupId: 'gst-group',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'invoices');
+    expect(operation.action, 'create_draft');
+    expect(operation.payload['invoice_number'], 'INV-MOB-001');
+    expect(operation.payload['issue_date'], '2026-07-15');
+    expect(operation.payload['due_date'], '2026-08-14');
+    final lines = operation.payload['lines']! as List<Map<String, Object?>>;
+    expect(lines.single['income_account_id'], 'acct-income');
+    expect(lines.single['tax_rate_id'], isNull);
+    expect(lines.single['tax_group_id'], 'gst-group');
+  });
+
+  test('queues attachment metadata for later API creation', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueAttachmentMetadata(
+      fileName: 'receipt.jpg',
+      storageKey: 'offline/receipt.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: 42,
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'attachments');
+    expect(operation.action, 'create_metadata');
+    expect(operation.payload['file_name'], 'receipt.jpg');
+    expect(operation.payload['storage_key'], 'offline/receipt.jpg');
+    expect(operation.payload['size_bytes'], 42);
+  });
+
+  test('queues investment prices for later API creation', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvestmentPrice(
+      symbol: 'INFY',
+      priceDate: DateTime.utc(2026, 7, 14),
+      priceMinor: 158900,
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'create_price');
+    expect(operation.payload['symbol'], 'INFY');
+    expect(operation.payload['price_date'], '2026-07-14');
+    expect(operation.payload['source'], 'mobile-offline');
+  });
 }
