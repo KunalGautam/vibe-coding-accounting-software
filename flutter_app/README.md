@@ -62,6 +62,7 @@ flutter test
 - Investments page includes manual investment price capture that queues `investments.create_price` for later sync.
 - Investments page includes dividend capture that queues `investments.create_dividend` for later sync.
 - Investments page includes split/bonus corporate action capture that queues `investments.create_corporate_action` for later sync.
+- Investments page includes specific-lot sale capture that queues `investments.sell_lot` for later sync.
 - Investments page includes average-cost sale capture that queues `investments.sell_average_cost` for later sync.
 - Offline replay for broker holdings price imports through the `investments.import_broker_holdings` sync operation.
 - Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.

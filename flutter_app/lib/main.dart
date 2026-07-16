@@ -727,6 +727,30 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvestmentLotSale({
+    required String lotId,
+    required DateTime saleDate,
+    required int quantityMillis,
+    required int proceedsMinor,
+    required String proceedsAccountId,
+    required String gainLossAccountId,
+    required String notes,
+  }) async {
+    final operation = syncQueue.enqueueInvestmentLotSale(
+      lotId: lotId,
+      saleDate: saleDate,
+      quantityMillis: quantityMillis,
+      proceedsMinor: proceedsMinor,
+      proceedsAccountId: proceedsAccountId,
+      gainLossAccountId: gainLossAccountId,
+      notes: notes,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Specific-lot sale queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> queueInvestmentDividend({
     required String accountId,
     required String symbol,
@@ -2412,6 +2436,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onQueueInvestmentLot: queueInvestmentLot,
         onQueueInvestmentPrice: queueInvestmentPrice,
         onQueueAverageCostSale: queueAverageCostSale,
+        onQueueInvestmentLotSale: queueInvestmentLotSale,
         onQueueInvestmentDividend: queueInvestmentDividend,
         onQueueInvestmentCorporateAction: queueInvestmentCorporateAction,
         onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
@@ -3659,6 +3684,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onQueueInvestmentLot,
     required this.onQueueInvestmentPrice,
     required this.onQueueAverageCostSale,
+    required this.onQueueInvestmentLotSale,
     required this.onQueueInvestmentDividend,
     required this.onQueueInvestmentCorporateAction,
     required this.onQueueBrokerHoldingsImport,
@@ -3703,6 +3729,16 @@ class InvestmentsPage extends StatelessWidget {
     required String notes,
   })
   onQueueAverageCostSale;
+  final Future<void> Function({
+    required String lotId,
+    required DateTime saleDate,
+    required int quantityMillis,
+    required int proceedsMinor,
+    required String proceedsAccountId,
+    required String gainLossAccountId,
+    required String notes,
+  })
+  onQueueInvestmentLotSale;
   final Future<void> Function({
     required String accountId,
     required String symbol,
@@ -3750,6 +3786,7 @@ class InvestmentsPage extends StatelessWidget {
         InvestmentCorporateActionCard(
           onQueueAction: onQueueInvestmentCorporateAction,
         ),
+        SpecificLotSaleCard(onQueueSale: onQueueInvestmentLotSale),
         AverageCostSaleCard(onQueueSale: onQueueAverageCostSale),
         BrokerHoldingsImportCard(
           onQueueImport: onQueueBrokerHoldingsImport,
@@ -3902,8 +3939,7 @@ class InvestmentsPage extends StatelessWidget {
         const InfoList(
           items: [
             'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Lots, manual market prices, dividends, corporate actions, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
-            'Specific-lot sale workflows are currently available in the web app/API',
+            'Lots, manual market prices, dividends, corporate actions, specific-lot sales, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
           ],
         ),
       ],
@@ -4732,6 +4768,210 @@ class _InvestmentCorporateActionCardState
                 isQueueing
                     ? 'Queueing corporate action...'
                     : 'Queue corporate action',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SpecificLotSaleCard extends StatefulWidget {
+  const SpecificLotSaleCard({required this.onQueueSale, super.key});
+
+  final Future<void> Function({
+    required String lotId,
+    required DateTime saleDate,
+    required int quantityMillis,
+    required int proceedsMinor,
+    required String proceedsAccountId,
+    required String gainLossAccountId,
+    required String notes,
+  })
+  onQueueSale;
+
+  @override
+  State<SpecificLotSaleCard> createState() => _SpecificLotSaleCardState();
+}
+
+class _SpecificLotSaleCardState extends State<SpecificLotSaleCard> {
+  late final TextEditingController lotIdController;
+  late final TextEditingController saleDateController;
+  late final TextEditingController quantityMillisController;
+  late final TextEditingController proceedsMinorController;
+  late final TextEditingController proceedsAccountIdController;
+  late final TextEditingController gainLossAccountIdController;
+  late final TextEditingController notesController;
+  bool isQueueing = false;
+  String? validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    lotIdController = TextEditingController(text: 'investment-lot-id');
+    saleDateController = TextEditingController(
+      text: formatDateOnly(DateTime.now()),
+    );
+    quantityMillisController = TextEditingController(text: '1000');
+    proceedsMinorController = TextEditingController(text: '14000');
+    proceedsAccountIdController = TextEditingController();
+    gainLossAccountIdController = TextEditingController();
+    notesController = TextEditingController(text: 'Offline specific-lot sale');
+  }
+
+  @override
+  void dispose() {
+    lotIdController.dispose();
+    saleDateController.dispose();
+    quantityMillisController.dispose();
+    proceedsMinorController.dispose();
+    proceedsAccountIdController.dispose();
+    gainLossAccountIdController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> queueSale() async {
+    if (isQueueing) {
+      return;
+    }
+    final lotId = lotIdController.text.trim();
+    final saleDate = parseIsoDateOnlyUtc(saleDateController.text.trim());
+    final quantityMillis = int.tryParse(quantityMillisController.text.trim());
+    final proceedsMinor = int.tryParse(proceedsMinorController.text.trim());
+
+    if (lotId.isEmpty ||
+        saleDate == null ||
+        quantityMillis == null ||
+        proceedsMinor == null) {
+      setState(() {
+        validationError =
+            'Enter lot ID, ISO date, quantity millis, and proceeds minor.';
+      });
+      return;
+    }
+    if (quantityMillis <= 0 || proceedsMinor <= 0) {
+      setState(() {
+        validationError =
+            'Quantity millis and proceeds minor must be greater than zero.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationError = null;
+    });
+    try {
+      await widget.onQueueSale(
+        lotId: lotId,
+        saleDate: saleDate,
+        quantityMillis: quantityMillis,
+        proceedsMinor: proceedsMinor,
+        proceedsAccountId: proceedsAccountIdController.text.trim(),
+        gainLossAccountId: gainLossAccountIdController.text.trim(),
+        notes: notesController.text.trim(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Specific-lot sale',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Queue a sale against one known lot while offline. Use average-cost sale when disposing from pooled holdings.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: lotIdController,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale lot ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: saleDateController,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale date',
+                hintText: '2026-07-31',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: quantityMillisController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale quantity millis',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: proceedsMinorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale proceeds minor',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: proceedsAccountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale proceeds account ID optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: gainLossAccountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale gain/loss account ID optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Specific sale notes optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                validationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueSale,
+              icon: const Icon(Icons.sell_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing specific-lot sale...'
+                    : 'Queue specific-lot sale',
               ),
             ),
           ],

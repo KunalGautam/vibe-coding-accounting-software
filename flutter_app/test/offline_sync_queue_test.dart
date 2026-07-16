@@ -406,6 +406,31 @@ void main() {
     expect(operation.payload['notes'], 'Partial sale from mobile');
   });
 
+  test('queues specific-lot investment sales for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvestmentLotSale(
+      lotId: 'lot-1',
+      saleDate: DateTime.utc(2026, 7, 31),
+      quantityMillis: 1000,
+      proceedsMinor: 150000,
+      proceedsAccountId: 'acct-bank',
+      gainLossAccountId: 'acct-gain-loss',
+      notes: 'Specific sale from mobile',
+      createdAt: DateTime.utc(2026, 7, 31, 9),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'sell_lot');
+    expect(operation.payload['lot_id'], 'lot-1');
+    expect(operation.payload['sale_date'], '2026-07-31');
+    expect(operation.payload['quantity_millis'], 1000);
+    expect(operation.payload['proceeds_minor'], 150000);
+    expect(operation.payload['proceeds_account_id'], 'acct-bank');
+    expect(operation.payload['gain_loss_account_id'], 'acct-gain-loss');
+    expect(operation.payload['notes'], 'Specific sale from mobile');
+  });
+
   test('queues investment dividends for later replay', () {
     final queue = OfflineSyncQueue();
 

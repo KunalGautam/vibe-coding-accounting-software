@@ -1946,6 +1946,66 @@ void main() {
   });
 
   testWidgets(
+    'queues specific-lot investment sales from the investments page',
+    (tester) async {
+      useTallTestViewport(tester);
+      final syncRepository = MemorySyncOperationRepository();
+
+      await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+      await tester.tap(find.text('Investments'));
+      await tester.pump();
+
+      await tester.ensureVisible(find.text('Queue specific-lot sale'));
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale lot ID'),
+        'lot-1',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale date'),
+        '2026-07-31',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale quantity millis'),
+        '1000',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale proceeds minor'),
+        '150000',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale proceeds account ID optional'),
+        'acct-bank',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale gain/loss account ID optional'),
+        'acct-gain-loss',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Specific sale notes optional'),
+        'Specific sale from Flutter',
+      );
+      await tester.ensureVisible(find.text('Queue specific-lot sale'));
+      await tester.tap(find.text('Queue specific-lot sale'));
+      await tester.pumpAndSettle();
+
+      final pending = await syncRepository.loadPending();
+      expect(pending.last.module, 'investments');
+      expect(pending.last.action, 'sell_lot');
+      expect(pending.last.payload['lot_id'], 'lot-1');
+      expect(pending.last.payload['sale_date'], '2026-07-31');
+      expect(pending.last.payload['quantity_millis'], 1000);
+      expect(pending.last.payload['proceeds_minor'], 150000);
+      expect(pending.last.payload['proceeds_account_id'], 'acct-bank');
+      expect(pending.last.payload['gain_loss_account_id'], 'acct-gain-loss');
+      expect(pending.last.payload['notes'], 'Specific sale from Flutter');
+      expect(
+        find.textContaining('Specific-lot sale queued for sync'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'queues average-cost investment sales from the investments page',
     (tester) async {
       useTallTestViewport(tester);

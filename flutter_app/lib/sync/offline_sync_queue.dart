@@ -421,6 +421,36 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvestmentLotSale({
+    required String lotId,
+    required DateTime saleDate,
+    required int quantityMillis,
+    required int proceedsMinor,
+    String? proceedsAccountId,
+    String? gainLossAccountId,
+    String notes = '',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'investment-lot-sale-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'sell_lot',
+      createdAt: timestamp,
+      payload: {
+        'lot_id': lotId,
+        'sale_date': dateOnlyString(saleDate),
+        'quantity_millis': quantityMillis,
+        'proceeds_minor': proceedsMinor,
+        'proceeds_account_id': ?normalizedOptional(proceedsAccountId),
+        'gain_loss_account_id': ?normalizedOptional(gainLossAccountId),
+        'notes': ?normalizedOptional(notes),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueInvestmentDividend({
     required String accountId,
     required String symbol,

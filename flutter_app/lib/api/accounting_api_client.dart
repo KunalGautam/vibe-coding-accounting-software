@@ -605,6 +605,28 @@ class AccountingApiClient {
     return sellAverageCost(SellAverageCostRequest.fromSyncOperation(operation));
   }
 
+  Future<InvestmentDispositionSummary> sellInvestmentLot(
+    String lotId,
+    SellInvestmentLotRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/lots/$lotId/sell',
+      body: request.toJson(),
+    );
+    return InvestmentDispositionSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentDispositionSummary> syncInvestmentLotSale(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return sellInvestmentLot(
+      payload['lot_id']! as String,
+      SellInvestmentLotRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<BankStatementImportSummary> importStructuredBankStatement(
     ImportBankStatementRequest request,
   ) async {
@@ -2998,6 +3020,47 @@ class SellAverageCostRequest {
       'account_id': accountId,
       'symbol': symbol,
       'currency': currency,
+      'sale_date': _dateOnly(saleDate),
+      'quantity_millis': quantityMillis,
+      'proceeds_minor': proceedsMinor,
+      if (proceedsAccountId != null) 'proceeds_account_id': proceedsAccountId,
+      if (gainLossAccountId != null) 'gain_loss_account_id': gainLossAccountId,
+      if (notes.isNotEmpty) 'notes': notes,
+    };
+  }
+}
+
+class SellInvestmentLotRequest {
+  const SellInvestmentLotRequest({
+    required this.saleDate,
+    required this.quantityMillis,
+    required this.proceedsMinor,
+    this.proceedsAccountId,
+    this.gainLossAccountId,
+    this.notes = '',
+  });
+
+  final DateTime saleDate;
+  final int quantityMillis;
+  final int proceedsMinor;
+  final String? proceedsAccountId;
+  final String? gainLossAccountId;
+  final String notes;
+
+  factory SellInvestmentLotRequest.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    return SellInvestmentLotRequest(
+      saleDate: _parseDateOnlyUtc(payload['sale_date']! as String),
+      quantityMillis: payload['quantity_millis']! as int,
+      proceedsMinor: payload['proceeds_minor']! as int,
+      proceedsAccountId: payload['proceeds_account_id'] as String?,
+      gainLossAccountId: payload['gain_loss_account_id'] as String?,
+      notes: payload['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
       'sale_date': _dateOnly(saleDate),
       'quantity_millis': quantityMillis,
       'proceeds_minor': proceedsMinor,

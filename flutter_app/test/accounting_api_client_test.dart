@@ -753,6 +753,32 @@ void main() {
             );
           }
 
+          if (request.url.path.endsWith(
+            '/investments/lots/lot-created-1/sell',
+          )) {
+            expect(request.method, 'POST');
+            final body = jsonDecode(request.body) as Map<String, Object?>;
+            expect(body['sale_date'], '2026-07-31');
+            expect(body['quantity_millis'], 1000);
+            expect(body['proceeds_minor'], 16000);
+            expect(body['proceeds_account_id'], 'bank-1');
+            expect(body['gain_loss_account_id'], 'gain-loss-1');
+            return http.Response(
+              jsonEncode({
+                'id': 'disp-specific-1',
+                'investment_lot_id': 'lot-created-1',
+                'sale_date': '2026-07-31T00:00:00Z',
+                'quantity_millis': 1000,
+                'proceeds_minor': 16000,
+                'allocated_cost_basis_minor': 15000,
+                'realized_gain_loss_minor': 1000,
+                'currency': 'INR',
+                'notes': 'Specific sale',
+              }),
+              201,
+            );
+          }
+
           expect(
             request.url.path.endsWith('/investments/average-cost-sales'),
             isTrue,
@@ -827,6 +853,17 @@ void main() {
           ratioDenominator: 1,
         ),
       );
+      final specificSale = await client.sellInvestmentLot(
+        'lot-created-1',
+        SellInvestmentLotRequest(
+          saleDate: DateTime.utc(2026, 7, 31),
+          quantityMillis: 1000,
+          proceedsMinor: 16000,
+          proceedsAccountId: 'bank-1',
+          gainLossAccountId: 'gain-loss-1',
+          notes: 'Specific sale',
+        ),
+      );
       final sale = await client.sellAverageCost(
         SellAverageCostRequest(
           accountId: 'brokerage-1',
@@ -847,6 +884,8 @@ void main() {
       expect(dividend.amountMinor, 12500);
       expect(corporateAction.affectedLots, 1);
       expect(corporateAction.quantityDeltaMillis, 150000);
+      expect(specificSale.investmentLotId, 'lot-created-1');
+      expect(specificSale.realizedGainLossMinor, 1000);
       expect(sale.journalTransactionId, 'journal-1');
       expect(sale.dispositions.single.realizedGainLossMinor, 150000);
     },

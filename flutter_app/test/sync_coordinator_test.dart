@@ -1162,6 +1162,69 @@ void main() {
     expect(queue.pendingCount, 0);
   });
 
+  test('syncs queued specific-lot investment sales', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'investment-lot-sale-local-1',
+        module: 'investments',
+        action: 'sell_lot',
+        createdAt: DateTime.utc(2026, 7, 31),
+        payload: const {
+          'lot_id': 'lot-1',
+          'sale_date': '2026-07-31',
+          'quantity_millis': 1000,
+          'proceeds_minor': 150000,
+          'proceeds_account_id': 'acct-bank',
+          'gain_loss_account_id': 'acct-gain-loss',
+          'notes': 'Specific sale from mobile',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/lots/lot-1/sell',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['sale_date'], '2026-07-31');
+        expect(body['quantity_millis'], 1000);
+        expect(body['proceeds_minor'], 150000);
+        expect(body['proceeds_account_id'], 'acct-bank');
+        expect(body['gain_loss_account_id'], 'acct-gain-loss');
+        return http.Response(
+          jsonEncode({
+            'id': 'disposition-specific-1',
+            'investment_lot_id': 'lot-1',
+            'sale_date': '2026-07-31T00:00:00Z',
+            'quantity_millis': 1000,
+            'proceeds_minor': 150000,
+            'allocated_cost_basis_minor': 120000,
+            'realized_gain_loss_minor': 30000,
+            'currency': 'INR',
+            'notes': 'Specific sale from mobile',
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(
+      result.failed,
+      isEmpty,
+      reason: result.failed.map((failure) => failure.error).join('\n'),
+    );
+    expect(result.skipped, 0);
+    expect(result.synced, 1);
+    expect(queue.pendingCount, 0);
+  });
+
   test('syncs queued investment dividends', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(
