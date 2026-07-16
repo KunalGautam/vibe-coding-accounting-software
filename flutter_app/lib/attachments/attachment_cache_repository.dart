@@ -9,10 +9,12 @@ import '../storage/offline_sqlite.dart';
 
 Future<AttachmentCacheRepository>
 createDefaultAttachmentCacheRepository() async {
-  final directory = await getApplicationSupportDirectory();
-  return FileAttachmentCacheRepository(
-    File('${directory.path}/cached-attachments.json'),
+  final database = await openOfflineDatabase(
+    fileName: 'offline-attachments.sqlite',
+    version: 1,
+    onCreate: (database, _) => createAttachmentCacheTables(database),
   );
+  return SqliteAttachmentCacheRepository(database);
 }
 
 Future<AttachmentBinaryCacheRepository>
@@ -154,6 +156,35 @@ class FileAttachmentCacheRepository implements AttachmentCacheRepository {
       await file.delete();
     }
     await tempFile.rename(file.path);
+  }
+}
+
+class SqliteAttachmentCacheRepository implements AttachmentCacheRepository {
+  const SqliteAttachmentCacheRepository(this.database);
+
+  final Database database;
+
+  @override
+  Future<List<AttachmentSummary>> loadCached() async {
+    final rows = await database.query(
+      'cached_attachments',
+      orderBy: 'file_name ASC, id ASC',
+    );
+    return rows.map(_attachmentFromRow).toList(growable: false);
+  }
+
+  @override
+  Future<void> saveCached(List<AttachmentSummary> attachments) async {
+    await database.transaction((transaction) async {
+      await transaction.delete('cached_attachments');
+      for (final attachment in attachments) {
+        await transaction.insert(
+          'cached_attachments',
+          _attachmentToRow(attachment),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
   }
 }
 
@@ -371,6 +402,7 @@ class SqliteAttachmentUploadManifestRepository
 Future<void> createAttachmentUploadManifestTables(
   DatabaseExecutor database,
 ) async {
+  await createAttachmentCacheTables(database);
   await database.execute('''
 CREATE TABLE IF NOT EXISTS queued_attachment_uploads (
   operation_id TEXT PRIMARY KEY,
@@ -385,6 +417,45 @@ CREATE TABLE IF NOT EXISTS queued_attachment_uploads (
 CREATE INDEX IF NOT EXISTS idx_queued_attachment_uploads_created_at
 ON queued_attachment_uploads (created_at, operation_id)
 ''');
+}
+
+Future<void> createAttachmentCacheTables(DatabaseExecutor database) async {
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_attachments (
+  id TEXT PRIMARY KEY,
+  file_name TEXT NOT NULL,
+  content_type TEXT NOT NULL DEFAULT '',
+  storage_driver TEXT NOT NULL DEFAULT 'local',
+  storage_key TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0
+)
+''');
+  await database.execute('''
+CREATE INDEX IF NOT EXISTS idx_cached_attachments_file_name
+ON cached_attachments (file_name, id)
+''');
+}
+
+Map<String, Object?> _attachmentToRow(AttachmentSummary attachment) {
+  return {
+    'id': attachment.id,
+    'file_name': attachment.fileName,
+    'content_type': attachment.contentType,
+    'storage_driver': attachment.storageDriver,
+    'storage_key': attachment.storageKey,
+    'size_bytes': attachment.sizeBytes,
+  };
+}
+
+AttachmentSummary _attachmentFromRow(Map<String, Object?> row) {
+  return AttachmentSummary(
+    id: row['id']! as String,
+    fileName: row['file_name']! as String,
+    contentType: row['content_type'] as String? ?? '',
+    storageDriver: row['storage_driver'] as String? ?? 'local',
+    storageKey: row['storage_key']! as String,
+    sizeBytes: row['size_bytes'] as int? ?? 0,
+  );
 }
 
 Map<String, Object?> _manifestEntryToRow(AttachmentUploadManifestEntry entry) {

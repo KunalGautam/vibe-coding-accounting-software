@@ -50,6 +50,65 @@ void main() {
     },
   );
 
+  test('sqlite attachment cache persists attachment summaries', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createAttachmentCacheTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteAttachmentCacheRepository(database);
+
+    await repository.saveCached(attachments);
+
+    final cached = await repository.loadCached();
+    expect(cached, hasLength(1));
+    expect(cached.single.fileName, 'receipt.jpg');
+    expect(cached.single.storageDriver, 'local');
+    expect(cached.single.storageKey, 'org-1/attachment-1/receipt.jpg');
+  });
+
+  test('sqlite attachment cache orders and replaces snapshots', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createAttachmentCacheTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteAttachmentCacheRepository(database);
+
+    await repository.saveCached(attachments);
+    await repository.saveCached([
+      const AttachmentSummary(
+        id: 'attachment-b',
+        fileName: 'z-receipt.pdf',
+        contentType: 'application/pdf',
+        storageDriver: 'local',
+        storageKey: 'org-1/attachment-b/z-receipt.pdf',
+        sizeBytes: 4096,
+      ),
+      const AttachmentSummary(
+        id: 'attachment-a',
+        fileName: 'a-receipt.jpg',
+        contentType: 'image/jpeg',
+        storageDriver: 'local',
+        storageKey: 'org-1/attachment-a/a-receipt.jpg',
+        sizeBytes: 1024,
+      ),
+    ]);
+
+    final cached = await repository.loadCached();
+    expect(cached.map((attachment) => attachment.id), [
+      'attachment-a',
+      'attachment-b',
+    ]);
+    expect(cached.any((attachment) => attachment.id == 'attachment-1'), false);
+  });
+
   test('memory attachment binary cache stores downloaded bytes', () async {
     final repository = MemoryAttachmentBinaryCacheRepository();
 
