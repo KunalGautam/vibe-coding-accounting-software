@@ -647,6 +647,32 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
   const [connectionError, setConnectionError] = useState("");
   const [connectionNotice, setConnectionNotice] = useState("");
   const connectionApi = useMemo(() => new ApiClient(draft), [draft]);
+  const passwordStrengthChecks = [
+    { label: "At least 12 characters", ok: passwordResetNewPassword.length >= 12 },
+    { label: "Contains uppercase and lowercase letters", ok: /[A-Z]/.test(passwordResetNewPassword) && /[a-z]/.test(passwordResetNewPassword) },
+    { label: "Contains a number", ok: /\d/.test(passwordResetNewPassword) },
+    { label: "Contains a symbol", ok: /[^A-Za-z0-9]/.test(passwordResetNewPassword) }
+  ];
+  const connectionChecks = [
+    { label: "API URL saved", ok: Boolean(draft.baseUrl.trim()) },
+    { label: "Access token present", ok: Boolean(draft.accessToken.trim()) },
+    { label: "Refresh token present", ok: Boolean(draft.refreshToken?.trim()) },
+    { label: "Organization selected", ok: Boolean(draft.organizationId.trim()) }
+  ];
+  const passwordReady = passwordStrengthChecks.every((check) => check.ok);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    const resetToken = url.searchParams.get("reset_token") ?? url.searchParams.get("token");
+    if (!resetToken || passwordResetToken) {
+      return;
+    }
+    setPasswordResetToken(resetToken);
+    setConnectionNotice("Detected a password reset token from the current URL. Review it, enter a new password, then confirm the reset.");
+  }, [passwordResetToken]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -834,6 +860,36 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
     }
   }
 
+  async function copyMFARecoveryCodes() {
+    if (mfaRecoveryCodes.length === 0) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(mfaRecoveryCodes.join("\n"));
+      setConnectionNotice("Recovery codes copied to the clipboard.");
+    } catch {
+      setConnectionError("Clipboard copy is unavailable in this browser. Download the codes instead.");
+    }
+  }
+
+  function downloadMFARecoveryCodes() {
+    if (mfaRecoveryCodes.length === 0) {
+      return;
+    }
+    const blob = new Blob([
+      [
+        "Accounting Platform MFA Recovery Codes",
+        `Generated: ${new Date().toISOString()}`,
+        "",
+        ...mfaRecoveryCodes,
+        "",
+        "Store these securely. Each code can be used once."
+      ].join("\n")
+    ], { type: "text/plain;charset=utf-8" });
+    downloadBlob("accounting-mfa-recovery-codes.txt", blob);
+    setConnectionNotice("Recovery codes downloaded. Store the file securely and remove it from shared devices.");
+  }
+
   async function bootstrapFirstAdmin(event: FormEvent) {
     event.preventDefault();
     setLoading("bootstrap");
@@ -911,6 +967,19 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
 
   return (
     <div className="connection-card stack">
+      <section className="panel">
+        <p className="eyebrow">Connection status</p>
+        <h3>Account session readiness</h3>
+        <p>Use this checklist before testing protected workflows. Tokens are stored only in this browser's local settings.</p>
+        <div className="security-checklist">
+          {connectionChecks.map((check) => (
+            <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
+              {check.ok ? "Ready" : "Missing"} · {check.label}
+            </span>
+          ))}
+        </div>
+      </section>
+
       <form className="form-grid" onSubmit={submit}>
         <label>
           API URL
@@ -966,10 +1035,17 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
         <form className="form-grid" onSubmit={confirmPasswordReset}>
           <input placeholder="Reset token" value={passwordResetToken} onChange={(event) => setPasswordResetToken(event.target.value)} />
           <input placeholder="New password, 12+ characters" type="password" value={passwordResetNewPassword} onChange={(event) => setPasswordResetNewPassword(event.target.value)} />
-          <button disabled={!passwordResetToken || passwordResetNewPassword.length < 12 || loading === "confirm-password-reset"}>
+          <button disabled={!passwordResetToken || !passwordReady || loading === "confirm-password-reset"}>
             {loading === "confirm-password-reset" ? "Resetting..." : "Set new password"}
           </button>
         </form>
+        <div className="security-checklist">
+          {passwordStrengthChecks.map((check) => (
+            <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
+              {check.ok ? "OK" : "Need"} · {check.label}
+            </span>
+          ))}
+        </div>
         {passwordResetTokenExpiresAt && (
           <div className="snapshot-card">
             <strong>Returned reset token expires:</strong> {new Date(passwordResetTokenExpiresAt).toLocaleString()}
@@ -1023,6 +1099,10 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
           <div className="snapshot-card">
             <strong>Recovery codes:</strong>
             <p>Store these securely. Each code works once and this list will disappear after you leave this screen.</p>
+            <div className="button-row">
+              <button className="secondary compact" type="button" onClick={() => void copyMFARecoveryCodes()}>Copy codes</button>
+              <button className="secondary compact" type="button" onClick={downloadMFARecoveryCodes}>Download codes</button>
+            </div>
             <div className="code-grid">
               {mfaRecoveryCodes.map((code) => (
                 <code key={code}>{code}</code>

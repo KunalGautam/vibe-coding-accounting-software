@@ -292,6 +292,31 @@ textarea {
   gap: 0.75rem;
 }
 
+.security-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.security-checklist span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.check-good {
+  color: var(--green-dark);
+  background: #e7f4df;
+}
+
+.check-warn {
+  color: var(--red);
+  background: #ffe8e3;
+}
+
 .code-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
