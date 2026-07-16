@@ -1706,7 +1706,11 @@ void main() {
 
     await tester.tap(find.text('Investments'));
     await tester.pump();
-    await tester.ensureVisible(find.text('Fetch valuation'));
+    await tester.scrollUntilVisible(
+      find.text('Fetch valuation'),
+      400,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Fetch valuation'));
     await tester.pumpAndSettle();
 
@@ -1760,6 +1764,11 @@ void main() {
       find.bySemanticsLabel('Price source'),
       'mobile-test',
     );
+    await tester.scrollUntilVisible(
+      find.text('Queue investment price'),
+      -200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Queue investment price'));
     await tester.pumpAndSettle();
 
@@ -1775,6 +1784,69 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'queues average-cost investment sales from the investments page',
+    (tester) async {
+      useTallTestViewport(tester);
+      final syncRepository = MemorySyncOperationRepository();
+
+      await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+      await tester.tap(find.text('Investments'));
+      await tester.pump();
+
+      await tester.ensureVisible(find.text('Queue average-cost sale'));
+      await tester.enterText(
+        find.bySemanticsLabel('Sale account ID'),
+        'acct-invest',
+      );
+      await tester.enterText(find.bySemanticsLabel('Sale symbol'), 'infy');
+      await tester.enterText(find.bySemanticsLabel('Sale date'), '2026-07-31');
+      await tester.enterText(
+        find.bySemanticsLabel('Sale quantity millis'),
+        '2500',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Sale proceeds minor'),
+        '375000',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Proceeds account ID optional'),
+        'acct-bank',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Gain/loss account ID optional'),
+        'acct-gain-loss',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Sale notes optional'),
+        'Partial sale from Flutter',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Queue average-cost sale'),
+        -200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Queue average-cost sale'));
+      await tester.pumpAndSettle();
+
+      final pending = await syncRepository.loadPending();
+      expect(pending.last.module, 'investments');
+      expect(pending.last.action, 'sell_average_cost');
+      expect(pending.last.payload['account_id'], 'acct-invest');
+      expect(pending.last.payload['symbol'], 'INFY');
+      expect(pending.last.payload['sale_date'], '2026-07-31');
+      expect(pending.last.payload['quantity_millis'], 2500);
+      expect(pending.last.payload['proceeds_minor'], 375000);
+      expect(pending.last.payload['proceeds_account_id'], 'acct-bank');
+      expect(pending.last.payload['gain_loss_account_id'], 'acct-gain-loss');
+      expect(pending.last.payload['notes'], 'Partial sale from Flutter');
+      expect(
+        find.textContaining('Average-cost sale queued for sync'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('loads broker holdings CSV files before queueing imports', (
     tester,

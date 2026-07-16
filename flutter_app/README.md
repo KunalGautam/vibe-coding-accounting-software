@@ -59,6 +59,7 @@ flutter test
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
 - Typed investment transport for average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
 - Investments page includes manual investment price capture that queues `investments.create_price` for later sync.
+- Investments page includes average-cost sale capture that queues `investments.sell_average_cost` for later sync.
 - Offline replay for broker holdings price imports through the `investments.import_broker_holdings` sync operation.
 - Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.
 - Sync settings placeholder for API base URL and organization selection.
