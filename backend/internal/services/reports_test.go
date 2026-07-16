@@ -240,6 +240,69 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	assertReportCSV(t, csvPayload, filename, err, "Tax,Output tax minor")
 }
 
+func TestReportServiceAccountDrilldownIncludesSourceDocumentReference(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Source Links Pvt Ltd", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	customer := domain.Customer{OrganizationID: org.ID, DisplayName: "Linked Customer", IsActive: true}
+	if err := db.Create(&customer).Error; err != nil {
+		t.Fatalf("create customer: %v", err)
+	}
+	bank := domain.Account{OrganizationID: org.ID, Code: "1010", Name: "Bank", Type: domain.AccountTypeAsset, Subtype: "Bank", Currency: "INR", IsActive: true}
+	income := domain.Account{OrganizationID: org.ID, Code: "4000", Name: "Sales", Type: domain.AccountTypeIncome, Currency: "INR", IsActive: true}
+	if err := db.Create(&bank).Error; err != nil {
+		t.Fatalf("create bank account: %v", err)
+	}
+	if err := db.Create(&income).Error; err != nil {
+		t.Fatalf("create income account: %v", err)
+	}
+
+	transaction, err := NewLedgerService(db).PostTransaction(ctx, PostJournalTransactionInput{
+		OrganizationID:  org.ID,
+		TransactionDate: time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
+		Memo:            "Invoice INV-LINK",
+		SourceModule:    domain.SourceModuleInvoice,
+		Splits: []PostLedgerSplitInput{
+			{AccountID: bank.ID, DebitMinor: 125000, Currency: "INR"},
+			{AccountID: income.ID, CreditMinor: 125000, Currency: "INR"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("post linked transaction: %v", err)
+	}
+	invoice := domain.Invoice{
+		OrganizationID:       org.ID,
+		CustomerID:           customer.ID,
+		InvoiceNumber:        "INV-LINK",
+		IssueDate:            time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
+		DueDate:              time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+		Status:               domain.InvoiceStatusPosted,
+		Currency:             "INR",
+		TotalMinor:           125000,
+		AccountsReceivableID: bank.ID,
+		JournalTransactionID: &transaction.ID,
+	}
+	if err := db.Create(&invoice).Error; err != nil {
+		t.Fatalf("create linked invoice: %v", err)
+	}
+
+	drilldown, err := NewReportService(db).AccountDrilldown(ctx, org.ID, bank.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("AccountDrilldown() error = %v", err)
+	}
+	if len(drilldown.Rows) != 1 {
+		t.Fatalf("drilldown rows = %d, want 1", len(drilldown.Rows))
+	}
+	row := drilldown.Rows[0]
+	if row.SourceDocumentType != "invoice" || row.SourceDocumentID != invoice.ID || row.SourceDocumentNumber != "INV-LINK" {
+		t.Fatalf("unexpected source document ref: %+v", row)
+	}
+}
+
 func TestReportServicePayrollSummary(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()

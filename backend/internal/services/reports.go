@@ -44,6 +44,9 @@ type AccountDrilldownRow struct {
 	JournalTransactionID string              `json:"journal_transaction_id"`
 	TransactionDate      time.Time           `json:"transaction_date"`
 	SourceModule         domain.SourceModule `json:"source_module"`
+	SourceDocumentType   string              `json:"source_document_type,omitempty"`
+	SourceDocumentID     string              `json:"source_document_id,omitempty"`
+	SourceDocumentNumber string              `json:"source_document_number,omitempty"`
 	TransactionMemo      string              `json:"transaction_memo"`
 	SplitMemo            string              `json:"split_memo"`
 	DebitMinor           int64               `json:"debit_minor"`
@@ -52,6 +55,21 @@ type AccountDrilldownRow struct {
 	Currency             string              `json:"currency"`
 	Cleared              bool                `json:"cleared"`
 	Reconciled           bool                `json:"reconciled"`
+}
+
+type accountDrilldownActivity struct {
+	LedgerSplitID        string
+	JournalTransactionID string
+	TransactionDate      time.Time
+	SourceModule         domain.SourceModule
+	TransactionMemo      string
+	SplitMemo            string
+	DebitMinor           int64
+	CreditMinor          int64
+	Currency             string
+	Cleared              bool
+	Reconciled           bool
+	CreatedAt            time.Time
 }
 
 type TrialBalanceReport struct {
@@ -240,21 +258,7 @@ func (s ReportService) AccountDrilldown(ctx context.Context, organizationID stri
 		return AccountDrilldownReport{}, err
 	}
 
-	type drilldownActivity struct {
-		LedgerSplitID        string
-		JournalTransactionID string
-		TransactionDate      time.Time
-		SourceModule         domain.SourceModule
-		TransactionMemo      string
-		SplitMemo            string
-		DebitMinor           int64
-		CreditMinor          int64
-		Currency             string
-		Cleared              bool
-		Reconciled           bool
-		CreatedAt            time.Time
-	}
-	var activities []drilldownActivity
+	var activities []accountDrilldownActivity
 	if err := s.db.WithContext(ctx).
 		Table("ledger_splits").
 		Select(`ledger_splits.id AS ledger_split_id,
@@ -288,14 +292,22 @@ func (s ReportService) AccountDrilldown(ctx context.Context, organizationID stri
 		OpeningBalanceMinor: openingBalance,
 		Rows:                make([]AccountDrilldownRow, 0, len(activities)),
 	}
+	sourceRefs, err := s.sourceDocumentRefsForTransactions(ctx, organizationID, drilldownTransactionIDs(activities))
+	if err != nil {
+		return AccountDrilldownReport{}, err
+	}
 	runningBalance := openingBalance
 	for _, activity := range activities {
 		runningBalance += normalBalanceDelta(account.Type, activity.DebitMinor, activity.CreditMinor)
+		sourceRef := sourceRefs[activity.JournalTransactionID]
 		report.Rows = append(report.Rows, AccountDrilldownRow{
 			LedgerSplitID:        activity.LedgerSplitID,
 			JournalTransactionID: activity.JournalTransactionID,
 			TransactionDate:      activity.TransactionDate,
 			SourceModule:         activity.SourceModule,
+			SourceDocumentType:   sourceRef.DocumentType,
+			SourceDocumentID:     sourceRef.DocumentID,
+			SourceDocumentNumber: sourceRef.DocumentNumber,
 			TransactionMemo:      activity.TransactionMemo,
 			SplitMemo:            activity.SplitMemo,
 			DebitMinor:           activity.DebitMinor,
@@ -308,6 +320,81 @@ func (s ReportService) AccountDrilldown(ctx context.Context, organizationID stri
 	}
 	report.ClosingBalanceMinor = runningBalance
 	return report, nil
+}
+
+type sourceDocumentRef struct {
+	DocumentType   string
+	DocumentID     string
+	DocumentNumber string
+}
+
+func drilldownTransactionIDs(activities []accountDrilldownActivity) []string {
+	seen := map[string]bool{}
+	ids := make([]string, 0, len(activities))
+	for _, activity := range activities {
+		transactionID := activity.JournalTransactionID
+		if transactionID == "" || seen[transactionID] {
+			continue
+		}
+		seen[transactionID] = true
+		ids = append(ids, transactionID)
+	}
+	return ids
+}
+
+func (s ReportService) sourceDocumentRefsForTransactions(ctx context.Context, organizationID string, transactionIDs []string) (map[string]sourceDocumentRef, error) {
+	refs := make(map[string]sourceDocumentRef, len(transactionIDs))
+	if len(transactionIDs) == 0 {
+		return refs, nil
+	}
+
+	type sourceRow struct {
+		ID                   string
+		JournalTransactionID string
+		Number               string
+	}
+	load := func(table string, numberColumn string, documentType string) error {
+		var rows []sourceRow
+		err := s.db.WithContext(ctx).
+			Table(table).
+			Select("id, journal_transaction_id, "+numberColumn+" AS number").
+			Where("organization_id = ? AND journal_transaction_id IN ?", organizationID, transactionIDs).
+			Scan(&rows).Error
+		if err != nil {
+			return err
+		}
+		for _, row := range rows {
+			if row.JournalTransactionID == "" {
+				continue
+			}
+			refs[row.JournalTransactionID] = sourceDocumentRef{
+				DocumentType:   documentType,
+				DocumentID:     row.ID,
+				DocumentNumber: row.Number,
+			}
+		}
+		return nil
+	}
+
+	for _, source := range []struct {
+		table        string
+		numberColumn string
+		documentType string
+	}{
+		{table: "invoices", numberColumn: "invoice_number", documentType: "invoice"},
+		{table: "credit_notes", numberColumn: "credit_note_number", documentType: "credit_note"},
+		{table: "customer_payments", numberColumn: "payment_number", documentType: "customer_payment"},
+		{table: "expenses", numberColumn: "expense_number", documentType: "expense"},
+		{table: "bills", numberColumn: "bill_number", documentType: "bill"},
+		{table: "vendor_payments", numberColumn: "payment_number", documentType: "vendor_payment"},
+		{table: "payroll_runs", numberColumn: "run_number", documentType: "payroll_run"},
+	} {
+		if err := load(source.table, source.numberColumn, source.documentType); err != nil {
+			return nil, err
+		}
+	}
+
+	return refs, nil
 }
 
 func (s ReportService) TrialBalance(ctx context.Context, organizationID string, asOf time.Time) (TrialBalanceReport, error) {

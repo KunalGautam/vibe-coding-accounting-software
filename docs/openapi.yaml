@@ -3555,6 +3555,17 @@ components:
         source_module:
           type: string
           enum: [manual, invoice, credit_note, bill, expense, payroll, import, closing, payment]
+        source_document_type:
+          type: string
+          description: Originating business document type when the journal transaction can be resolved.
+          enum: [invoice, credit_note, customer_payment, expense, bill, vendor_payment, payroll_run]
+        source_document_id:
+          type: string
+          format: uuid
+          description: Originating business document ID when available.
+        source_document_number:
+          type: string
+          description: Human-readable originating document number when available.
         transaction_memo:
           type: string
         split_memo:

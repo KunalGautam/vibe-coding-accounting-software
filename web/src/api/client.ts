@@ -93,9 +93,13 @@ export type CashFlowReport = {
 };
 
 export type AccountDrilldownRow = {
-  transaction_id: string;
+  ledger_split_id: string;
+  journal_transaction_id: string;
   transaction_date: string;
   source_module: string;
+  source_document_type?: string;
+  source_document_id?: string;
+  source_document_number?: string;
   transaction_memo?: string;
   split_memo?: string;
   debit_minor: number;

@@ -484,7 +484,7 @@ export function App() {
           />
         )}
         {view === "reports" && (
-          <ReportsPage api={api} budgets={budgets} onBudgetsChanged={setBudgets} />
+          <ReportsPage api={api} budgets={budgets} onBudgetsChanged={setBudgets} onOpenView={setView} />
         )}
         {view === "budgets" && (
           <BudgetsPage
@@ -1446,7 +1446,17 @@ function TaxPage({
   );
 }
 
-function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budgets: Budget[]; onBudgetsChanged: (budgets: Budget[]) => void }) {
+function ReportsPage({
+  api,
+  budgets,
+  onBudgetsChanged,
+  onOpenView
+}: {
+  api: ApiClient;
+  budgets: Budget[];
+  onBudgetsChanged: (budgets: Budget[]) => void;
+  onOpenView: (view: View) => void;
+}) {
   const today = new Date().toISOString().slice(0, 10);
   const cachedReports = useMemo(() => loadReportSnapshot(), []);
   const [asOf, setAsOf] = useState(today);
@@ -1569,6 +1579,37 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     return (
       <button className="secondary compact" type="button" disabled={loadingReport === "account-drilldown"} onClick={() => void loadAccountDrilldown(row, from, to)}>
         {loadingReport === "account-drilldown" ? "Loading..." : "Drill down"}
+      </button>
+    );
+  }
+
+  function sourceDocumentLabel(row: AccountDrilldownReport["rows"][number]) {
+    if (!row.source_document_type) {
+      return "Journal entry";
+    }
+    const typeLabel = titleCase(row.source_document_type.replace(/_/g, " "));
+    return row.source_document_number ? `${typeLabel} ${row.source_document_number}` : typeLabel;
+  }
+
+  function sourceDocumentTarget(row: AccountDrilldownReport["rows"][number]): View {
+    if (row.source_document_type === "invoice" || row.source_document_type === "credit_note" || row.source_document_type === "customer_payment") {
+      return "invoices";
+    }
+    if (row.source_document_type === "expense" || row.source_document_type === "bill" || row.source_document_type === "vendor_payment") {
+      return "expenses";
+    }
+    if (row.source_document_type === "payroll_run") {
+      return "payroll";
+    }
+    return "ledger";
+  }
+
+  function sourceDocumentButton(row: AccountDrilldownReport["rows"][number]) {
+    const target = sourceDocumentTarget(row);
+    const label = row.source_document_type ? `Open ${titleCase(row.source_document_type.replace(/_/g, " "))}` : "Open journal";
+    return (
+      <button className="secondary compact" type="button" onClick={() => onOpenView(target)} title={row.source_document_id || row.journal_transaction_id}>
+        {label}
       </button>
     );
   }
@@ -2397,16 +2438,18 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             </button>
           </div>
           <DataTable
-            headers={["Date", "Source", "Transaction memo", "Split memo", "Debit", "Credit", "Running balance", "Status"]}
+            headers={["Date", "Source", "Document", "Transaction memo", "Split memo", "Debit", "Credit", "Running balance", "Status", "Open"]}
             rows={accountDrilldown.rows.map((row) => [
               row.transaction_date.slice(0, 10),
               titleCase(row.source_module),
+              sourceDocumentLabel(row),
               row.transaction_memo || "-",
               row.split_memo || "-",
               formatMinorAsInr(row.debit_minor),
               formatMinorAsInr(row.credit_minor),
               formatMinorAsInr(row.balance_minor),
-              row.reconciled ? "Reconciled" : row.cleared ? "Cleared" : "Open"
+              row.reconciled ? "Reconciled" : row.cleared ? "Cleared" : "Open",
+              sourceDocumentButton(row)
             ])}
           />
         </section>
