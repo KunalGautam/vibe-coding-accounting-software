@@ -387,8 +387,12 @@ void main() {
       apiClient: apiClient,
     ).syncPending();
 
+    expect(
+      result.failed,
+      isEmpty,
+      reason: result.failed.map((failure) => failure.error).join('\n'),
+    );
     expect(result.synced, 1);
-    expect(result.hasFailures, false);
     expect(queue.pendingCount, 0);
     expect(requestedPaths, ['/api/v1/organizations/org-1/attachments/upload']);
   });
@@ -686,5 +690,81 @@ void main() {
       '/api/v1/organizations/org-1/bills/bill-1/post',
       '/api/v1/organizations/org-1/credit-notes/credit-note-1/post',
     ]);
+  });
+
+  test('syncs queued average-cost investment sales', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'average-cost-sale-local-1',
+        module: 'investments',
+        action: 'sell_average_cost',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'account_id': 'acct-invest',
+          'symbol': 'INFY',
+          'currency': 'INR',
+          'sale_date': '2026-07-15',
+          'quantity_millis': 2500,
+          'proceeds_minor': 375000,
+          'proceeds_account_id': 'acct-bank',
+          'gain_loss_account_id': 'acct-gain-loss',
+          'notes': 'Partial sale from mobile',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/average-cost-sales',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-invest');
+        expect(body['symbol'], 'INFY');
+        expect(body['sale_date'], '2026-07-15');
+        expect(body['quantity_millis'], 2500);
+        expect(body['proceeds_minor'], 375000);
+        expect(body['proceeds_account_id'], 'acct-bank');
+        expect(body['gain_loss_account_id'], 'acct-gain-loss');
+        return http.Response(
+          jsonEncode({
+            'quantity_millis': 2500,
+            'proceeds_minor': 375000,
+            'allocated_cost_basis_minor': 300000,
+            'realized_gain_loss_minor': 75000,
+            'journal_transaction_id': 'journal-invest-sale-1',
+            'dispositions': [
+              {
+                'id': 'disposition-1',
+                'investment_lot_id': 'lot-1',
+                'sale_date': '2026-07-15T00:00:00Z',
+                'quantity_millis': 2500,
+                'proceeds_minor': 375000,
+                'allocated_cost_basis_minor': 300000,
+                'realized_gain_loss_minor': 75000,
+                'currency': 'INR',
+                'notes': 'Partial sale from mobile',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(
+      result.failed,
+      isEmpty,
+      reason: result.failed.map((failure) => failure.error).join('\n'),
+    );
+    expect(result.skipped, 0);
+    expect(result.synced, 1);
+    expect(queue.pendingCount, 0);
   });
 }

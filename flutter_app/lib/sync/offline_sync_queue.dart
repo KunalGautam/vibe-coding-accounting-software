@@ -292,6 +292,40 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueAverageCostSale({
+    required String accountId,
+    required String symbol,
+    required DateTime saleDate,
+    required int quantityMillis,
+    required int proceedsMinor,
+    String currency = 'INR',
+    String? proceedsAccountId,
+    String? gainLossAccountId,
+    String notes = '',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'average-cost-sale-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'sell_average_cost',
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'symbol': symbol,
+        'currency': currency,
+        'sale_date': dateOnlyString(saleDate),
+        'quantity_millis': quantityMillis,
+        'proceeds_minor': proceedsMinor,
+        'proceeds_account_id': ?normalizedOptional(proceedsAccountId),
+        'gain_loss_account_id': ?normalizedOptional(gainLossAccountId),
+        'notes': ?normalizedOptional(notes),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueCustomerPayment({
     required String invoiceId,
     required String paymentNumber,

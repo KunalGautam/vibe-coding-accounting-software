@@ -278,6 +278,33 @@ void main() {
     expect(operation.payload['source'], 'mobile-offline');
   });
 
+  test('queues average-cost investment sales for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueAverageCostSale(
+      accountId: 'acct-invest',
+      symbol: 'INFY',
+      saleDate: DateTime.utc(2026, 7, 15),
+      quantityMillis: 2500,
+      proceedsMinor: 375000,
+      proceedsAccountId: 'acct-bank',
+      gainLossAccountId: 'acct-gain-loss',
+      notes: 'Partial sale from mobile',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'sell_average_cost');
+    expect(operation.payload['account_id'], 'acct-invest');
+    expect(operation.payload['symbol'], 'INFY');
+    expect(operation.payload['sale_date'], '2026-07-15');
+    expect(operation.payload['quantity_millis'], 2500);
+    expect(operation.payload['proceeds_minor'], 375000);
+    expect(operation.payload['proceeds_account_id'], 'acct-bank');
+    expect(operation.payload['gain_loss_account_id'], 'acct-gain-loss');
+    expect(operation.payload['notes'], 'Partial sale from mobile');
+  });
+
   test('queues customer and vendor payments for later replay', () {
     final queue = OfflineSyncQueue();
 

@@ -105,6 +105,9 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'investments.create_price': (client, operation) async {
     await client.syncInvestmentPrice(operation);
   },
+  'investments.sell_average_cost': (client, operation) async {
+    await client.syncAverageCostSale(operation);
+  },
   'payments.record_customer': (client, operation) async {
     await client.syncCustomerPayment(operation);
   },

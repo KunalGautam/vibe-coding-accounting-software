@@ -13,6 +13,14 @@ String _dateOnly(DateTime date) {
   return '${normalized.year}-$month-$day';
 }
 
+DateTime _parseDateOnlyUtc(String value) {
+  final parts = value.split('-').map(int.parse).toList(growable: false);
+  if (parts.length != 3) {
+    return DateTime.parse(value).toUtc();
+  }
+  return DateTime.utc(parts[0], parts[1], parts[2]);
+}
+
 class AccountingApiConfig {
   const AccountingApiConfig({
     required this.baseUrl,
@@ -336,6 +344,10 @@ class AccountingApiClient {
       body: request.toJson(),
     );
     return AverageCostSaleResult.fromJson(_decodeObject(response));
+  }
+
+  Future<AverageCostSaleResult> syncAverageCostSale(SyncOperation operation) {
+    return sellAverageCost(SellAverageCostRequest.fromSyncOperation(operation));
   }
 
   Future<http.Response> _send(
@@ -875,7 +887,7 @@ class CreateInvestmentPriceRequest {
     final payload = operation.payload;
     return CreateInvestmentPriceRequest(
       symbol: payload['symbol']! as String,
-      priceDate: DateTime.parse(payload['price_date']! as String),
+      priceDate: _parseDateOnlyUtc(payload['price_date']! as String),
       priceMinor: payload['price_minor']! as int,
       currency: payload['currency'] as String? ?? 'INR',
       source: payload['source'] as String? ?? 'mobile-offline',
@@ -1102,7 +1114,7 @@ class RecordPaymentRequest {
     final payload = operation.payload;
     return RecordPaymentRequest(
       paymentNumber: payload['payment_number']! as String,
-      paymentDate: DateTime.parse(payload['payment_date']! as String),
+      paymentDate: _parseDateOnlyUtc(payload['payment_date']! as String),
       amountMinor: payload['amount_minor']! as int,
       paymentAccountId: payload['payment_account_id']! as String,
       paymentMethod: payload['payment_method'] as String? ?? '',
@@ -1212,6 +1224,21 @@ class SellAverageCostRequest {
   final String? proceedsAccountId;
   final String? gainLossAccountId;
   final String notes;
+
+  factory SellAverageCostRequest.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    return SellAverageCostRequest(
+      accountId: payload['account_id']! as String,
+      symbol: payload['symbol']! as String,
+      saleDate: _parseDateOnlyUtc(payload['sale_date']! as String),
+      quantityMillis: payload['quantity_millis']! as int,
+      proceedsMinor: payload['proceeds_minor']! as int,
+      currency: payload['currency'] as String? ?? 'INR',
+      proceedsAccountId: payload['proceeds_account_id'] as String?,
+      gainLossAccountId: payload['gain_loss_account_id'] as String?,
+      notes: payload['notes'] as String? ?? '',
+    );
+  }
 
   Map<String, Object?> toJson() {
     return {
@@ -1524,8 +1551,8 @@ class CreateInvoiceDraft {
     return CreateInvoiceDraft(
       customerId: payload['customer_id']! as String,
       invoiceNumber: payload['invoice_number'] as String? ?? operation.id,
-      issueDate: DateTime.parse(payload['issue_date']! as String),
-      dueDate: DateTime.parse(payload['due_date']! as String),
+      issueDate: _parseDateOnlyUtc(payload['issue_date']! as String),
+      dueDate: _parseDateOnlyUtc(payload['due_date']! as String),
       currency: payload['currency'] as String? ?? 'INR',
       taxInclusive: payload['tax_inclusive'] as bool? ?? false,
       accountsReceivableId: payload['accounts_receivable_id']! as String,
