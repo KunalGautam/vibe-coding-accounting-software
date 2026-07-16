@@ -245,6 +245,119 @@ void main() {
     expect(report.equityRows.single.accountName, 'Retained Earnings');
   });
 
+  test('fetches cash flow and aging reports', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        if (request.url.path.endsWith('/reports/cash-flow')) {
+          expect(request.url.queryParameters['from'], '2026-04-01');
+          expect(request.url.queryParameters['to'], '2026-07-31');
+          return http.Response(
+            jsonEncode({
+              'from_date': '2026-04-01T00:00:00Z',
+              'to_date': '2026-07-31T00:00:00Z',
+              'total_inflows_minor': 500000,
+              'total_outflows_minor': 150000,
+              'net_cash_flow_minor': 350000,
+              'opening_cash_minor': 250000,
+              'closing_cash_minor': 600000,
+              'generated_from_subtypes': ['bank', 'cash'],
+              'rows': [
+                {
+                  'account_id': 'acct-bank',
+                  'account_code': '1010',
+                  'account_name': 'Bank',
+                  'source_module': 'invoice',
+                  'inflow_minor': 500000,
+                  'outflow_minor': 150000,
+                  'net_cash_flow_minor': 350000,
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/reports/ar-aging')) {
+          expect(request.url.queryParameters['as_of'], '2026-07-31');
+          return http.Response(
+            jsonEncode({
+              'as_of_date': '2026-07-31T00:00:00Z',
+              'total_current_minor': 0,
+              'total_one_to_thirty_minor': 118000,
+              'total_thirty_one_to_sixty_minor': 0,
+              'total_sixty_one_to_ninety_minor': 0,
+              'total_over_ninety_minor': 0,
+              'total_outstanding_minor': 118000,
+              'rows': [
+                {
+                  'customer_id': 'cust-1',
+                  'customer_name': 'Acme',
+                  'invoice_id': 'inv-1',
+                  'invoice_number': 'INV-001',
+                  'due_date': '2026-07-01T00:00:00Z',
+                  'days_overdue': 30,
+                  'outstanding_minor': 118000,
+                  'current_minor': 0,
+                  'one_to_thirty_minor': 118000,
+                  'thirty_one_to_sixty_minor': 0,
+                  'sixty_one_to_ninety_minor': 0,
+                  'over_ninety_minor': 0,
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/reports/ap-aging')) {
+          expect(request.url.queryParameters['as_of'], '2026-07-31');
+          return http.Response(
+            jsonEncode({
+              'as_of_date': '2026-07-31T00:00:00Z',
+              'total_current_minor': 0,
+              'total_one_to_thirty_minor': 0,
+              'total_thirty_one_to_sixty_minor': 59000,
+              'total_sixty_one_to_ninety_minor': 0,
+              'total_over_ninety_minor': 0,
+              'total_outstanding_minor': 59000,
+              'rows': [
+                {
+                  'vendor_id': 'vendor-1',
+                  'vendor_name': 'Office Supplies Co',
+                  'bill_id': 'bill-1',
+                  'bill_number': 'BILL-001',
+                  'due_date': '2026-06-30T00:00:00Z',
+                  'days_overdue': 31,
+                  'outstanding_minor': 59000,
+                  'current_minor': 0,
+                  'one_to_thirty_minor': 0,
+                  'thirty_one_to_sixty_minor': 59000,
+                  'sixty_one_to_ninety_minor': 0,
+                  'over_ninety_minor': 0,
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        return http.Response('unexpected path', 404);
+      }),
+    );
+
+    final cashFlow = await client.getCashFlow(
+      from: DateTime.utc(2026, 4),
+      to: DateTime.utc(2026, 7, 31),
+    );
+    final arAging = await client.getARAging(asOf: DateTime.utc(2026, 7, 31));
+    final apAging = await client.getAPAging(asOf: DateTime.utc(2026, 7, 31));
+
+    expect(cashFlow.closingCashMinor, 600000);
+    expect(cashFlow.rows.single.sourceModule, 'invoice');
+    expect(arAging.rows.single.invoiceNumber, 'INV-001');
+    expect(arAging.totalOutstandingMinor, 118000);
+    expect(apAging.rows.single.billNumber, 'BILL-001');
+    expect(apAging.totalOutstandingMinor, 59000);
+  });
+
   test('lists invoice and expense summaries', () async {
     final client = AccountingApiClient(
       config: config,

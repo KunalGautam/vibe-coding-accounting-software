@@ -36,6 +36,16 @@ typedef ProfitAndLossLoader =
     );
 typedef BalanceSheetLoader =
     Future<BalanceSheetReport> Function(SyncSettings settings, DateTime asOf);
+typedef CashFlowLoader =
+    Future<CashFlowReport> Function(
+      SyncSettings settings,
+      DateTime from,
+      DateTime to,
+    );
+typedef ARAgingLoader =
+    Future<ARAgingReport> Function(SyncSettings settings, DateTime asOf);
+typedef APAgingLoader =
+    Future<APAgingReport> Function(SyncSettings settings, DateTime asOf);
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -129,6 +139,9 @@ class AccountingApp extends StatelessWidget {
     this.trialBalanceLoader,
     this.profitAndLossLoader,
     this.balanceSheetLoader,
+    this.cashFlowLoader,
+    this.arAgingLoader,
+    this.apAgingLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -160,6 +173,9 @@ class AccountingApp extends StatelessWidget {
   final TrialBalanceLoader? trialBalanceLoader;
   final ProfitAndLossLoader? profitAndLossLoader;
   final BalanceSheetLoader? balanceSheetLoader;
+  final CashFlowLoader? cashFlowLoader;
+  final ARAgingLoader? arAgingLoader;
+  final APAgingLoader? apAgingLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -203,6 +219,9 @@ class AccountingApp extends StatelessWidget {
         trialBalanceLoader: trialBalanceLoader,
         profitAndLossLoader: profitAndLossLoader,
         balanceSheetLoader: balanceSheetLoader,
+        cashFlowLoader: cashFlowLoader,
+        arAgingLoader: arAgingLoader,
+        apAgingLoader: apAgingLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -238,6 +257,9 @@ class MobileDeskShell extends StatefulWidget {
     this.trialBalanceLoader,
     this.profitAndLossLoader,
     this.balanceSheetLoader,
+    this.cashFlowLoader,
+    this.arAgingLoader,
+    this.apAgingLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -269,6 +291,9 @@ class MobileDeskShell extends StatefulWidget {
   final TrialBalanceLoader? trialBalanceLoader;
   final ProfitAndLossLoader? profitAndLossLoader;
   final BalanceSheetLoader? balanceSheetLoader;
+  final CashFlowLoader? cashFlowLoader;
+  final ARAgingLoader? arAgingLoader;
+  final APAgingLoader? apAgingLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -330,6 +355,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   TrialBalanceReport? cachedTrialBalanceReport;
   ProfitAndLossReport? cachedProfitAndLossReport;
   BalanceSheetReport? cachedBalanceSheetReport;
+  CashFlowReport? cachedCashFlowReport;
+  ARAgingReport? cachedARAgingReport;
+  APAgingReport? cachedAPAgingReport;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -433,6 +461,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       cachedTrialBalanceReport = snapshot.trialBalance;
       cachedProfitAndLossReport = snapshot.profitAndLoss;
       cachedBalanceSheetReport = snapshot.balanceSheet;
+      cachedCashFlowReport = snapshot.cashFlow;
+      cachedARAgingReport = snapshot.arAging;
+      cachedAPAgingReport = snapshot.apAging;
     });
   }
 
@@ -860,6 +891,133 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'Balance sheet fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchCashFlow(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.cashFlowLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getCashFlow(from: from, to: to);
+      final report = await loader(settings, from, to);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(cashFlow: report),
+      );
+      setState(() {
+        cachedCashFlowReport = report;
+        syncNotice =
+            'Fetched cash flow from ${formatDateOnly(report.fromDate)} to ${formatDateOnly(report.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Cash flow fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchARAging(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.arAgingLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getARAging(asOf: asOf);
+      final report = await loader(settings, asOf);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(arAging: report),
+      );
+      setState(() {
+        cachedARAgingReport = report;
+        syncNotice = 'Fetched AR aging as of ${formatDateOnly(asOf)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'AR aging fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchAPAging(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.apAgingLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getAPAging(asOf: asOf);
+      final report = await loader(settings, asOf);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(apAging: report),
+      );
+      setState(() {
+        cachedAPAgingReport = report;
+        syncNotice = 'Fetched AP aging as of ${formatDateOnly(asOf)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'AP aging fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -1415,11 +1573,17 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         trialBalance: cachedTrialBalanceReport,
         profitAndLoss: cachedProfitAndLossReport,
         balanceSheet: cachedBalanceSheetReport,
+        cashFlow: cachedCashFlowReport,
+        arAging: cachedARAgingReport,
+        apAging: cachedAPAgingReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
         onFetchTrialBalance: fetchTrialBalance,
         onFetchProfitAndLoss: fetchProfitAndLoss,
         onFetchBalanceSheet: fetchBalanceSheet,
+        onFetchCashFlow: fetchCashFlow,
+        onFetchARAging: fetchARAging,
+        onFetchAPAging: fetchAPAging,
       ),
       SyncPage(
         settings: settings,
@@ -2772,10 +2936,16 @@ class ReportsPage extends StatelessWidget {
     required this.trialBalance,
     required this.profitAndLoss,
     required this.balanceSheet,
+    required this.cashFlow,
+    required this.arAging,
+    required this.apAging,
     required this.isLoading,
     required this.onFetchTrialBalance,
     required this.onFetchProfitAndLoss,
     required this.onFetchBalanceSheet,
+    required this.onFetchCashFlow,
+    required this.onFetchARAging,
+    required this.onFetchAPAging,
     this.notice,
     super.key,
   });
@@ -2783,11 +2953,17 @@ class ReportsPage extends StatelessWidget {
   final TrialBalanceReport? trialBalance;
   final ProfitAndLossReport? profitAndLoss;
   final BalanceSheetReport? balanceSheet;
+  final CashFlowReport? cashFlow;
+  final ARAgingReport? arAging;
+  final APAgingReport? apAging;
   final bool isLoading;
   final String? notice;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
   final Future<void> Function(DateTime from, DateTime to) onFetchProfitAndLoss;
   final Future<void> Function(DateTime asOf) onFetchBalanceSheet;
+  final Future<void> Function(DateTime from, DateTime to) onFetchCashFlow;
+  final Future<void> Function(DateTime asOf) onFetchARAging;
+  final Future<void> Function(DateTime asOf) onFetchAPAging;
 
   @override
   Widget build(BuildContext context) {
@@ -2898,12 +3074,84 @@ class ReportsPage extends StatelessWidget {
             ],
           ],
         ),
+        _ReportCard(
+          title: 'Cash flow',
+          description:
+              'Uses the Indian fiscal year window ${formatDateOnly(fiscalStart)} to ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch cash flow',
+          icon: Icons.waterfall_chart,
+          isLoading: isLoading,
+          onPressed: () => onFetchCashFlow(fiscalStart, asOf),
+          children: [
+            if (cashFlow == null)
+              const Text('No cached cash flow yet.')
+            else ...[
+              Text(
+                '${formatDateOnly(cashFlow!.fromDate)} to ${formatDateOnly(cashFlow!.toDate)}',
+              ),
+              Text(
+                'Inflows ${formatMinorAsInr(cashFlow!.totalInflowsMinor)} · Outflows ${formatMinorAsInr(cashFlow!.totalOutflowsMinor)}',
+              ),
+              Text(
+                'Net cash flow ${formatMinorAsInr(cashFlow!.netCashFlowMinor)}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                'Opening ${formatMinorAsInr(cashFlow!.openingCashMinor)} · Closing ${formatMinorAsInr(cashFlow!.closingCashMinor)}',
+              ),
+              if (cashFlow!.generatedFromSubtypes.isNotEmpty)
+                Text(
+                  'Cash accounts: ${cashFlow!.generatedFromSubtypes.join(', ')}',
+                ),
+              const SizedBox(height: 8),
+              _CashFlowRows(rows: cashFlow!.rows),
+            ],
+          ],
+        ),
+        _ReportCard(
+          title: 'AR aging',
+          description:
+              'Fetches customer receivables aging as of ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch AR aging',
+          icon: Icons.request_quote_outlined,
+          isLoading: isLoading,
+          onPressed: () => onFetchARAging(asOf),
+          children: [
+            if (arAging == null)
+              const Text('No cached AR aging yet.')
+            else ...[
+              Text('As of ${formatDateOnly(arAging!.asOfDate)}'),
+              _AgingTotalsText(totals: arAging!.totals),
+              const SizedBox(height: 8),
+              _ARAgingRows(rows: arAging!.rows),
+            ],
+          ],
+        ),
+        _ReportCard(
+          title: 'AP aging',
+          description:
+              'Fetches vendor payables aging as of ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch AP aging',
+          icon: Icons.receipt_long_outlined,
+          isLoading: isLoading,
+          onPressed: () => onFetchAPAging(asOf),
+          children: [
+            if (apAging == null)
+              const Text('No cached AP aging yet.')
+            else ...[
+              Text('As of ${formatDateOnly(apAging!.asOfDate)}'),
+              _AgingTotalsText(totals: apAging!.totals),
+              const SizedBox(height: 8),
+              _APAgingRows(rows: apAging!.rows),
+            ],
+          ],
+        ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
-            'Target APIs: GET /reports/trial-balance, GET /reports/profit-and-loss, and GET /reports/balance-sheet',
-            'Latest core statements are cached locally for offline review',
-            'Cash flow and AR/AP aging report screens remain next parity targets',
+            'Target APIs: trial balance, P&L, balance sheet, cash flow, AR aging, and AP aging',
+            'Latest financial report snapshots are cached locally for offline review',
+            'Tax, budget, comparative, and export polish remain next reporting parity targets',
           ],
         ),
       ],
@@ -2974,6 +3222,94 @@ class _ReportRows extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
               '${row.accountCode} · ${row.accountName} · ${row.accountType} · Dr ${formatMinorAsInr(row.debitMinor)} · Cr ${formatMinorAsInr(row.creditMinor)} · Bal ${formatMinorAsInr(row.balanceMinor)}',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _CashFlowRows extends StatelessWidget {
+  const _CashFlowRows({required this.rows});
+
+  final List<CashFlowRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No cash movement in this period.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.accountCode} · ${row.accountName} · ${row.sourceModule} · In ${formatMinorAsInr(row.inflowMinor)} · Out ${formatMinorAsInr(row.outflowMinor)} · Net ${formatMinorAsInr(row.netCashFlowMinor)}',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AgingTotalsText extends StatelessWidget {
+  const _AgingTotalsText({required this.totals});
+
+  final AgingBucketTotals totals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Outstanding ${formatMinorAsInr(totals.outstandingMinor)} · Current ${formatMinorAsInr(totals.currentMinor)} · 1-30 ${formatMinorAsInr(totals.oneToThirtyMinor)} · 31-60 ${formatMinorAsInr(totals.thirtyOneToSixtyMinor)} · 61-90 ${formatMinorAsInr(totals.sixtyOneToNinetyMinor)} · 90+ ${formatMinorAsInr(totals.overNinetyMinor)}',
+    );
+  }
+}
+
+class _ARAgingRows extends StatelessWidget {
+  const _ARAgingRows({required this.rows});
+
+  final List<ARAgingRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No outstanding customer invoices.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.invoiceNumber} · ${row.customerName} · due ${formatDateOnly(row.dueDate)} · ${row.daysOverdue} days · ${formatMinorAsInr(row.outstandingMinor)}',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _APAgingRows extends StatelessWidget {
+  const _APAgingRows({required this.rows});
+
+  final List<APAgingRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No outstanding vendor bills.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.billNumber} · ${row.vendorName} · due ${formatDateOnly(row.dueDate)} · ${row.daysOverdue} days · ${formatMinorAsInr(row.outstandingMinor)}',
             ),
           ),
       ],

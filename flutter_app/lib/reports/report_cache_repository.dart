@@ -9,7 +9,7 @@ import '../storage/offline_sqlite.dart';
 Future<ReportCacheRepository> createDefaultReportCacheRepository() async {
   final database = await openOfflineDatabase(
     fileName: 'offline-reports.sqlite',
-    version: 2,
+    version: 3,
     onCreate: (database, _) => createReportCacheTables(database),
     onUpgrade: (database, _, _) => createReportCacheTables(database),
   );
@@ -21,11 +21,17 @@ class ReportCacheSnapshot {
     this.trialBalance,
     this.profitAndLoss,
     this.balanceSheet,
+    this.cashFlow,
+    this.arAging,
+    this.apAging,
   });
 
   final TrialBalanceReport? trialBalance;
   final ProfitAndLossReport? profitAndLoss;
   final BalanceSheetReport? balanceSheet;
+  final CashFlowReport? cashFlow;
+  final ARAgingReport? arAging;
+  final APAgingReport? apAging;
 
   factory ReportCacheSnapshot.fromJson(Map<String, Object?> json) {
     return ReportCacheSnapshot(
@@ -44,6 +50,15 @@ class ReportCacheSnapshot {
               json['balance_sheet']! as Map<String, Object?>,
             )
           : null,
+      cashFlow: json['cash_flow'] is Map<String, Object?>
+          ? CashFlowReport.fromJson(json['cash_flow']! as Map<String, Object?>)
+          : null,
+      arAging: json['ar_aging'] is Map<String, Object?>
+          ? ARAgingReport.fromJson(json['ar_aging']! as Map<String, Object?>)
+          : null,
+      apAging: json['ap_aging'] is Map<String, Object?>
+          ? APAgingReport.fromJson(json['ap_aging']! as Map<String, Object?>)
+          : null,
     );
   }
 
@@ -51,11 +66,17 @@ class ReportCacheSnapshot {
     TrialBalanceReport? trialBalance,
     ProfitAndLossReport? profitAndLoss,
     BalanceSheetReport? balanceSheet,
+    CashFlowReport? cashFlow,
+    ARAgingReport? arAging,
+    APAgingReport? apAging,
   }) {
     return ReportCacheSnapshot(
       trialBalance: trialBalance ?? this.trialBalance,
       profitAndLoss: profitAndLoss ?? this.profitAndLoss,
       balanceSheet: balanceSheet ?? this.balanceSheet,
+      cashFlow: cashFlow ?? this.cashFlow,
+      arAging: arAging ?? this.arAging,
+      apAging: apAging ?? this.apAging,
     );
   }
 
@@ -64,6 +85,9 @@ class ReportCacheSnapshot {
       if (trialBalance != null) 'trial_balance': trialBalance!.toJson(),
       if (profitAndLoss != null) 'profit_and_loss': profitAndLoss!.toJson(),
       if (balanceSheet != null) 'balance_sheet': balanceSheet!.toJson(),
+      if (cashFlow != null) 'cash_flow': cashFlow!.toJson(),
+      if (arAging != null) 'ar_aging': arAging!.toJson(),
+      if (apAging != null) 'ap_aging': apAging!.toJson(),
     };
   }
 }
@@ -153,6 +177,30 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       'cached_balance_sheet_rows',
       orderBy: 'section ASC, row_index ASC, account_code ASC, account_id ASC',
     );
+    final cashFlowRows = await database.query(
+      'cached_cash_flow_report',
+      limit: 1,
+    );
+    final cashFlowDetailRows = await database.query(
+      'cached_cash_flow_rows',
+      orderBy: 'row_index ASC, account_code ASC, account_id ASC',
+    );
+    final arAgingRows = await database.query(
+      'cached_ar_aging_report',
+      limit: 1,
+    );
+    final arAgingDetailRows = await database.query(
+      'cached_ar_aging_rows',
+      orderBy: 'row_index ASC, due_date ASC, invoice_number ASC',
+    );
+    final apAgingRows = await database.query(
+      'cached_ap_aging_report',
+      limit: 1,
+    );
+    final apAgingDetailRows = await database.query(
+      'cached_ap_aging_rows',
+      orderBy: 'row_index ASC, due_date ASC, bill_number ASC',
+    );
     return ReportCacheSnapshot(
       trialBalance: trialBalanceRows.isEmpty
           ? null
@@ -172,6 +220,15 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
               balanceSheetRows.single,
               balanceSheetDetailRows,
             ),
+      cashFlow: cashFlowRows.isEmpty
+          ? null
+          : _cashFlowFromRows(cashFlowRows.single, cashFlowDetailRows),
+      arAging: arAgingRows.isEmpty
+          ? null
+          : _arAgingFromRows(arAgingRows.single, arAgingDetailRows),
+      apAging: apAgingRows.isEmpty
+          ? null
+          : _apAgingFromRows(apAgingRows.single, apAgingDetailRows),
     );
   }
 
@@ -184,6 +241,12 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       await transaction.delete('cached_profit_and_loss_rows');
       await transaction.delete('cached_balance_sheet_report');
       await transaction.delete('cached_balance_sheet_rows');
+      await transaction.delete('cached_cash_flow_report');
+      await transaction.delete('cached_cash_flow_rows');
+      await transaction.delete('cached_ar_aging_report');
+      await transaction.delete('cached_ar_aging_rows');
+      await transaction.delete('cached_ap_aging_report');
+      await transaction.delete('cached_ap_aging_rows');
 
       final trialBalance = snapshot.trialBalance;
       if (trialBalance != null) {
@@ -247,6 +310,54 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
           'equity',
           balanceSheet.equityRows,
         );
+      }
+
+      final cashFlow = snapshot.cashFlow;
+      if (cashFlow != null) {
+        await transaction.insert(
+          'cached_cash_flow_report',
+          _cashFlowToRow(cashFlow),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        for (var index = 0; index < cashFlow.rows.length; index += 1) {
+          await transaction.insert(
+            'cached_cash_flow_rows',
+            _cashFlowRowToRow(index, cashFlow.rows[index]),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
+
+      final arAging = snapshot.arAging;
+      if (arAging != null) {
+        await transaction.insert(
+          'cached_ar_aging_report',
+          _arAgingToRow(arAging),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        for (var index = 0; index < arAging.rows.length; index += 1) {
+          await transaction.insert(
+            'cached_ar_aging_rows',
+            _arAgingRowToRow(index, arAging.rows[index]),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+      }
+
+      final apAging = snapshot.apAging;
+      if (apAging != null) {
+        await transaction.insert(
+          'cached_ap_aging_report',
+          _apAgingToRow(apAging),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        for (var index = 0; index < apAging.rows.length; index += 1) {
+          await transaction.insert(
+            'cached_ap_aging_rows',
+            _apAgingRowToRow(index, apAging.rows[index]),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
     });
   }
@@ -323,6 +434,92 @@ CREATE TABLE IF NOT EXISTS cached_balance_sheet_rows (
   PRIMARY KEY (section, row_index, account_id)
 )
 ''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_cash_flow_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  from_date TEXT NOT NULL,
+  to_date TEXT NOT NULL,
+  total_inflows_minor INTEGER NOT NULL DEFAULT 0,
+  total_outflows_minor INTEGER NOT NULL DEFAULT 0,
+  net_cash_flow_minor INTEGER NOT NULL DEFAULT 0,
+  opening_cash_minor INTEGER NOT NULL DEFAULT 0,
+  closing_cash_minor INTEGER NOT NULL DEFAULT 0,
+  generated_from_subtypes TEXT NOT NULL DEFAULT '[]'
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_cash_flow_rows (
+  row_index INTEGER NOT NULL,
+  account_id TEXT NOT NULL,
+  account_code TEXT NOT NULL DEFAULT '',
+  account_name TEXT NOT NULL DEFAULT '',
+  source_module TEXT NOT NULL DEFAULT '',
+  inflow_minor INTEGER NOT NULL DEFAULT 0,
+  outflow_minor INTEGER NOT NULL DEFAULT 0,
+  net_cash_flow_minor INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (row_index, account_id, source_module)
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_ar_aging_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  as_of_date TEXT NOT NULL,
+  total_current_minor INTEGER NOT NULL DEFAULT 0,
+  total_one_to_thirty_minor INTEGER NOT NULL DEFAULT 0,
+  total_thirty_one_to_sixty_minor INTEGER NOT NULL DEFAULT 0,
+  total_sixty_one_to_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  total_over_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  total_outstanding_minor INTEGER NOT NULL DEFAULT 0
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_ar_aging_rows (
+  row_index INTEGER NOT NULL,
+  customer_id TEXT NOT NULL,
+  customer_name TEXT NOT NULL DEFAULT '',
+  invoice_id TEXT NOT NULL,
+  invoice_number TEXT NOT NULL DEFAULT '',
+  due_date TEXT NOT NULL,
+  days_overdue INTEGER NOT NULL DEFAULT 0,
+  outstanding_minor INTEGER NOT NULL DEFAULT 0,
+  current_minor INTEGER NOT NULL DEFAULT 0,
+  one_to_thirty_minor INTEGER NOT NULL DEFAULT 0,
+  thirty_one_to_sixty_minor INTEGER NOT NULL DEFAULT 0,
+  sixty_one_to_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  over_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (row_index, invoice_id)
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_ap_aging_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  as_of_date TEXT NOT NULL,
+  total_current_minor INTEGER NOT NULL DEFAULT 0,
+  total_one_to_thirty_minor INTEGER NOT NULL DEFAULT 0,
+  total_thirty_one_to_sixty_minor INTEGER NOT NULL DEFAULT 0,
+  total_sixty_one_to_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  total_over_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  total_outstanding_minor INTEGER NOT NULL DEFAULT 0
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_ap_aging_rows (
+  row_index INTEGER NOT NULL,
+  vendor_id TEXT NOT NULL,
+  vendor_name TEXT NOT NULL DEFAULT '',
+  bill_id TEXT NOT NULL,
+  bill_number TEXT NOT NULL DEFAULT '',
+  due_date TEXT NOT NULL,
+  days_overdue INTEGER NOT NULL DEFAULT 0,
+  outstanding_minor INTEGER NOT NULL DEFAULT 0,
+  current_minor INTEGER NOT NULL DEFAULT 0,
+  one_to_thirty_minor INTEGER NOT NULL DEFAULT 0,
+  thirty_one_to_sixty_minor INTEGER NOT NULL DEFAULT 0,
+  sixty_one_to_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  over_ninety_minor INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (row_index, bill_id)
+)
+''');
 }
 
 Map<String, Object?> _trialBalanceToRow(TrialBalanceReport report) {
@@ -375,6 +572,93 @@ Map<String, Object?> _balanceSheetToRow(BalanceSheetReport report) {
     'total_liabilities_minor': report.totalLiabilitiesMinor,
     'total_equity_minor': report.totalEquityMinor,
     'balanced': report.balanced ? 1 : 0,
+  };
+}
+
+Map<String, Object?> _cashFlowToRow(CashFlowReport report) {
+  return {
+    'id': 1,
+    'from_date': _dateOnly(report.fromDate),
+    'to_date': _dateOnly(report.toDate),
+    'total_inflows_minor': report.totalInflowsMinor,
+    'total_outflows_minor': report.totalOutflowsMinor,
+    'net_cash_flow_minor': report.netCashFlowMinor,
+    'opening_cash_minor': report.openingCashMinor,
+    'closing_cash_minor': report.closingCashMinor,
+    'generated_from_subtypes': jsonEncode(report.generatedFromSubtypes),
+  };
+}
+
+Map<String, Object?> _cashFlowRowToRow(int index, CashFlowRow row) {
+  return {
+    'row_index': index,
+    'account_id': row.accountId,
+    'account_code': row.accountCode,
+    'account_name': row.accountName,
+    'source_module': row.sourceModule,
+    'inflow_minor': row.inflowMinor,
+    'outflow_minor': row.outflowMinor,
+    'net_cash_flow_minor': row.netCashFlowMinor,
+  };
+}
+
+Map<String, Object?> _agingTotalsToRow({
+  required DateTime asOfDate,
+  required AgingBucketTotals totals,
+}) {
+  return {
+    'id': 1,
+    'as_of_date': _dateOnly(asOfDate),
+    'total_current_minor': totals.currentMinor,
+    'total_one_to_thirty_minor': totals.oneToThirtyMinor,
+    'total_thirty_one_to_sixty_minor': totals.thirtyOneToSixtyMinor,
+    'total_sixty_one_to_ninety_minor': totals.sixtyOneToNinetyMinor,
+    'total_over_ninety_minor': totals.overNinetyMinor,
+    'total_outstanding_minor': totals.outstandingMinor,
+  };
+}
+
+Map<String, Object?> _arAgingToRow(ARAgingReport report) {
+  return _agingTotalsToRow(asOfDate: report.asOfDate, totals: report.totals);
+}
+
+Map<String, Object?> _apAgingToRow(APAgingReport report) {
+  return _agingTotalsToRow(asOfDate: report.asOfDate, totals: report.totals);
+}
+
+Map<String, Object?> _arAgingRowToRow(int index, ARAgingRow row) {
+  return {
+    'row_index': index,
+    'customer_id': row.customerId,
+    'customer_name': row.customerName,
+    'invoice_id': row.invoiceId,
+    'invoice_number': row.invoiceNumber,
+    'due_date': _dateOnly(row.dueDate),
+    'days_overdue': row.daysOverdue,
+    'outstanding_minor': row.outstandingMinor,
+    'current_minor': row.currentMinor,
+    'one_to_thirty_minor': row.oneToThirtyMinor,
+    'thirty_one_to_sixty_minor': row.thirtyOneToSixtyMinor,
+    'sixty_one_to_ninety_minor': row.sixtyOneToNinetyMinor,
+    'over_ninety_minor': row.overNinetyMinor,
+  };
+}
+
+Map<String, Object?> _apAgingRowToRow(int index, APAgingRow row) {
+  return {
+    'row_index': index,
+    'vendor_id': row.vendorId,
+    'vendor_name': row.vendorName,
+    'bill_id': row.billId,
+    'bill_number': row.billNumber,
+    'due_date': _dateOnly(row.dueDate),
+    'days_overdue': row.daysOverdue,
+    'outstanding_minor': row.outstandingMinor,
+    'current_minor': row.currentMinor,
+    'one_to_thirty_minor': row.oneToThirtyMinor,
+    'thirty_one_to_sixty_minor': row.thirtyOneToSixtyMinor,
+    'sixty_one_to_ninety_minor': row.sixtyOneToNinetyMinor,
+    'over_ninety_minor': row.overNinetyMinor,
   };
 }
 
@@ -437,6 +721,64 @@ BalanceSheetReport _balanceSheetFromRows(
   );
 }
 
+CashFlowReport _cashFlowFromRows(
+  Map<String, Object?> report,
+  List<Map<String, Object?>> rows,
+) {
+  final decodedSubtypes = jsonDecode(
+    report['generated_from_subtypes'] as String? ?? '[]',
+  );
+  return CashFlowReport(
+    fromDate: DateTime.parse(report['from_date']! as String),
+    toDate: DateTime.parse(report['to_date']! as String),
+    rows: rows.map(_cashFlowRowFromRow).toList(growable: false),
+    totalInflowsMinor: report['total_inflows_minor'] as int? ?? 0,
+    totalOutflowsMinor: report['total_outflows_minor'] as int? ?? 0,
+    netCashFlowMinor: report['net_cash_flow_minor'] as int? ?? 0,
+    openingCashMinor: report['opening_cash_minor'] as int? ?? 0,
+    closingCashMinor: report['closing_cash_minor'] as int? ?? 0,
+    generatedFromSubtypes: decodedSubtypes is List
+        ? decodedSubtypes.cast<String>().toList(growable: false)
+        : const [],
+  );
+}
+
+ARAgingReport _arAgingFromRows(
+  Map<String, Object?> report,
+  List<Map<String, Object?>> rows,
+) {
+  return ARAgingReport(
+    asOfDate: DateTime.parse(report['as_of_date']! as String),
+    rows: rows.map(_arAgingRowFromRow).toList(growable: false),
+    totalCurrentMinor: report['total_current_minor'] as int? ?? 0,
+    totalOneToThirtyMinor: report['total_one_to_thirty_minor'] as int? ?? 0,
+    totalThirtyOneToSixtyMinor:
+        report['total_thirty_one_to_sixty_minor'] as int? ?? 0,
+    totalSixtyOneToNinetyMinor:
+        report['total_sixty_one_to_ninety_minor'] as int? ?? 0,
+    totalOverNinetyMinor: report['total_over_ninety_minor'] as int? ?? 0,
+    totalOutstandingMinor: report['total_outstanding_minor'] as int? ?? 0,
+  );
+}
+
+APAgingReport _apAgingFromRows(
+  Map<String, Object?> report,
+  List<Map<String, Object?>> rows,
+) {
+  return APAgingReport(
+    asOfDate: DateTime.parse(report['as_of_date']! as String),
+    rows: rows.map(_apAgingRowFromRow).toList(growable: false),
+    totalCurrentMinor: report['total_current_minor'] as int? ?? 0,
+    totalOneToThirtyMinor: report['total_one_to_thirty_minor'] as int? ?? 0,
+    totalThirtyOneToSixtyMinor:
+        report['total_thirty_one_to_sixty_minor'] as int? ?? 0,
+    totalSixtyOneToNinetyMinor:
+        report['total_sixty_one_to_ninety_minor'] as int? ?? 0,
+    totalOverNinetyMinor: report['total_over_ninety_minor'] as int? ?? 0,
+    totalOutstandingMinor: report['total_outstanding_minor'] as int? ?? 0,
+  );
+}
+
 List<ReportRowSummary> _sectionRows(
   List<Map<String, Object?>> rows,
   String section,
@@ -445,6 +787,52 @@ List<ReportRowSummary> _sectionRows(
       .where((row) => row['section'] == section)
       .map(_reportRowFromRow)
       .toList(growable: false);
+}
+
+CashFlowRow _cashFlowRowFromRow(Map<String, Object?> row) {
+  return CashFlowRow(
+    accountId: row['account_id']! as String,
+    accountCode: row['account_code'] as String? ?? '',
+    accountName: row['account_name'] as String? ?? '',
+    sourceModule: row['source_module'] as String? ?? '',
+    inflowMinor: row['inflow_minor'] as int? ?? 0,
+    outflowMinor: row['outflow_minor'] as int? ?? 0,
+    netCashFlowMinor: row['net_cash_flow_minor'] as int? ?? 0,
+  );
+}
+
+ARAgingRow _arAgingRowFromRow(Map<String, Object?> row) {
+  return ARAgingRow(
+    customerId: row['customer_id']! as String,
+    customerName: row['customer_name'] as String? ?? '',
+    invoiceId: row['invoice_id']! as String,
+    invoiceNumber: row['invoice_number'] as String? ?? '',
+    dueDate: DateTime.parse(row['due_date']! as String),
+    daysOverdue: row['days_overdue'] as int? ?? 0,
+    outstandingMinor: row['outstanding_minor'] as int? ?? 0,
+    currentMinor: row['current_minor'] as int? ?? 0,
+    oneToThirtyMinor: row['one_to_thirty_minor'] as int? ?? 0,
+    thirtyOneToSixtyMinor: row['thirty_one_to_sixty_minor'] as int? ?? 0,
+    sixtyOneToNinetyMinor: row['sixty_one_to_ninety_minor'] as int? ?? 0,
+    overNinetyMinor: row['over_ninety_minor'] as int? ?? 0,
+  );
+}
+
+APAgingRow _apAgingRowFromRow(Map<String, Object?> row) {
+  return APAgingRow(
+    vendorId: row['vendor_id']! as String,
+    vendorName: row['vendor_name'] as String? ?? '',
+    billId: row['bill_id']! as String,
+    billNumber: row['bill_number'] as String? ?? '',
+    dueDate: DateTime.parse(row['due_date']! as String),
+    daysOverdue: row['days_overdue'] as int? ?? 0,
+    outstandingMinor: row['outstanding_minor'] as int? ?? 0,
+    currentMinor: row['current_minor'] as int? ?? 0,
+    oneToThirtyMinor: row['one_to_thirty_minor'] as int? ?? 0,
+    thirtyOneToSixtyMinor: row['thirty_one_to_sixty_minor'] as int? ?? 0,
+    sixtyOneToNinetyMinor: row['sixty_one_to_ninety_minor'] as int? ?? 0,
+    overNinetyMinor: row['over_ninety_minor'] as int? ?? 0,
+  );
 }
 
 ReportRowSummary _reportRowFromRow(Map<String, Object?> row) {

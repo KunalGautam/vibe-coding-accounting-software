@@ -1317,6 +1317,77 @@ void main() {
           totalEquityMinor: 350000,
           balanced: true,
         ),
+        cashFlowLoader: (_, from, to) async => CashFlowReport(
+          fromDate: from,
+          toDate: to,
+          rows: const [
+            CashFlowRow(
+              accountId: 'acct-bank',
+              accountCode: '1010',
+              accountName: 'Bank',
+              sourceModule: 'invoice',
+              inflowMinor: 500000,
+              outflowMinor: 150000,
+              netCashFlowMinor: 350000,
+            ),
+          ],
+          totalInflowsMinor: 500000,
+          totalOutflowsMinor: 150000,
+          netCashFlowMinor: 350000,
+          openingCashMinor: 250000,
+          closingCashMinor: 600000,
+          generatedFromSubtypes: const ['bank', 'cash'],
+        ),
+        arAgingLoader: (_, asOf) async => ARAgingReport(
+          asOfDate: asOf,
+          rows: [
+            ARAgingRow(
+              customerId: 'cust-1',
+              customerName: 'Acme',
+              invoiceId: 'inv-1',
+              invoiceNumber: 'INV-001',
+              dueDate: DateTime.utc(2026, 7, 1),
+              daysOverdue: 30,
+              outstandingMinor: 118000,
+              currentMinor: 0,
+              oneToThirtyMinor: 118000,
+              thirtyOneToSixtyMinor: 0,
+              sixtyOneToNinetyMinor: 0,
+              overNinetyMinor: 0,
+            ),
+          ],
+          totalCurrentMinor: 0,
+          totalOneToThirtyMinor: 118000,
+          totalThirtyOneToSixtyMinor: 0,
+          totalSixtyOneToNinetyMinor: 0,
+          totalOverNinetyMinor: 0,
+          totalOutstandingMinor: 118000,
+        ),
+        apAgingLoader: (_, asOf) async => APAgingReport(
+          asOfDate: asOf,
+          rows: [
+            APAgingRow(
+              vendorId: 'vendor-1',
+              vendorName: 'Office Supplies Co',
+              billId: 'bill-1',
+              billNumber: 'BILL-001',
+              dueDate: DateTime.utc(2026, 6, 30),
+              daysOverdue: 31,
+              outstandingMinor: 59000,
+              currentMinor: 0,
+              oneToThirtyMinor: 0,
+              thirtyOneToSixtyMinor: 59000,
+              sixtyOneToNinetyMinor: 0,
+              overNinetyMinor: 0,
+            ),
+          ],
+          totalCurrentMinor: 0,
+          totalOneToThirtyMinor: 0,
+          totalThirtyOneToSixtyMinor: 59000,
+          totalSixtyOneToNinetyMinor: 0,
+          totalOverNinetyMinor: 0,
+          totalOutstandingMinor: 59000,
+        ),
       ),
     );
     await tester.pump();
@@ -1331,12 +1402,24 @@ void main() {
     await tester.ensureVisible(find.text('Fetch balance sheet'));
     await tester.tap(find.text('Fetch balance sheet'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch cash flow'));
+    await tester.tap(find.text('Fetch cash flow'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch AR aging'));
+    await tester.tap(find.text('Fetch AR aging'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch AP aging'));
+    await tester.tap(find.text('Fetch AP aging'));
+    await tester.pumpAndSettle();
 
     final cached = await reportCacheRepository.loadCached();
     expect(cached.trialBalance?.balanced, true);
     expect(cached.trialBalance?.rows, hasLength(2));
     expect(cached.profitAndLoss?.netIncomeMinor, 350000);
     expect(cached.balanceSheet?.balanced, true);
+    expect(cached.cashFlow?.closingCashMinor, 600000);
+    expect(cached.arAging?.totalOutstandingMinor, 118000);
+    expect(cached.apAging?.totalOutstandingMinor, 59000);
     expect(find.text('Balanced'), findsNWidgets(2));
     expect(
       find.text('Debits INR 1250.00 · Credits INR 1250.00'),
@@ -1352,6 +1435,17 @@ void main() {
     expect(
       find.text(
         'Assets INR 3500.00 · Liabilities INR 0.00 · Equity INR 3500.00',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Net cash flow INR 3500.00'), findsOneWidget);
+    expect(
+      find.text('INV-001 · Acme · due 2026-07-01 · 30 days · INR 1180.00'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'BILL-001 · Office Supplies Co · due 2026-06-30 · 31 days · INR 590.00',
       ),
       findsOneWidget,
     );

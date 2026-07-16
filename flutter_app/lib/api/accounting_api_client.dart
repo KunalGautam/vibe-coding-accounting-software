@@ -275,6 +275,29 @@ class AccountingApiClient {
     return BalanceSheetReport.fromJson(_decodeObject(response));
   }
 
+  Future<CashFlowReport> getCashFlow({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final params = Uri(
+      queryParameters: {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    ).query;
+    final response = await _send('GET', '/reports/cash-flow?$params');
+    return CashFlowReport.fromJson(_decodeObject(response));
+  }
+
+  Future<ARAgingReport> getARAging({required DateTime asOf}) async {
+    final params = Uri(queryParameters: {'as_of': _dateOnly(asOf)}).query;
+    final response = await _send('GET', '/reports/ar-aging?$params');
+    return ARAgingReport.fromJson(_decodeObject(response));
+  }
+
+  Future<APAgingReport> getAPAging({required DateTime asOf}) async {
+    final params = Uri(queryParameters: {'as_of': _dateOnly(asOf)}).query;
+    final response = await _send('GET', '/reports/ap-aging?$params');
+    return APAgingReport.fromJson(_decodeObject(response));
+  }
+
   Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
     final response = await _send('GET', '/investments/prices');
     return _decodeList(response, InvestmentPriceSummary.fromJson);
@@ -1367,6 +1390,378 @@ class BalanceSheetReport {
       'total_liabilities_minor': totalLiabilitiesMinor,
       'total_equity_minor': totalEquityMinor,
       'balanced': balanced,
+    };
+  }
+}
+
+class CashFlowRow {
+  const CashFlowRow({
+    required this.accountId,
+    required this.accountCode,
+    required this.accountName,
+    required this.sourceModule,
+    required this.inflowMinor,
+    required this.outflowMinor,
+    required this.netCashFlowMinor,
+  });
+
+  final String accountId;
+  final String accountCode;
+  final String accountName;
+  final String sourceModule;
+  final int inflowMinor;
+  final int outflowMinor;
+  final int netCashFlowMinor;
+
+  factory CashFlowRow.fromJson(Map<String, Object?> json) {
+    return CashFlowRow(
+      accountId: json['account_id']! as String,
+      accountCode: json['account_code'] as String? ?? '',
+      accountName: json['account_name'] as String? ?? '',
+      sourceModule: json['source_module'] as String? ?? '',
+      inflowMinor: json['inflow_minor'] as int? ?? 0,
+      outflowMinor: json['outflow_minor'] as int? ?? 0,
+      netCashFlowMinor: json['net_cash_flow_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'account_code': accountCode,
+      'account_name': accountName,
+      'source_module': sourceModule,
+      'inflow_minor': inflowMinor,
+      'outflow_minor': outflowMinor,
+      'net_cash_flow_minor': netCashFlowMinor,
+    };
+  }
+}
+
+class CashFlowReport {
+  const CashFlowReport({
+    required this.fromDate,
+    required this.toDate,
+    required this.rows,
+    required this.totalInflowsMinor,
+    required this.totalOutflowsMinor,
+    required this.netCashFlowMinor,
+    required this.openingCashMinor,
+    required this.closingCashMinor,
+    required this.generatedFromSubtypes,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final List<CashFlowRow> rows;
+  final int totalInflowsMinor;
+  final int totalOutflowsMinor;
+  final int netCashFlowMinor;
+  final int openingCashMinor;
+  final int closingCashMinor;
+  final List<String> generatedFromSubtypes;
+
+  factory CashFlowReport.fromJson(Map<String, Object?> json) {
+    return CashFlowReport(
+      fromDate: DateTime.parse(json['from_date']! as String),
+      toDate: DateTime.parse(json['to_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(CashFlowRow.fromJson)
+          .toList(growable: false),
+      totalInflowsMinor: json['total_inflows_minor'] as int? ?? 0,
+      totalOutflowsMinor: json['total_outflows_minor'] as int? ?? 0,
+      netCashFlowMinor: json['net_cash_flow_minor'] as int? ?? 0,
+      openingCashMinor: json['opening_cash_minor'] as int? ?? 0,
+      closingCashMinor: json['closing_cash_minor'] as int? ?? 0,
+      generatedFromSubtypes:
+          (json['generated_from_subtypes'] as List? ?? const [])
+              .cast<String>()
+              .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'from_date': _dateOnly(fromDate),
+      'to_date': _dateOnly(toDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_inflows_minor': totalInflowsMinor,
+      'total_outflows_minor': totalOutflowsMinor,
+      'net_cash_flow_minor': netCashFlowMinor,
+      'opening_cash_minor': openingCashMinor,
+      'closing_cash_minor': closingCashMinor,
+      'generated_from_subtypes': generatedFromSubtypes,
+    };
+  }
+}
+
+class AgingBucketTotals {
+  const AgingBucketTotals({
+    required this.currentMinor,
+    required this.oneToThirtyMinor,
+    required this.thirtyOneToSixtyMinor,
+    required this.sixtyOneToNinetyMinor,
+    required this.overNinetyMinor,
+    required this.outstandingMinor,
+  });
+
+  final int currentMinor;
+  final int oneToThirtyMinor;
+  final int thirtyOneToSixtyMinor;
+  final int sixtyOneToNinetyMinor;
+  final int overNinetyMinor;
+  final int outstandingMinor;
+}
+
+class ARAgingRow {
+  const ARAgingRow({
+    required this.customerId,
+    required this.customerName,
+    required this.invoiceId,
+    required this.invoiceNumber,
+    required this.dueDate,
+    required this.daysOverdue,
+    required this.outstandingMinor,
+    required this.currentMinor,
+    required this.oneToThirtyMinor,
+    required this.thirtyOneToSixtyMinor,
+    required this.sixtyOneToNinetyMinor,
+    required this.overNinetyMinor,
+  });
+
+  final String customerId;
+  final String customerName;
+  final String invoiceId;
+  final String invoiceNumber;
+  final DateTime dueDate;
+  final int daysOverdue;
+  final int outstandingMinor;
+  final int currentMinor;
+  final int oneToThirtyMinor;
+  final int thirtyOneToSixtyMinor;
+  final int sixtyOneToNinetyMinor;
+  final int overNinetyMinor;
+
+  factory ARAgingRow.fromJson(Map<String, Object?> json) {
+    return ARAgingRow(
+      customerId: json['customer_id']! as String,
+      customerName: json['customer_name'] as String? ?? '',
+      invoiceId: json['invoice_id']! as String,
+      invoiceNumber: json['invoice_number'] as String? ?? '',
+      dueDate: DateTime.parse(json['due_date']! as String),
+      daysOverdue: json['days_overdue'] as int? ?? 0,
+      outstandingMinor: json['outstanding_minor'] as int? ?? 0,
+      currentMinor: json['current_minor'] as int? ?? 0,
+      oneToThirtyMinor: json['one_to_thirty_minor'] as int? ?? 0,
+      thirtyOneToSixtyMinor: json['thirty_one_to_sixty_minor'] as int? ?? 0,
+      sixtyOneToNinetyMinor: json['sixty_one_to_ninety_minor'] as int? ?? 0,
+      overNinetyMinor: json['over_ninety_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'customer_id': customerId,
+      'customer_name': customerName,
+      'invoice_id': invoiceId,
+      'invoice_number': invoiceNumber,
+      'due_date': _dateOnly(dueDate),
+      'days_overdue': daysOverdue,
+      'outstanding_minor': outstandingMinor,
+      'current_minor': currentMinor,
+      'one_to_thirty_minor': oneToThirtyMinor,
+      'thirty_one_to_sixty_minor': thirtyOneToSixtyMinor,
+      'sixty_one_to_ninety_minor': sixtyOneToNinetyMinor,
+      'over_ninety_minor': overNinetyMinor,
+    };
+  }
+}
+
+class ARAgingReport {
+  const ARAgingReport({
+    required this.asOfDate,
+    required this.rows,
+    required this.totalCurrentMinor,
+    required this.totalOneToThirtyMinor,
+    required this.totalThirtyOneToSixtyMinor,
+    required this.totalSixtyOneToNinetyMinor,
+    required this.totalOverNinetyMinor,
+    required this.totalOutstandingMinor,
+  });
+
+  final DateTime asOfDate;
+  final List<ARAgingRow> rows;
+  final int totalCurrentMinor;
+  final int totalOneToThirtyMinor;
+  final int totalThirtyOneToSixtyMinor;
+  final int totalSixtyOneToNinetyMinor;
+  final int totalOverNinetyMinor;
+  final int totalOutstandingMinor;
+
+  factory ARAgingReport.fromJson(Map<String, Object?> json) {
+    return ARAgingReport(
+      asOfDate: DateTime.parse(json['as_of_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ARAgingRow.fromJson)
+          .toList(growable: false),
+      totalCurrentMinor: json['total_current_minor'] as int? ?? 0,
+      totalOneToThirtyMinor: json['total_one_to_thirty_minor'] as int? ?? 0,
+      totalThirtyOneToSixtyMinor:
+          json['total_thirty_one_to_sixty_minor'] as int? ?? 0,
+      totalSixtyOneToNinetyMinor:
+          json['total_sixty_one_to_ninety_minor'] as int? ?? 0,
+      totalOverNinetyMinor: json['total_over_ninety_minor'] as int? ?? 0,
+      totalOutstandingMinor: json['total_outstanding_minor'] as int? ?? 0,
+    );
+  }
+
+  AgingBucketTotals get totals => AgingBucketTotals(
+    currentMinor: totalCurrentMinor,
+    oneToThirtyMinor: totalOneToThirtyMinor,
+    thirtyOneToSixtyMinor: totalThirtyOneToSixtyMinor,
+    sixtyOneToNinetyMinor: totalSixtyOneToNinetyMinor,
+    overNinetyMinor: totalOverNinetyMinor,
+    outstandingMinor: totalOutstandingMinor,
+  );
+
+  Map<String, Object?> toJson() {
+    return {
+      'as_of_date': _dateOnly(asOfDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_current_minor': totalCurrentMinor,
+      'total_one_to_thirty_minor': totalOneToThirtyMinor,
+      'total_thirty_one_to_sixty_minor': totalThirtyOneToSixtyMinor,
+      'total_sixty_one_to_ninety_minor': totalSixtyOneToNinetyMinor,
+      'total_over_ninety_minor': totalOverNinetyMinor,
+      'total_outstanding_minor': totalOutstandingMinor,
+    };
+  }
+}
+
+class APAgingRow {
+  const APAgingRow({
+    required this.vendorId,
+    required this.vendorName,
+    required this.billId,
+    required this.billNumber,
+    required this.dueDate,
+    required this.daysOverdue,
+    required this.outstandingMinor,
+    required this.currentMinor,
+    required this.oneToThirtyMinor,
+    required this.thirtyOneToSixtyMinor,
+    required this.sixtyOneToNinetyMinor,
+    required this.overNinetyMinor,
+  });
+
+  final String vendorId;
+  final String vendorName;
+  final String billId;
+  final String billNumber;
+  final DateTime dueDate;
+  final int daysOverdue;
+  final int outstandingMinor;
+  final int currentMinor;
+  final int oneToThirtyMinor;
+  final int thirtyOneToSixtyMinor;
+  final int sixtyOneToNinetyMinor;
+  final int overNinetyMinor;
+
+  factory APAgingRow.fromJson(Map<String, Object?> json) {
+    return APAgingRow(
+      vendorId: json['vendor_id']! as String,
+      vendorName: json['vendor_name'] as String? ?? '',
+      billId: json['bill_id']! as String,
+      billNumber: json['bill_number'] as String? ?? '',
+      dueDate: DateTime.parse(json['due_date']! as String),
+      daysOverdue: json['days_overdue'] as int? ?? 0,
+      outstandingMinor: json['outstanding_minor'] as int? ?? 0,
+      currentMinor: json['current_minor'] as int? ?? 0,
+      oneToThirtyMinor: json['one_to_thirty_minor'] as int? ?? 0,
+      thirtyOneToSixtyMinor: json['thirty_one_to_sixty_minor'] as int? ?? 0,
+      sixtyOneToNinetyMinor: json['sixty_one_to_ninety_minor'] as int? ?? 0,
+      overNinetyMinor: json['over_ninety_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'vendor_id': vendorId,
+      'vendor_name': vendorName,
+      'bill_id': billId,
+      'bill_number': billNumber,
+      'due_date': _dateOnly(dueDate),
+      'days_overdue': daysOverdue,
+      'outstanding_minor': outstandingMinor,
+      'current_minor': currentMinor,
+      'one_to_thirty_minor': oneToThirtyMinor,
+      'thirty_one_to_sixty_minor': thirtyOneToSixtyMinor,
+      'sixty_one_to_ninety_minor': sixtyOneToNinetyMinor,
+      'over_ninety_minor': overNinetyMinor,
+    };
+  }
+}
+
+class APAgingReport {
+  const APAgingReport({
+    required this.asOfDate,
+    required this.rows,
+    required this.totalCurrentMinor,
+    required this.totalOneToThirtyMinor,
+    required this.totalThirtyOneToSixtyMinor,
+    required this.totalSixtyOneToNinetyMinor,
+    required this.totalOverNinetyMinor,
+    required this.totalOutstandingMinor,
+  });
+
+  final DateTime asOfDate;
+  final List<APAgingRow> rows;
+  final int totalCurrentMinor;
+  final int totalOneToThirtyMinor;
+  final int totalThirtyOneToSixtyMinor;
+  final int totalSixtyOneToNinetyMinor;
+  final int totalOverNinetyMinor;
+  final int totalOutstandingMinor;
+
+  factory APAgingReport.fromJson(Map<String, Object?> json) {
+    return APAgingReport(
+      asOfDate: DateTime.parse(json['as_of_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(APAgingRow.fromJson)
+          .toList(growable: false),
+      totalCurrentMinor: json['total_current_minor'] as int? ?? 0,
+      totalOneToThirtyMinor: json['total_one_to_thirty_minor'] as int? ?? 0,
+      totalThirtyOneToSixtyMinor:
+          json['total_thirty_one_to_sixty_minor'] as int? ?? 0,
+      totalSixtyOneToNinetyMinor:
+          json['total_sixty_one_to_ninety_minor'] as int? ?? 0,
+      totalOverNinetyMinor: json['total_over_ninety_minor'] as int? ?? 0,
+      totalOutstandingMinor: json['total_outstanding_minor'] as int? ?? 0,
+    );
+  }
+
+  AgingBucketTotals get totals => AgingBucketTotals(
+    currentMinor: totalCurrentMinor,
+    oneToThirtyMinor: totalOneToThirtyMinor,
+    thirtyOneToSixtyMinor: totalThirtyOneToSixtyMinor,
+    sixtyOneToNinetyMinor: totalSixtyOneToNinetyMinor,
+    overNinetyMinor: totalOverNinetyMinor,
+    outstandingMinor: totalOutstandingMinor,
+  );
+
+  Map<String, Object?> toJson() {
+    return {
+      'as_of_date': _dateOnly(asOfDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_current_minor': totalCurrentMinor,
+      'total_one_to_thirty_minor': totalOneToThirtyMinor,
+      'total_thirty_one_to_sixty_minor': totalThirtyOneToSixtyMinor,
+      'total_sixty_one_to_ninety_minor': totalSixtyOneToNinetyMinor,
+      'total_over_ninety_minor': totalOverNinetyMinor,
+      'total_outstanding_minor': totalOutstandingMinor,
     };
   }
 }

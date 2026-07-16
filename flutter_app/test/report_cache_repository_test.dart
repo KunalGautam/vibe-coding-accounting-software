@@ -93,6 +93,77 @@ void main() {
     totalEquityMinor: 350000,
     balanced: true,
   );
+  final cashFlow = CashFlowReport(
+    fromDate: DateTime.utc(2026, 4),
+    toDate: DateTime.utc(2026, 7, 31),
+    rows: const [
+      CashFlowRow(
+        accountId: 'acct-bank',
+        accountCode: '1010',
+        accountName: 'Bank',
+        sourceModule: 'invoice',
+        inflowMinor: 500000,
+        outflowMinor: 150000,
+        netCashFlowMinor: 350000,
+      ),
+    ],
+    totalInflowsMinor: 500000,
+    totalOutflowsMinor: 150000,
+    netCashFlowMinor: 350000,
+    openingCashMinor: 250000,
+    closingCashMinor: 600000,
+    generatedFromSubtypes: const ['bank', 'cash'],
+  );
+  final arAging = ARAgingReport(
+    asOfDate: DateTime.utc(2026, 7, 31),
+    rows: [
+      ARAgingRow(
+        customerId: 'cust-1',
+        customerName: 'Acme',
+        invoiceId: 'inv-1',
+        invoiceNumber: 'INV-001',
+        dueDate: DateTime.utc(2026, 7, 1),
+        daysOverdue: 30,
+        outstandingMinor: 118000,
+        currentMinor: 0,
+        oneToThirtyMinor: 118000,
+        thirtyOneToSixtyMinor: 0,
+        sixtyOneToNinetyMinor: 0,
+        overNinetyMinor: 0,
+      ),
+    ],
+    totalCurrentMinor: 0,
+    totalOneToThirtyMinor: 118000,
+    totalThirtyOneToSixtyMinor: 0,
+    totalSixtyOneToNinetyMinor: 0,
+    totalOverNinetyMinor: 0,
+    totalOutstandingMinor: 118000,
+  );
+  final apAging = APAgingReport(
+    asOfDate: DateTime.utc(2026, 7, 31),
+    rows: [
+      APAgingRow(
+        vendorId: 'vendor-1',
+        vendorName: 'Office Supplies Co',
+        billId: 'bill-1',
+        billNumber: 'BILL-001',
+        dueDate: DateTime.utc(2026, 6, 30),
+        daysOverdue: 31,
+        outstandingMinor: 59000,
+        currentMinor: 0,
+        oneToThirtyMinor: 0,
+        thirtyOneToSixtyMinor: 59000,
+        sixtyOneToNinetyMinor: 0,
+        overNinetyMinor: 0,
+      ),
+    ],
+    totalCurrentMinor: 0,
+    totalOneToThirtyMinor: 0,
+    totalThirtyOneToSixtyMinor: 59000,
+    totalSixtyOneToNinetyMinor: 0,
+    totalOverNinetyMinor: 0,
+    totalOutstandingMinor: 59000,
+  );
 
   test('memory report cache stores core reports', () async {
     final repository = MemoryReportCacheRepository();
@@ -102,6 +173,9 @@ void main() {
         trialBalance: trialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,
+        cashFlow: cashFlow,
+        arAging: arAging,
+        apAging: apAging,
       ),
     );
 
@@ -110,6 +184,9 @@ void main() {
     expect(cached.trialBalance?.rows.first.accountName, 'Cash');
     expect(cached.profitAndLoss?.netIncomeMinor, 350000);
     expect(cached.balanceSheet?.equityRows.single.accountCode, '3100');
+    expect(cached.cashFlow?.closingCashMinor, 600000);
+    expect(cached.arAging?.rows.single.invoiceNumber, 'INV-001');
+    expect(cached.apAging?.rows.single.billNumber, 'BILL-001');
   });
 
   test('file report cache persists core reports', () async {
@@ -126,6 +203,9 @@ void main() {
         trialBalance: trialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,
+        cashFlow: cashFlow,
+        arAging: arAging,
+        apAging: apAging,
       ),
     );
 
@@ -134,6 +214,9 @@ void main() {
     expect(cached.trialBalance?.rows.first.accountCode, '1000');
     expect(cached.profitAndLoss?.incomeRows.single.accountName, 'Sales');
     expect(cached.balanceSheet?.totalAssetsMinor, 350000);
+    expect(cached.cashFlow?.generatedFromSubtypes, ['bank', 'cash']);
+    expect(cached.arAging?.totalOutstandingMinor, 118000);
+    expect(cached.apAging?.totalOutstandingMinor, 59000);
   });
 
   test('sqlite report cache persists and replaces core reports', () async {
@@ -152,6 +235,9 @@ void main() {
         trialBalance: trialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,
+        cashFlow: cashFlow,
+        arAging: arAging,
+        apAging: apAging,
       ),
     );
     await repository.saveCached(
@@ -184,16 +270,23 @@ void main() {
     expect(cached.trialBalance?.rows.single.accountCode, '1010');
     expect(cached.profitAndLoss?.netIncomeMinor, isNull);
     expect(cached.balanceSheet?.totalAssetsMinor, isNull);
+    expect(cached.cashFlow?.netCashFlowMinor, isNull);
+    expect(cached.arAging?.totalOutstandingMinor, isNull);
+    expect(cached.apAging?.totalOutstandingMinor, isNull);
   });
 
   test('snapshot copyWith preserves existing cached reports', () {
     final updated = ReportCacheSnapshot(
       trialBalance: trialBalance,
       profitAndLoss: profitAndLoss,
-    ).copyWith(balanceSheet: balanceSheet);
+      cashFlow: cashFlow,
+    ).copyWith(balanceSheet: balanceSheet, arAging: arAging, apAging: apAging);
 
     expect(updated.trialBalance?.balanced, true);
     expect(updated.profitAndLoss?.totalIncomeMinor, 500000);
     expect(updated.balanceSheet?.balanced, true);
+    expect(updated.cashFlow?.openingCashMinor, 250000);
+    expect(updated.arAging?.totalOutstandingMinor, 118000);
+    expect(updated.apAging?.totalOutstandingMinor, 59000);
   });
 }
