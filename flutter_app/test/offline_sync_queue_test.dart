@@ -338,6 +338,20 @@ void main() {
     expect(operation.payload['source'], 'mobile-offline');
   });
 
+  test('queues broker holdings price imports for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueBrokerHoldingsPriceImport(
+      csv: 'Symbol,As of Date,Last Traded Price\nTCS,31-Jul-2026,3450.75',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'import_broker_holdings');
+    expect(operation.payload['source'], 'broker_holdings_csv');
+    expect(operation.payload['csv'], contains('TCS'));
+  });
+
   test('queues average-cost investment sales for later replay', () {
     final queue = OfflineSyncQueue();
 

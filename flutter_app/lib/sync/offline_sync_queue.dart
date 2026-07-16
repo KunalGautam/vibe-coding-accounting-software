@@ -336,6 +336,23 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueBrokerHoldingsPriceImport({
+    required String csv,
+    String source = 'broker_holdings_csv',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'broker-holdings-import-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'import_broker_holdings',
+      createdAt: timestamp,
+      payload: {'csv': csv, 'source': source},
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueAverageCostSale({
     required String accountId,
     required String symbol,

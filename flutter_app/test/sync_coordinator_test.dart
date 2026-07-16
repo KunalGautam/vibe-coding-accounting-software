@@ -1099,6 +1099,60 @@ void main() {
     expect(result.synced, 1);
     expect(queue.pendingCount, 0);
   });
+
+  test('syncs queued broker holdings price imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'broker-holdings-import-local-1',
+        module: 'investments',
+        action: 'import_broker_holdings',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'csv': 'Symbol,As of Date,Last Traded Price\nTCS,31-Jul-2026,3450.75',
+          'source': 'broker_holdings_csv',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/broker-holdings',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'broker_holdings_csv');
+        expect(body['csv'], contains('Last Traded Price'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-broker-1',
+                'symbol': 'TCS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 345075,
+                'currency': 'INR',
+                'source': 'broker_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+  });
 }
 
 Map<String, Object?> _bankImportJson({

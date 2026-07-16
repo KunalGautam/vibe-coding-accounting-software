@@ -57,7 +57,8 @@ flutter test
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
 - Reports page with Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual API refresh, prior-period comparison for statements/aging/tax reports, selected-vs-previous budget comparison, plus SQLite-backed offline report snapshot review and local app-storage/Downloads/share-sheet CSV exports.
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
-- Typed investment transport for average-cost pooled sales, price maintenance, realized gains, and valuation reports.
+- Typed investment transport for average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
+- Offline replay for broker holdings price imports through the `investments.import_broker_holdings` sync operation.
 - Sync settings placeholder for API base URL and organization selection.
 
 The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and invoice PDF generation/detail views are still pending.

@@ -354,6 +354,25 @@ class AccountingApiClient {
     );
   }
 
+  Future<InvestmentPriceImportResult> importBrokerHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/broker-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
+    SyncOperation operation,
+  ) {
+    return importBrokerHoldingsPrices(
+      ImportInvestmentPricesRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<CustomerPaymentSummary> recordCustomerPayment(
     String invoiceId,
     RecordPaymentRequest request,
@@ -2161,6 +2180,65 @@ class CreateInvestmentPriceRequest {
       'currency': currency,
       'source': source,
     };
+  }
+}
+
+class ImportInvestmentPricesRequest {
+  const ImportInvestmentPricesRequest({
+    required this.csv,
+    this.source = 'broker_holdings_csv',
+    this.symbol,
+  });
+
+  final String csv;
+  final String source;
+  final String? symbol;
+
+  factory ImportInvestmentPricesRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ImportInvestmentPricesRequest(
+      csv: payload['csv']! as String,
+      source: payload['source'] as String? ?? 'broker_holdings_csv',
+      symbol: payload['symbol'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'csv': csv,
+      'source': source,
+      if (symbol != null && symbol!.trim().isNotEmpty) 'symbol': symbol,
+    };
+  }
+}
+
+class InvestmentPriceImportResult {
+  const InvestmentPriceImportResult({
+    required this.imported,
+    required this.skipped,
+    required this.errors,
+    required this.prices,
+  });
+
+  final int imported;
+  final int skipped;
+  final List<String> errors;
+  final List<InvestmentPriceSummary> prices;
+
+  factory InvestmentPriceImportResult.fromJson(Map<String, Object?> json) {
+    final errors = json['errors'] as List? ?? const [];
+    final prices = json['prices'] as List? ?? const [];
+    return InvestmentPriceImportResult(
+      imported: json['imported'] as int? ?? 0,
+      skipped: json['skipped'] as int? ?? 0,
+      errors: errors.cast<String>(),
+      prices: prices
+          .cast<Map<String, Object?>>()
+          .map(InvestmentPriceSummary.fromJson)
+          .toList(growable: false),
+    );
   }
 }
 

@@ -754,6 +754,51 @@ void main() {
     },
   );
 
+  test('imports broker holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/broker-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'broker_holdings_csv');
+        expect(body['csv'], contains('Last Traded Price'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-broker-1',
+                'symbol': 'TCS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 345075,
+                'currency': 'INR',
+                'source': 'broker_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importBrokerHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv: 'Symbol,As of Date,Last Traded Price\nTCS,31-Jul-2026,3450.75',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.skipped, 0);
+    expect(result.prices.single.symbol, 'TCS');
+    expect(result.prices.single.priceMinor, 345075);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,
