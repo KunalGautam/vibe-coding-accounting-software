@@ -574,4 +574,117 @@ void main() {
       '/api/v1/organizations/org-1/purchase-orders/po-1/status',
     ]);
   });
+
+  test('syncs queued ledger posting actions', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'invoice-post-local-1',
+        module: 'ledger',
+        action: 'post_invoice',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'invoice_id': 'invoice-1'},
+      ),
+      SyncOperation(
+        id: 'expense-post-local-1',
+        module: 'ledger',
+        action: 'post_expense',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'expense_id': 'expense-1'},
+      ),
+      SyncOperation(
+        id: 'bill-post-local-1',
+        module: 'ledger',
+        action: 'post_bill',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'bill_id': 'bill-1'},
+      ),
+      SyncOperation(
+        id: 'credit-note-post-local-1',
+        module: 'ledger',
+        action: 'post_credit_note',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'credit_note_id': 'credit-note-1'},
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        expect(request.method, 'POST');
+
+        if (request.url.path.endsWith('/invoices/invoice-1/post')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'invoice-1',
+              'invoice_number': 'INV-001',
+              'status': 'posted',
+              'subtotal_minor': 100000,
+              'tax_total_minor': 18000,
+              'total_minor': 118000,
+              'currency': 'INR',
+              'lines': [],
+            }),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/expenses/expense-1/post')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'expense-1',
+              'expense_number': 'EXP-001',
+              'status': 'posted',
+              'total_minor': 59000,
+              'currency': 'INR',
+            }),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/bills/bill-1/post')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'bill-1',
+              'bill_number': 'BILL-001',
+              'status': 'posted',
+              'total_minor': 59000,
+              'currency': 'INR',
+            }),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/credit-notes/credit-note-1/post')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'credit-note-1',
+              'credit_note_number': 'CN-001',
+              'status': 'posted',
+              'total_minor': 11800,
+              'currency': 'INR',
+            }),
+            200,
+          );
+        }
+
+        fail('unexpected path: ${request.url.path}');
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 4);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/invoices/invoice-1/post',
+      '/api/v1/organizations/org-1/expenses/expense-1/post',
+      '/api/v1/organizations/org-1/bills/bill-1/post',
+      '/api/v1/organizations/org-1/credit-notes/credit-note-1/post',
+    ]);
+  });
 }

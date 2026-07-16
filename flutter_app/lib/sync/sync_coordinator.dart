@@ -84,6 +84,18 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'invoices.create_draft': (client, operation) async {
     await client.syncInvoiceDraft(operation);
   },
+  'ledger.post_invoice': (client, operation) async {
+    await client.syncInvoicePost(operation);
+  },
+  'ledger.post_expense': (client, operation) async {
+    await client.syncExpensePost(operation);
+  },
+  'ledger.post_bill': (client, operation) async {
+    await client.syncBillPost(operation);
+  },
+  'ledger.post_credit_note': (client, operation) async {
+    await client.syncCreditNotePost(operation);
+  },
   'attachments.create_metadata': (client, operation) async {
     await client.syncAttachmentMetadata(operation);
   },

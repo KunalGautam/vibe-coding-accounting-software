@@ -132,6 +132,24 @@ class AccountingApiClient {
     return createExpense(CreateExpenseDraft.fromSyncOperation(operation));
   }
 
+  Future<InvoiceSummary> postInvoice(String invoiceId) async {
+    final response = await _send('POST', '/invoices/$invoiceId/post');
+    return InvoiceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvoiceSummary> syncInvoicePost(SyncOperation operation) {
+    return postInvoice(operation.payload['invoice_id']! as String);
+  }
+
+  Future<ExpenseSummary> postExpense(String expenseId) async {
+    final response = await _send('POST', '/expenses/$expenseId/post');
+    return ExpenseSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<ExpenseSummary> syncExpensePost(SyncOperation operation) {
+    return postExpense(operation.payload['expense_id']! as String);
+  }
+
   Future<InvoiceSummary> createInvoice(CreateInvoiceDraft draft) async {
     final response = await _send('POST', '/invoices', body: draft.toJson());
     return InvoiceSummary.fromJson(_decodeObject(response));
@@ -278,6 +296,24 @@ class AccountingApiClient {
       payload['purchase_order_id']! as String,
       UpdateStatusRequest.fromSyncOperation(operation),
     );
+  }
+
+  Future<BillSummary> postBill(String billId) async {
+    final response = await _send('POST', '/bills/$billId/post');
+    return BillSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<BillSummary> syncBillPost(SyncOperation operation) {
+    return postBill(operation.payload['bill_id']! as String);
+  }
+
+  Future<CreditNoteSummary> postCreditNote(String creditNoteId) async {
+    final response = await _send('POST', '/credit-notes/$creditNoteId/post');
+    return CreditNoteSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<CreditNoteSummary> syncCreditNotePost(SyncOperation operation) {
+    return postCreditNote(operation.payload['credit_note_id']! as String);
   }
 
   Future<InvestmentValuationReport> getInvestmentValuation({
@@ -564,6 +600,58 @@ class ExpenseSummary {
     return ExpenseSummary(
       id: json['id']! as String,
       expenseNumber: json['expense_number']! as String,
+      status: json['status']! as String,
+      totalMinor: json['total_minor']! as int,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class BillSummary {
+  const BillSummary({
+    required this.id,
+    required this.billNumber,
+    required this.status,
+    required this.totalMinor,
+    required this.currency,
+  });
+
+  final String id;
+  final String billNumber;
+  final String status;
+  final int totalMinor;
+  final String currency;
+
+  factory BillSummary.fromJson(Map<String, Object?> json) {
+    return BillSummary(
+      id: json['id']! as String,
+      billNumber: json['bill_number']! as String,
+      status: json['status']! as String,
+      totalMinor: json['total_minor']! as int,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class CreditNoteSummary {
+  const CreditNoteSummary({
+    required this.id,
+    required this.creditNoteNumber,
+    required this.status,
+    required this.totalMinor,
+    required this.currency,
+  });
+
+  final String id;
+  final String creditNoteNumber;
+  final String status;
+  final int totalMinor;
+  final String currency;
+
+  factory CreditNoteSummary.fromJson(Map<String, Object?> json) {
+    return CreditNoteSummary(
+      id: json['id']! as String,
+      creditNoteNumber: json['credit_note_number']! as String,
       status: json['status']! as String,
       totalMinor: json['total_minor']! as int,
       currency: json['currency'] as String? ?? 'INR',

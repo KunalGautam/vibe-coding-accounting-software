@@ -378,6 +378,74 @@ class OfflineSyncQueue {
     );
   }
 
+  SyncOperation enqueueInvoicePost({
+    required String invoiceId,
+    DateTime? createdAt,
+  }) {
+    return _enqueuePostAction(
+      action: 'post_invoice',
+      idPrefix: 'post-invoice',
+      documentKey: 'invoice_id',
+      documentId: invoiceId,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueueExpensePost({
+    required String expenseId,
+    DateTime? createdAt,
+  }) {
+    return _enqueuePostAction(
+      action: 'post_expense',
+      idPrefix: 'post-expense',
+      documentKey: 'expense_id',
+      documentId: expenseId,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueueBillPost({required String billId, DateTime? createdAt}) {
+    return _enqueuePostAction(
+      action: 'post_bill',
+      idPrefix: 'post-bill',
+      documentKey: 'bill_id',
+      documentId: billId,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueueCreditNotePost({
+    required String creditNoteId,
+    DateTime? createdAt,
+  }) {
+    return _enqueuePostAction(
+      action: 'post_credit_note',
+      idPrefix: 'post-credit-note',
+      documentKey: 'credit_note_id',
+      documentId: creditNoteId,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation _enqueuePostAction({
+    required String action,
+    required String idPrefix,
+    required String documentKey,
+    required String documentId,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: '$idPrefix-${timestamp.microsecondsSinceEpoch}',
+      module: 'ledger',
+      action: action,
+      createdAt: timestamp,
+      payload: {documentKey: documentId},
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation _enqueueStatusUpdate({
     required String action,
     required String idPrefix,

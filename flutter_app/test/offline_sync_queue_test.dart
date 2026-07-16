@@ -336,4 +336,35 @@ void main() {
     expect(purchaseOrderStatus.payload['purchase_order_id'], 'po-1');
     expect(purchaseOrderStatus.payload['status'], 'approved');
   });
+
+  test('queues ledger posting actions for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final invoicePost = queue.enqueueInvoicePost(
+      invoiceId: 'invoice-1',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+    final expensePost = queue.enqueueExpensePost(
+      expenseId: 'expense-1',
+      createdAt: DateTime.utc(2026, 7, 15, 10),
+    );
+    final billPost = queue.enqueueBillPost(
+      billId: 'bill-1',
+      createdAt: DateTime.utc(2026, 7, 15, 11),
+    );
+    final creditNotePost = queue.enqueueCreditNotePost(
+      creditNoteId: 'credit-note-1',
+      createdAt: DateTime.utc(2026, 7, 15, 12),
+    );
+
+    expect(invoicePost.module, 'ledger');
+    expect(invoicePost.action, 'post_invoice');
+    expect(invoicePost.payload['invoice_id'], 'invoice-1');
+    expect(expensePost.action, 'post_expense');
+    expect(expensePost.payload['expense_id'], 'expense-1');
+    expect(billPost.action, 'post_bill');
+    expect(billPost.payload['bill_id'], 'bill-1');
+    expect(creditNotePost.action, 'post_credit_note');
+    expect(creditNotePost.payload['credit_note_id'], 'credit-note-1');
+  });
 }
