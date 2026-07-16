@@ -59,7 +59,7 @@ flutter test
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
 - Typed investment transport for average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
 - Offline replay for broker holdings price imports through the `investments.import_broker_holdings` sync operation.
-- Investments page includes a broker holdings CSV paste box that queues imports for later sync.
+- Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.
 - Sync settings placeholder for API base URL and organization selection.
 
 The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and invoice PDF generation/detail views are still pending.

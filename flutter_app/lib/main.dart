@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -100,6 +101,7 @@ typedef AttachmentDownloader =
     );
 typedef AttachmentPicker =
     Future<PickedAttachmentFile?> Function(AttachmentPickSource source);
+typedef TextFilePicker = Future<PickedTextFile?> Function();
 typedef TaxCalculator =
     Future<TaxCalculationResult> Function(
       SyncSettings settings,
@@ -183,6 +185,7 @@ class AccountingApp extends StatelessWidget {
     this.attachmentUploader,
     this.attachmentDownloader,
     this.attachmentPicker,
+    this.textFilePicker,
     this.taxCalculator,
     super.key,
   });
@@ -223,6 +226,7 @@ class AccountingApp extends StatelessWidget {
   final AttachmentUploader? attachmentUploader;
   final AttachmentDownloader? attachmentDownloader;
   final AttachmentPicker? attachmentPicker;
+  final TextFilePicker? textFilePicker;
   final TaxCalculator? taxCalculator;
 
   @override
@@ -275,6 +279,7 @@ class AccountingApp extends StatelessWidget {
         attachmentUploader: attachmentUploader,
         attachmentDownloader: attachmentDownloader,
         attachmentPicker: attachmentPicker,
+        textFilePicker: textFilePicker,
         taxCalculator: taxCalculator,
       ),
     );
@@ -319,6 +324,7 @@ class MobileDeskShell extends StatefulWidget {
     this.attachmentUploader,
     this.attachmentDownloader,
     this.attachmentPicker,
+    this.textFilePicker,
     this.taxCalculator,
     super.key,
   });
@@ -359,6 +365,7 @@ class MobileDeskShell extends StatefulWidget {
   final AttachmentUploader? attachmentUploader;
   final AttachmentDownloader? attachmentDownloader;
   final AttachmentPicker? attachmentPicker;
+  final TextFilePicker? textFilePicker;
   final TaxCalculator? taxCalculator;
 
   @override
@@ -648,6 +655,11 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     setState(() {
       syncNotice = 'Broker holdings import queued for sync: ${operation.id}';
     });
+  }
+
+  Future<PickedTextFile?> pickBrokerHoldingsCSV() {
+    final picker = widget.textFilePicker ?? pickTextFile;
+    return picker();
   }
 
   Future<void> deletePendingDraft(String operationId) async {
@@ -2280,6 +2292,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchRealizedGains: fetchRealizedGains,
         onFetchValuation: fetchInvestmentValuation,
         onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
+        onPickBrokerHoldingsCSV: pickBrokerHoldingsCSV,
       ),
       ReportsPage(
         trialBalance: cachedTrialBalanceReport,
@@ -2456,6 +2469,13 @@ class PickedAttachmentFile {
   final String? contentType;
 }
 
+class PickedTextFile {
+  const PickedTextFile({required this.fileName, required this.text});
+
+  final String fileName;
+  final String text;
+}
+
 Future<LocalAttachmentFile> readLocalAttachmentFile(String path) async {
   final trimmedPath = path.trim();
   return LocalAttachmentFile(
@@ -2503,6 +2523,21 @@ Future<PickedAttachmentFile?> pickAttachmentFile(
     localFilePath: image.path,
     contentType: image.mimeType ?? contentTypeForFileName(image.name),
   );
+}
+
+Future<PickedTextFile?> pickTextFile() async {
+  final result = await FilePicker.pickFiles(
+    allowMultiple: false,
+    type: FileType.custom,
+    allowedExtensions: const ['csv', 'txt'],
+    withData: true,
+  );
+  if (result == null || result.files.isEmpty) {
+    return null;
+  }
+  final file = result.files.single;
+  final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+  return PickedTextFile(fileName: file.name, text: utf8.decode(bytes));
 }
 
 String contentTypeForFileName(String fileName) {
@@ -3485,6 +3520,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onFetchRealizedGains,
     required this.onFetchValuation,
     required this.onQueueBrokerHoldingsImport,
+    required this.onPickBrokerHoldingsCSV,
     super.key,
   });
 
@@ -3497,6 +3533,7 @@ class InvestmentsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to) onFetchRealizedGains;
   final Future<void> Function(DateTime asOf) onFetchValuation;
   final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
+  final Future<PickedTextFile?> Function() onPickBrokerHoldingsCSV;
 
   @override
   Widget build(BuildContext context) {
@@ -3516,7 +3553,10 @@ class InvestmentsPage extends StatelessWidget {
           actionLabel: isLoading ? 'Refreshing investments...' : 'Refresh lots',
           onPressed: isLoading ? null : () => onFetchLots(),
         ),
-        BrokerHoldingsImportCard(onQueueImport: onQueueBrokerHoldingsImport),
+        BrokerHoldingsImportCard(
+          onQueueImport: onQueueBrokerHoldingsImport,
+          onPickCSV: onPickBrokerHoldingsCSV,
+        ),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -3674,9 +3714,14 @@ class InvestmentsPage extends StatelessWidget {
 }
 
 class BrokerHoldingsImportCard extends StatefulWidget {
-  const BrokerHoldingsImportCard({required this.onQueueImport, super.key});
+  const BrokerHoldingsImportCard({
+    required this.onQueueImport,
+    required this.onPickCSV,
+    super.key,
+  });
 
   final Future<void> Function(String csv) onQueueImport;
+  final Future<PickedTextFile?> Function() onPickCSV;
 
   @override
   State<BrokerHoldingsImportCard> createState() =>
@@ -3689,6 +3734,8 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
         'Symbol,ISIN,As of Date,Last Traded Price,Quantity\nTCS,INE467B01029,31-Jul-2026,3450.75,10',
   );
   bool isQueueing = false;
+  bool isPicking = false;
+  String? pickedFileName;
 
   @override
   void dispose() {
@@ -3715,6 +3762,28 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
     }
   }
 
+  Future<void> pickCSV() async {
+    if (isPicking) {
+      return;
+    }
+    setState(() {
+      isPicking = true;
+    });
+    try {
+      final picked = await widget.onPickCSV();
+      if (picked != null) {
+        controller.text = picked.text;
+        pickedFileName = picked.fileName;
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isPicking = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -3731,6 +3800,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
             const Text(
               'Paste a broker holdings CSV with Symbol/ISIN, date, and LTP/current price columns. It will queue offline and sync when credentials are available.',
             ),
+            if (pickedFileName != null) ...[
+              const SizedBox(height: 8),
+              Text('Selected file: $pickedFileName'),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -3742,16 +3815,29 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
               ),
             ),
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: isQueueing || controller.text.trim().isEmpty
-                  ? null
-                  : queueImport,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(
-                isQueueing
-                    ? 'Queueing broker import...'
-                    : 'Queue broker holdings import',
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: isPicking ? null : pickCSV,
+                  icon: const Icon(Icons.attach_file_outlined),
+                  label: Text(
+                    isPicking ? 'Choosing CSV...' : 'Choose holdings CSV',
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: isQueueing || controller.text.trim().isEmpty
+                      ? null
+                      : queueImport,
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: Text(
+                    isQueueing
+                        ? 'Queueing broker import...'
+                        : 'Queue broker holdings import',
+                  ),
+                ),
+              ],
             ),
           ],
         ),

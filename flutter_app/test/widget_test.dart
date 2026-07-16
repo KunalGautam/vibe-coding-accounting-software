@@ -1741,4 +1741,35 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('loads broker holdings CSV files before queueing imports', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(
+      AccountingApp(
+        syncRepository: syncRepository,
+        textFilePicker: () async => const PickedTextFile(
+          fileName: 'holdings.csv',
+          text: 'Trading Symbol,As of Date,LTP\nINFY,31-Jul-2026,1720.35',
+        ),
+      ),
+    );
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Choose holdings CSV'));
+    await tester.tap(find.text('Choose holdings CSV'));
+    await tester.pumpAndSettle();
+    expect(find.text('Selected file: holdings.csv'), findsOneWidget);
+
+    await tester.tap(find.text('Queue broker holdings import'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.action, 'import_broker_holdings');
+    expect(pending.last.payload['csv'], contains('INFY'));
+  });
 }
