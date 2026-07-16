@@ -36,6 +36,15 @@ type confirmPasswordResetRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=12"`
 }
 
+type updateCurrentUserRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=12"`
+}
+
 type mfaCodeRequest struct {
 	Code string `json:"code" binding:"required"`
 }
@@ -53,6 +62,9 @@ func (h AuthHandler) RegisterRoutes(router gin.IRoutes) {
 }
 
 func (h AuthHandler) RegisterProtectedRoutes(router gin.IRoutes) {
+	router.GET("/auth/me", h.CurrentUser)
+	router.PATCH("/auth/me", h.UpdateCurrentUser)
+	router.POST("/auth/password/change", h.ChangePassword)
 	router.POST("/auth/sessions/revoke-all", h.RevokeAllSessions)
 	router.POST("/auth/mfa/setup", h.SetupMFA)
 	router.POST("/auth/mfa/enable", h.EnableMFA)
@@ -106,6 +118,58 @@ func (h AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"revoked": true})
+}
+
+func (h AuthHandler) CurrentUser(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	profile, err := h.auth.CurrentUser(c.Request.Context(), claims.UserID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "current_user_failed", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, profile)
+}
+
+func (h AuthHandler) UpdateCurrentUser(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	var request updateCurrentUserRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	profile, err := h.auth.UpdateCurrentUser(c.Request.Context(), claims.UserID, request.Name)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "current_user_update_failed", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, profile)
+}
+
+func (h AuthHandler) ChangePassword(c *gin.Context) {
+	claims, ok := currentAccessClaims(c)
+	if !ok {
+		respondError(c, http.StatusUnauthorized, "missing_claims", "Access token claims are required")
+		return
+	}
+	var request changePasswordRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := h.auth.ChangePassword(c.Request.Context(), claims.UserID, request.CurrentPassword, request.NewPassword); err != nil {
+		status, code := authErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"changed": true, "sessions_revoked": true})
 }
 
 func (h AuthHandler) RevokeAllSessions(c *gin.Context) {

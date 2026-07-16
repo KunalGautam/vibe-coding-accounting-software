@@ -157,6 +157,60 @@ paths:
                 $ref: '#/components/schemas/RevokeAllSessionsResponse'
         default:
           $ref: '#/components/responses/Error'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current authenticated user profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserProfile'
+        default:
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Auth]
+      summary: Update the current authenticated user profile
+      operationId: updateCurrentUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurrentUserRequest'
+      responses:
+        '200':
+          description: Updated current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserProfile'
+        default:
+          $ref: '#/components/responses/Error'
+  /auth/password/change:
+    post:
+      tags: [Auth]
+      summary: Change the current user's password
+      description: Verifies the current password, stores the new password hash, and revokes active refresh-token sessions.
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePasswordResponse'
+        default:
+          $ref: '#/components/responses/Error'
   /auth/mfa/setup:
     post:
       tags: [Auth]
@@ -3356,6 +3410,52 @@ components:
           type: boolean
         revoked_count:
           type: integer
+    CurrentUserProfile:
+      type: object
+      required: [id, email, name, mfa_enabled, is_active, organization_roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        mfa_enabled:
+          type: boolean
+        is_active:
+          type: boolean
+        organization_roles:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
+    UpdateCurrentUserRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+          minLength: 12
+    ChangePasswordResponse:
+      type: object
+      required: [changed, sessions_revoked]
+      properties:
+        changed:
+          type: boolean
+        sessions_revoked:
+          type: boolean
     MFASetupResponse:
       type: object
       required: [secret, otpauth_url, mfa_enabled]

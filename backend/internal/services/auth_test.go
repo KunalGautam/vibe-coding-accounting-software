@@ -56,6 +56,81 @@ func TestAuthServiceLoginAndRefresh(t *testing.T) {
 	}
 }
 
+func TestAuthServiceCurrentUserAndUpdate(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("secret-pass"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	org := domain.Organization{Name: "Acme India", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	user := domain.User{Email: "profile@example.com", Name: "Profile User", PasswordHash: string(passwordHash), IsActive: true}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	membership := domain.OrganizationMembership{OrganizationID: org.ID, UserID: user.ID, Role: domain.RoleAccountant}
+	if err := db.Create(&membership).Error; err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+
+	service := NewAuthService(db, auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour))
+	profile, err := service.CurrentUser(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("CurrentUser() error = %v", err)
+	}
+	if profile.Email != user.Email || profile.OrganizationRoles[org.ID] != domain.RoleAccountant {
+		t.Fatalf("profile = %+v, want email and accountant role", profile)
+	}
+
+	updated, err := service.UpdateCurrentUser(ctx, user.ID, "Updated Name")
+	if err != nil {
+		t.Fatalf("UpdateCurrentUser() error = %v", err)
+	}
+	if updated.Name != "Updated Name" {
+		t.Fatalf("updated name = %q, want Updated Name", updated.Name)
+	}
+}
+
+func TestAuthServiceChangePasswordRevokesSessions(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("old-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := domain.User{Email: "change-password@example.com", Name: "Change Password", PasswordHash: string(passwordHash), IsActive: true}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	service := NewAuthService(db, auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour))
+	login, err := service.Login(ctx, user.Email, "old-password")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	if err := service.ChangePassword(ctx, user.ID, "wrong-password", "new-secure-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password change error = %v, want %v", err, ErrInvalidCredentials)
+	}
+	if err := service.ChangePassword(ctx, user.ID, "old-password", "new-secure-password"); err != nil {
+		t.Fatalf("ChangePassword() error = %v", err)
+	}
+	if _, err := service.Refresh(ctx, login.RefreshToken); !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("refresh old session error = %v, want %v", err, ErrInvalidRefreshToken)
+	}
+	if _, err := service.Login(ctx, user.Email, "old-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("old password login error = %v, want %v", err, ErrInvalidCredentials)
+	}
+	if _, err := service.Login(ctx, user.Email, "new-secure-password"); err != nil {
+		t.Fatalf("new password login error = %v", err)
+	}
+}
+
 func TestAuthServiceRevokesSessions(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()

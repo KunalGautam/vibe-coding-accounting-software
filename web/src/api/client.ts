@@ -1488,6 +1488,15 @@ export type RevokeAllSessionsResponse = {
   revoked_count: number;
 };
 
+export type CurrentUserProfile = {
+  id: string;
+  email: string;
+  name: string;
+  mfa_enabled: boolean;
+  is_active: boolean;
+  organization_roles: Record<string, Role>;
+};
+
 export type LoginInput = {
   email: string;
   password: string;
@@ -1518,6 +1527,11 @@ export type RequestPasswordResetResponse = {
 
 export type ConfirmPasswordResetInput = {
   reset_token: string;
+  new_password: string;
+};
+
+export type ChangePasswordInput = {
+  current_password: string;
   new_password: string;
 };
 
@@ -1610,6 +1624,24 @@ export class ApiClient {
   async revokeAllSessions(): Promise<RevokeAllSessionsResponse> {
     return this.request("/auth/sessions/revoke-all", {
       method: "POST"
+    });
+  }
+
+  async currentUser(): Promise<CurrentUserProfile> {
+    return this.request("/auth/me");
+  }
+
+  async updateCurrentUser(input: { name: string }): Promise<CurrentUserProfile> {
+    return this.request("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async changePassword(input: ChangePasswordInput): Promise<{ changed: boolean; sessions_revoked: boolean }> {
+    return this.request("/auth/password/change", {
+      method: "POST",
+      body: JSON.stringify(input)
     });
   }
 

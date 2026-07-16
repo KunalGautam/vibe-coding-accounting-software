@@ -38,6 +38,15 @@ type AuthResult struct {
 	ExpiresIn    int64
 }
 
+type CurrentUserProfile struct {
+	ID                string                 `json:"id"`
+	Email             string                 `json:"email"`
+	Name              string                 `json:"name"`
+	MFAEnabled        bool                   `json:"mfa_enabled"`
+	IsActive          bool                   `json:"is_active"`
+	OrganizationRoles map[string]domain.Role `json:"organization_roles"`
+}
+
 type MFASetupResult struct {
 	Secret     string `json:"secret"`
 	OTPAuthURL string `json:"otpauth_url"`
@@ -117,6 +126,64 @@ func (s AuthService) Login(ctx context.Context, email string, password string, m
 	}
 
 	return s.issueTokens(ctx, user)
+}
+
+func (s AuthService) CurrentUser(ctx context.Context, userID string) (CurrentUserProfile, error) {
+	var user domain.User
+	if err := s.db.WithContext(ctx).Where("id = ? AND is_active = ?", userID, true).First(&user).Error; err != nil {
+		return CurrentUserProfile{}, err
+	}
+	roles, err := s.organizationRoles(ctx, user.ID)
+	if err != nil {
+		return CurrentUserProfile{}, err
+	}
+	return CurrentUserProfile{
+		ID:                user.ID,
+		Email:             user.Email,
+		Name:              user.Name,
+		MFAEnabled:        user.MFAEnabled,
+		IsActive:          user.IsActive,
+		OrganizationRoles: roles,
+	}, nil
+}
+
+func (s AuthService) UpdateCurrentUser(ctx context.Context, userID string, name string) (CurrentUserProfile, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return s.CurrentUser(ctx, userID)
+	}
+	var user domain.User
+	if err := s.db.WithContext(ctx).Where("id = ? AND is_active = ?", userID, true).First(&user).Error; err != nil {
+		return CurrentUserProfile{}, err
+	}
+	if err := s.db.WithContext(ctx).Model(&user).Update("name", name).Error; err != nil {
+		return CurrentUserProfile{}, err
+	}
+	return s.CurrentUser(ctx, userID)
+}
+
+func (s AuthService) ChangePassword(ctx context.Context, userID string, currentPassword string, newPassword string) error {
+	var user domain.User
+	if err := s.db.WithContext(ctx).Where("id = ? AND is_active = ?", userID, true).First(&user).Error; err != nil {
+		return err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrInvalidCredentials
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&user).Update("password_hash", string(passwordHash)).Error; err != nil {
+			return err
+		}
+		return tx.Model(&domain.RefreshToken{}).
+			Where("user_id = ? AND revoked_at IS NULL", userID).
+			Update("revoked_at", now).
+			Error
+	})
 }
 
 func (s AuthService) SetupMFA(ctx context.Context, userID string) (MFASetupResult, error) {

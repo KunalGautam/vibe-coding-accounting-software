@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type ChangePasswordInput, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type CurrentUserProfile, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -623,6 +623,12 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
   const [mfaSetup, setMfaSetup] = useState<MFASetupResponse | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [changePasswordForm, setChangePasswordForm] = useState<ChangePasswordInput>({
+    current_password: "",
+    new_password: ""
+  });
   const [bootstrapForm, setBootstrapForm] = useState<BootstrapFirstAdminInput>({
     organization_name: "",
     admin_name: "",
@@ -660,6 +666,12 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
     { label: "Organization selected", ok: Boolean(draft.organizationId.trim()) }
   ];
   const passwordReady = passwordStrengthChecks.every((check) => check.ok);
+  const changePasswordChecks = [
+    { label: "Current password entered", ok: Boolean(changePasswordForm.current_password) },
+    { label: "New password has 12+ characters", ok: changePasswordForm.new_password.length >= 12 },
+    { label: "New password differs from current", ok: Boolean(changePasswordForm.new_password && changePasswordForm.new_password !== changePasswordForm.current_password) }
+  ];
+  const canChangePassword = changePasswordChecks.every((check) => check.ok);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -750,6 +762,65 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
       setDraft(next);
       onSave(next);
       setConnectionNotice(`Revoked ${result.revoked_count} session(s) and cleared local tokens.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function loadCurrentUserProfile() {
+    if (!draft.accessToken) {
+      setConnectionError("An access token is required to load account settings.");
+      return;
+    }
+    setLoading("current-user");
+    setConnectionError("");
+    try {
+      const profile = await connectionApi.currentUser();
+      setCurrentUserProfile(profile);
+      setProfileName(profile.name);
+      setConnectionNotice(`Loaded account settings for ${profile.email}.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function updateCurrentUserProfile(event: FormEvent) {
+    event.preventDefault();
+    if (!profileName.trim()) {
+      return;
+    }
+    setLoading("update-current-user");
+    setConnectionError("");
+    try {
+      const profile = await connectionApi.updateCurrentUser({ name: profileName.trim() });
+      setCurrentUserProfile(profile);
+      setProfileName(profile.name);
+      setConnectionNotice("Account profile updated.");
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function changeCurrentPassword(event: FormEvent) {
+    event.preventDefault();
+    if (!canChangePassword) {
+      return;
+    }
+    setLoading("change-password");
+    setConnectionError("");
+    try {
+      await connectionApi.changePassword(changePasswordForm);
+      const next = { ...draft, refreshToken: "" };
+      setDraft(next);
+      onSave(next);
+      setChangePasswordForm({ current_password: "", new_password: "" });
+      setConnectionNotice("Password changed and existing refresh-token sessions were revoked. Log in again before refreshing tokens.");
     } catch (error) {
       setConnectionError(errorMessage(error));
     } finally {
@@ -1021,6 +1092,48 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
           {loading === "organizations" ? "Loading..." : "Load organizations"}
         </button>
       </form>
+
+      <section className="panel">
+        <p className="eyebrow">Account settings</p>
+        <h3>Current user</h3>
+        <p>Load the authenticated profile, update your display name, or rotate your password without asking an administrator.</p>
+        <div className="button-row">
+          <button className="secondary" type="button" disabled={!draft.accessToken || loading === "current-user"} onClick={() => void loadCurrentUserProfile()}>
+            {loading === "current-user" ? "Loading..." : "Load account settings"}
+          </button>
+        </div>
+        {currentUserProfile && (
+          <div className="snapshot-card">
+            <strong>{currentUserProfile.name}</strong>
+            <p>{currentUserProfile.email} · {currentUserProfile.mfa_enabled ? "MFA enabled" : "MFA disabled"} · {currentUserProfile.is_active ? "Active" : "Inactive"}</p>
+            <div className="security-checklist">
+              {Object.entries(currentUserProfile.organization_roles).map(([organizationId, role]) => (
+                <span key={organizationId} className="check-good">{roleLabel(role)} · {organizationId.slice(0, 8)}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        <form className="form-grid" onSubmit={updateCurrentUserProfile}>
+          <input placeholder="Display name" value={profileName} onChange={(event) => setProfileName(event.target.value)} />
+          <button disabled={!draft.accessToken || !profileName.trim() || loading === "update-current-user"}>
+            {loading === "update-current-user" ? "Saving..." : "Update profile"}
+          </button>
+        </form>
+        <form className="form-grid" onSubmit={changeCurrentPassword}>
+          <input placeholder="Current password" type="password" value={changePasswordForm.current_password} onChange={(event) => setChangePasswordForm({ ...changePasswordForm, current_password: event.target.value })} />
+          <input placeholder="New password, 12+ characters" type="password" value={changePasswordForm.new_password} onChange={(event) => setChangePasswordForm({ ...changePasswordForm, new_password: event.target.value })} />
+          <button disabled={!draft.accessToken || !canChangePassword || loading === "change-password"}>
+            {loading === "change-password" ? "Changing..." : "Change password"}
+          </button>
+        </form>
+        <div className="security-checklist">
+          {changePasswordChecks.map((check) => (
+            <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
+              {check.ok ? "OK" : "Need"} · {check.label}
+            </span>
+          ))}
+        </div>
+      </section>
 
       <section className="panel">
         <p className="eyebrow">Account recovery</p>

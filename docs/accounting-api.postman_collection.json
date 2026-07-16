@@ -150,6 +150,47 @@
           }
         },
         {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/me"
+          }
+        },
+        {
+          "name": "Update Current User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated User\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/password/change",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"change-me\",\n  \"new_password\": \"new-secure-password\"\n}"
+            }
+          }
+        },
+        {
           "name": "Setup MFA",
           "request": {
             "method": "POST",
