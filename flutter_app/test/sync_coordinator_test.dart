@@ -496,6 +496,81 @@ void main() {
     ]);
   });
 
+  test('syncs queued structured bank statement imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'bank-import-local-1',
+        module: 'imports',
+        action: 'bank_statement_structured',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'account_id': 'acct-bank',
+          'file_name': 'july-bank.csv',
+          'format': 'csv',
+          'lines': [
+            {
+              'posted_date': '2026-07-15',
+              'description': 'UPI receipt',
+              'amount_minor': 125000,
+              'reference': 'UPI123',
+            },
+          ],
+        },
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-bank');
+        expect(body['file_name'], 'july-bank.csv');
+        final lines = body['lines']! as List;
+        final line = lines.single as Map<String, Object?>;
+        expect(line['posted_date'], '2026-07-15');
+        expect(line['amount_minor'], 125000);
+        return http.Response(
+          jsonEncode({
+            'id': 'bank-import-1',
+            'organization_id': 'org-1',
+            'account_id': 'acct-bank',
+            'file_name': 'july-bank.csv',
+            'format': 'csv',
+            'status': 'completed',
+            'line_count': 1,
+            'lines': [
+              {
+                'id': 'line-1',
+                'organization_id': 'org-1',
+                'account_id': 'acct-bank',
+                'posted_date': '2026-07-15T00:00:00Z',
+                'description': 'UPI receipt',
+                'amount_minor': 125000,
+                'reference': 'UPI123',
+                'is_duplicate': false,
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/bank-statements/import',
+    ]);
+  });
+
   test('syncs queued commercial document status updates', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(

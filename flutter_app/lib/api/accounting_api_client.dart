@@ -350,6 +350,25 @@ class AccountingApiClient {
     return sellAverageCost(SellAverageCostRequest.fromSyncOperation(operation));
   }
 
+  Future<BankStatementImportSummary> importStructuredBankStatement(
+    ImportBankStatementRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/bank-statements/import',
+      body: request.toJson(),
+    );
+    return BankStatementImportSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<BankStatementImportSummary> syncStructuredBankStatementImport(
+    SyncOperation operation,
+  ) {
+    return importStructuredBankStatement(
+      ImportBankStatementRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<http.Response> _send(
     String method,
     String path, {
@@ -667,6 +686,82 @@ class CreditNoteSummary {
       status: json['status']! as String,
       totalMinor: json['total_minor']! as int,
       currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class BankStatementImportSummary {
+  const BankStatementImportSummary({
+    required this.id,
+    required this.accountId,
+    required this.format,
+    required this.status,
+    required this.lineCount,
+    this.fileName = '',
+    this.errorMessage,
+    this.lines = const [],
+  });
+
+  final String id;
+  final String accountId;
+  final String fileName;
+  final String format;
+  final String status;
+  final int lineCount;
+  final String? errorMessage;
+  final List<BankStatementLineSummary> lines;
+
+  factory BankStatementImportSummary.fromJson(Map<String, Object?> json) {
+    return BankStatementImportSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      fileName: json['file_name'] as String? ?? '',
+      format: json['format'] as String? ?? 'csv',
+      status: json['status'] as String? ?? 'completed',
+      lineCount: json['line_count'] as int? ?? 0,
+      errorMessage: json['error_message'] as String?,
+      lines: (json['lines'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(BankStatementLineSummary.fromJson)
+          .toList(growable: false),
+    );
+  }
+}
+
+class BankStatementLineSummary {
+  const BankStatementLineSummary({
+    required this.id,
+    required this.accountId,
+    required this.postedDate,
+    required this.amountMinor,
+    required this.isDuplicate,
+    this.description = '',
+    this.reference = '',
+    this.matchedSplitId,
+    this.duplicateOfId,
+  });
+
+  final String id;
+  final String accountId;
+  final DateTime postedDate;
+  final int amountMinor;
+  final bool isDuplicate;
+  final String description;
+  final String reference;
+  final String? matchedSplitId;
+  final String? duplicateOfId;
+
+  factory BankStatementLineSummary.fromJson(Map<String, Object?> json) {
+    return BankStatementLineSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      postedDate: DateTime.parse(json['posted_date']! as String),
+      amountMinor: json['amount_minor'] as int? ?? 0,
+      isDuplicate: json['is_duplicate'] as bool? ?? false,
+      description: json['description'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+      matchedSplitId: json['matched_split_id'] as String?,
+      duplicateOfId: json['duplicate_of_id'] as String?,
     );
   }
 }
@@ -1252,6 +1347,79 @@ class SellAverageCostRequest {
       if (gainLossAccountId != null) 'gain_loss_account_id': gainLossAccountId,
       if (notes.isNotEmpty) 'notes': notes,
     };
+  }
+}
+
+class ImportBankStatementRequest {
+  const ImportBankStatementRequest({
+    required this.accountId,
+    required this.lines,
+    this.fileName = '',
+    this.format = 'csv',
+  });
+
+  final String accountId;
+  final String fileName;
+  final String format;
+  final List<ImportBankStatementLineRequest> lines;
+
+  factory ImportBankStatementRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ImportBankStatementRequest(
+      accountId: payload['account_id']! as String,
+      fileName: payload['file_name'] as String? ?? '',
+      format: payload['format'] as String? ?? 'csv',
+      lines: (payload['lines']! as List)
+          .cast<Map<String, Object?>>()
+          .map(ImportBankStatementLineRequest.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'file_name': fileName.isEmpty ? null : fileName,
+      'format': format.isEmpty ? null : format,
+      'lines': lines.map((line) => line.toJson()).toList(growable: false),
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class ImportBankStatementLineRequest {
+  const ImportBankStatementLineRequest({
+    required this.postedDate,
+    required this.amountMinor,
+    this.description = '',
+    this.reference = '',
+  });
+
+  final DateTime postedDate;
+  final int amountMinor;
+  final String description;
+  final String reference;
+
+  factory ImportBankStatementLineRequest.fromJson(Map<String, Object?> json) {
+    final postedDate = json['posted_date'];
+    return ImportBankStatementLineRequest(
+      postedDate: postedDate is DateTime
+          ? postedDate
+          : _parseDateOnlyUtc(postedDate! as String),
+      amountMinor: json['amount_minor'] as int? ?? 0,
+      description: json['description'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'posted_date': _dateOnly(postedDate),
+      'description': description.isEmpty ? null : description,
+      'amount_minor': amountMinor,
+      'reference': reference.isEmpty ? null : reference,
+    }..removeWhere((_, value) => value == null);
   }
 }
 

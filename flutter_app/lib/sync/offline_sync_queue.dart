@@ -326,6 +326,30 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueStructuredBankStatementImport({
+    required String accountId,
+    required List<Map<String, Object?>> lines,
+    String fileName = '',
+    String format = 'csv',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'bank-import-${timestamp.microsecondsSinceEpoch}',
+      module: 'imports',
+      action: 'bank_statement_structured',
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'file_name': ?normalizedOptional(fileName),
+        'format': ?normalizedOptional(format),
+        'lines': lines,
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueCustomerPayment({
     required String invoiceId,
     required String paymentNumber,

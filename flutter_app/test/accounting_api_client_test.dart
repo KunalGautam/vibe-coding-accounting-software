@@ -336,6 +336,73 @@ void main() {
     },
   );
 
+  test('imports structured bank statement lines', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/bank-statements/import',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-bank');
+        expect(body['file_name'], 'july-bank.csv');
+        expect(body['format'], 'csv');
+        final lines = body['lines']! as List;
+        final line = lines.single as Map<String, Object?>;
+        expect(line['posted_date'], '2026-07-15');
+        expect(line['description'], 'UPI receipt');
+        expect(line['amount_minor'], 125000);
+        expect(line['reference'], 'UPI123');
+        return http.Response(
+          jsonEncode({
+            'id': 'bank-import-1',
+            'organization_id': 'org-1',
+            'account_id': 'acct-bank',
+            'file_name': 'july-bank.csv',
+            'format': 'csv',
+            'status': 'completed',
+            'line_count': 1,
+            'lines': [
+              {
+                'id': 'bank-line-1',
+                'organization_id': 'org-1',
+                'account_id': 'acct-bank',
+                'posted_date': '2026-07-15T00:00:00Z',
+                'description': 'UPI receipt',
+                'amount_minor': 125000,
+                'reference': 'UPI123',
+                'is_duplicate': false,
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final imported = await client.importStructuredBankStatement(
+      ImportBankStatementRequest(
+        accountId: 'acct-bank',
+        fileName: 'july-bank.csv',
+        lines: [
+          ImportBankStatementLineRequest(
+            postedDate: DateTime.utc(2026, 7, 15),
+            description: 'UPI receipt',
+            amountMinor: 125000,
+            reference: 'UPI123',
+          ),
+        ],
+      ),
+    );
+
+    expect(imported.id, 'bank-import-1');
+    expect(imported.lineCount, 1);
+    expect(imported.lines.single.description, 'UPI receipt');
+    expect(imported.lines.single.isDuplicate, false);
+  });
+
   test('lists and creates attachment metadata', () async {
     final client = AccountingApiClient(
       config: config,

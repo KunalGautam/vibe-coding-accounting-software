@@ -114,6 +114,9 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'payments.record_vendor': (client, operation) async {
     await client.syncVendorPayment(operation);
   },
+  'imports.bank_statement_structured': (client, operation) async {
+    await client.syncStructuredBankStatementImport(operation);
+  },
   'commercial_documents.update_estimate_status': (client, operation) async {
     await client.syncEstimateStatusUpdate(operation);
   },

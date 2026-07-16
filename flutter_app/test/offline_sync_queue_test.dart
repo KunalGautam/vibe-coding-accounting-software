@@ -305,6 +305,33 @@ void main() {
     expect(operation.payload['notes'], 'Partial sale from mobile');
   });
 
+  test('queues structured bank statement imports for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueStructuredBankStatementImport(
+      accountId: 'acct-bank',
+      fileName: 'july-bank.csv',
+      lines: const [
+        {
+          'posted_date': '2026-07-15',
+          'description': 'UPI receipt',
+          'amount_minor': 125000,
+          'reference': 'UPI123',
+        },
+      ],
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'imports');
+    expect(operation.action, 'bank_statement_structured');
+    expect(operation.payload['account_id'], 'acct-bank');
+    expect(operation.payload['file_name'], 'july-bank.csv');
+    expect(operation.payload['format'], 'csv');
+    final lines = operation.payload['lines']! as List<Map<String, Object?>>;
+    expect(lines.single['posted_date'], '2026-07-15');
+    expect(lines.single['amount_minor'], 125000);
+  });
+
   test('queues customer and vendor payments for later replay', () {
     final queue = OfflineSyncQueue();
 
