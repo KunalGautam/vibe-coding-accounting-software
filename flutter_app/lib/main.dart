@@ -14,6 +14,7 @@ import 'parties/party_cache_repository.dart';
 import 'reports/report_csv_exporter.dart';
 import 'reports/report_cache_repository.dart';
 import 'reports/report_export_repository.dart';
+import 'reports/report_share_service.dart';
 import 'settings/sync_settings.dart';
 import 'sync/offline_sync_queue.dart';
 import 'sync/sync_coordinator.dart';
@@ -116,6 +117,7 @@ Future<void> main() async {
   final partyCacheRepository = await createDefaultPartyCacheRepository();
   final reportCacheRepository = await createDefaultReportCacheRepository();
   final reportExportRepository = await createDefaultReportExportRepository();
+  final reportShareService = createDefaultReportShareService();
   final attachmentCacheRepository =
       await createDefaultAttachmentCacheRepository();
   final attachmentBinaryCacheRepository =
@@ -134,6 +136,7 @@ Future<void> main() async {
       partyCacheRepository: partyCacheRepository,
       reportCacheRepository: reportCacheRepository,
       reportExportRepository: reportExportRepository,
+      reportShareService: reportShareService,
       attachmentCacheRepository: attachmentCacheRepository,
       attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
       attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -152,6 +155,7 @@ class AccountingApp extends StatelessWidget {
     this.partyCacheRepository,
     this.reportCacheRepository,
     this.reportExportRepository,
+    this.reportShareService,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -191,6 +195,7 @@ class AccountingApp extends StatelessWidget {
   final PartyCacheRepository? partyCacheRepository;
   final ReportCacheRepository? reportCacheRepository;
   final ReportExportRepository? reportExportRepository;
+  final ReportShareService? reportShareService;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -242,6 +247,7 @@ class AccountingApp extends StatelessWidget {
         partyCacheRepository: partyCacheRepository,
         reportCacheRepository: reportCacheRepository,
         reportExportRepository: reportExportRepository,
+        reportShareService: reportShareService,
         attachmentCacheRepository: attachmentCacheRepository,
         attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
         attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -285,6 +291,7 @@ class MobileDeskShell extends StatefulWidget {
     this.partyCacheRepository,
     this.reportCacheRepository,
     this.reportExportRepository,
+    this.reportShareService,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -324,6 +331,7 @@ class MobileDeskShell extends StatefulWidget {
   final PartyCacheRepository? partyCacheRepository;
   final ReportCacheRepository? reportCacheRepository;
   final ReportExportRepository? reportExportRepository;
+  final ReportShareService? reportShareService;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -366,6 +374,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   late final PartyCacheRepository partyCacheRepository;
   late final ReportCacheRepository reportCacheRepository;
   late final ReportExportRepository reportExportRepository;
+  late final ReportShareService reportShareService;
   late final AttachmentCacheRepository attachmentCacheRepository;
   late final AttachmentBinaryCacheRepository attachmentBinaryCacheRepository;
   late final AttachmentUploadManifestRepository
@@ -449,6 +458,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         widget.reportCacheRepository ?? MemoryReportCacheRepository();
     reportExportRepository =
         widget.reportExportRepository ?? MemoryReportExportRepository();
+    reportShareService =
+        widget.reportShareService ?? MemoryReportShareService();
     attachmentCacheRepository =
         widget.attachmentCacheRepository ?? MemoryAttachmentCacheRepository();
     attachmentBinaryCacheRepository =
@@ -1440,6 +1451,40 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> shareReportCsvExports(List<ReportCsvExport> exports) async {
+    if (exports.isEmpty) {
+      setState(() {
+        syncNotice = 'No cached reports available for CSV export yet.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final exportResult = await reportExportRepository.saveExports(exports);
+      final shareResult = await reportShareService.shareExports(exportResult);
+      setState(() {
+        lastReportExportDirectory = exportResult.directoryPath;
+        syncNotice =
+            'Shared ${shareResult.fileCount} report CSV files (${shareResult.status}).';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Report CSV share failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchTaxCatalog() async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -2012,6 +2057,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchBudgets: fetchBudgets,
         onFetchBudgetVsActual: fetchBudgetVsActual,
         onSaveCsvExports: saveReportCsvExports,
+        onShareCsvExports: shareReportCsvExports,
       ),
       SyncPage(
         settings: settings,
@@ -3389,6 +3435,7 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchBudgets,
     required this.onFetchBudgetVsActual,
     required this.onSaveCsvExports,
+    required this.onShareCsvExports,
     this.notice,
     this.lastExportDirectory,
     super.key,
@@ -3427,6 +3474,7 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(String budgetId) onFetchBudgetVsActual;
   final Future<void> Function(List<ReportCsvExport> exports, {bool toDownloads})
   onSaveCsvExports;
+  final Future<void> Function(List<ReportCsvExport> exports) onShareCsvExports;
 
   @override
   Widget build(BuildContext context) {
@@ -3763,6 +3811,7 @@ class ReportsPage extends StatelessWidget {
           lastExportDirectory: lastExportDirectory,
           onSave: () => onSaveCsvExports(exports),
           onSaveToDownloads: () => onSaveCsvExports(exports, toDownloads: true),
+          onShare: () => onShareCsvExports(exports),
         ),
         if (notice != null) Text(notice!),
         const InfoList(
@@ -3971,6 +4020,7 @@ class _ReportExportCard extends StatelessWidget {
     required this.isLoading,
     required this.onSave,
     required this.onSaveToDownloads,
+    required this.onShare,
     this.lastExportDirectory,
   });
 
@@ -3978,6 +4028,7 @@ class _ReportExportCard extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onSave;
   final VoidCallback onSaveToDownloads;
+  final VoidCallback onShare;
   final String? lastExportDirectory;
 
   @override
@@ -4019,6 +4070,11 @@ class _ReportExportCard extends StatelessWidget {
                     onPressed: isLoading ? null : onSaveToDownloads,
                     icon: const Icon(Icons.download_outlined),
                     label: const Text('Save to Downloads'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : onShare,
+                    icon: const Icon(Icons.ios_share_outlined),
+                    label: const Text('Share CSV files'),
                   ),
                 ],
               ),

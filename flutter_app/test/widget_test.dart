@@ -13,6 +13,7 @@ import 'package:accounting_app/main.dart';
 import 'package:accounting_app/parties/party_cache_repository.dart';
 import 'package:accounting_app/reports/report_cache_repository.dart';
 import 'package:accounting_app/reports/report_export_repository.dart';
+import 'package:accounting_app/reports/report_share_service.dart';
 import 'package:accounting_app/settings/sync_settings.dart';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
 import 'package:accounting_app/sync/sync_operation_repository.dart';
@@ -1229,12 +1230,14 @@ void main() {
     );
     final reportCacheRepository = MemoryReportCacheRepository();
     final reportExportRepository = MemoryReportExportRepository();
+    final reportShareService = MemoryReportShareService();
 
     await tester.pumpWidget(
       AccountingApp(
         settingsRepository: settingsRepository,
         reportCacheRepository: reportCacheRepository,
         reportExportRepository: reportExportRepository,
+        reportShareService: reportShareService,
         trialBalanceLoader: (_, asOf) async => TrialBalanceReport(
           asOfDate: asOf,
           rows: const [
@@ -1583,6 +1586,11 @@ void main() {
       findsOneWidget,
     );
     expect(reportExportRepository.downloadedFiles, contains('budgets.csv'));
+    await tester.ensureVisible(find.text('Share CSV files'));
+    await tester.tap(find.text('Share CSV files'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shared 10 report CSV files (success).'), findsOneWidget);
+    expect(reportShareService.sharedResults.single.fileCount, 10);
   });
 
   testWidgets('fetches and caches investment valuation reports', (
