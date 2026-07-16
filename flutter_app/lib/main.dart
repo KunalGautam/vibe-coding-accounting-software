@@ -405,6 +405,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   ProfitAndLossReport? cachedProfitAndLossReport;
   ProfitAndLossReport? priorProfitAndLossReport;
   BalanceSheetReport? cachedBalanceSheetReport;
+  BalanceSheetReport? priorBalanceSheetReport;
   CashFlowReport? cachedCashFlowReport;
   ARAgingReport? cachedARAgingReport;
   APAgingReport? cachedAPAgingReport;
@@ -999,6 +1000,54 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'Balance sheet fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchBalanceSheetComparison(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.balanceSheetLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getBalanceSheet(asOf: asOf);
+      final current = await loader(settings, asOf);
+      final previous = await loader(
+        settings,
+        DateTime.utc(asOf.year - 1, asOf.month, asOf.day),
+      );
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(balanceSheet: current),
+      );
+      setState(() {
+        cachedBalanceSheetReport = current;
+        priorBalanceSheetReport = previous;
+        syncNotice =
+            'Fetched balance sheet comparison as of ${formatDateOnly(current.asOfDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Balance sheet comparison fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -1889,6 +1938,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         profitAndLoss: cachedProfitAndLossReport,
         priorProfitAndLoss: priorProfitAndLossReport,
         balanceSheet: cachedBalanceSheetReport,
+        priorBalanceSheet: priorBalanceSheetReport,
         cashFlow: cachedCashFlowReport,
         arAging: cachedARAgingReport,
         apAging: cachedAPAgingReport,
@@ -1903,6 +1953,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchProfitAndLoss: fetchProfitAndLoss,
         onFetchProfitAndLossComparison: fetchProfitAndLossComparison,
         onFetchBalanceSheet: fetchBalanceSheet,
+        onFetchBalanceSheetComparison: fetchBalanceSheetComparison,
         onFetchCashFlow: fetchCashFlow,
         onFetchARAging: fetchARAging,
         onFetchAPAging: fetchAPAging,
@@ -3264,6 +3315,7 @@ class ReportsPage extends StatelessWidget {
     required this.profitAndLoss,
     required this.priorProfitAndLoss,
     required this.balanceSheet,
+    required this.priorBalanceSheet,
     required this.cashFlow,
     required this.arAging,
     required this.apAging,
@@ -3276,6 +3328,7 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchProfitAndLoss,
     required this.onFetchProfitAndLossComparison,
     required this.onFetchBalanceSheet,
+    required this.onFetchBalanceSheetComparison,
     required this.onFetchCashFlow,
     required this.onFetchARAging,
     required this.onFetchAPAging,
@@ -3293,6 +3346,7 @@ class ReportsPage extends StatelessWidget {
   final ProfitAndLossReport? profitAndLoss;
   final ProfitAndLossReport? priorProfitAndLoss;
   final BalanceSheetReport? balanceSheet;
+  final BalanceSheetReport? priorBalanceSheet;
   final CashFlowReport? cashFlow;
   final ARAgingReport? arAging;
   final APAgingReport? apAging;
@@ -3308,6 +3362,7 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to)
   onFetchProfitAndLossComparison;
   final Future<void> Function(DateTime asOf) onFetchBalanceSheet;
+  final Future<void> Function(DateTime asOf) onFetchBalanceSheetComparison;
   final Future<void> Function(DateTime from, DateTime to) onFetchCashFlow;
   final Future<void> Function(DateTime asOf) onFetchARAging;
   final Future<void> Function(DateTime asOf) onFetchAPAging;
@@ -3445,6 +3500,21 @@ class ReportsPage extends StatelessWidget {
               Text(
                 'Assets ${formatMinorAsInr(balanceSheet!.totalAssetsMinor)} · Liabilities ${formatMinorAsInr(balanceSheet!.totalLiabilitiesMinor)} · Equity ${formatMinorAsInr(balanceSheet!.totalEquityMinor)}',
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchBalanceSheetComparison(asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch balance sheet comparison'),
+              ),
+              if (priorBalanceSheet != null) ...[
+                const SizedBox(height: 8),
+                _BalanceSheetComparison(
+                  current: balanceSheet!,
+                  previous: priorBalanceSheet!,
+                ),
+              ],
               const SizedBox(height: 8),
               const Text('Assets'),
               _ReportRows(rows: balanceSheet!.assetRows),
@@ -3707,6 +3777,61 @@ class _ProfitAndLossComparison extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ],
+    );
+  }
+}
+
+class _BalanceSheetComparison extends StatelessWidget {
+  const _BalanceSheetComparison({
+    required this.current,
+    required this.previous,
+  });
+
+  final BalanceSheetReport current;
+  final BalanceSheetReport previous;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Prior as of ${formatDateOnly(previous.asOfDate)}'),
+        _BalanceSheetComparisonLine(
+          label: 'Assets',
+          currentMinor: current.totalAssetsMinor,
+          previousMinor: previous.totalAssetsMinor,
+        ),
+        _BalanceSheetComparisonLine(
+          label: 'Liabilities',
+          currentMinor: current.totalLiabilitiesMinor,
+          previousMinor: previous.totalLiabilitiesMinor,
+        ),
+        _BalanceSheetComparisonLine(
+          label: 'Equity',
+          currentMinor: current.totalEquityMinor,
+          previousMinor: previous.totalEquityMinor,
+        ),
+      ],
+    );
+  }
+}
+
+class _BalanceSheetComparisonLine extends StatelessWidget {
+  const _BalanceSheetComparisonLine({
+    required this.label,
+    required this.currentMinor,
+    required this.previousMinor,
+  });
+
+  final String label;
+  final int currentMinor;
+  final int previousMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final variance = currentMinor - previousMinor;
+    return Text(
+      '$label prior ${formatMinorAsInr(previousMinor)} · Var ${formatMinorAsInr(variance)} (${_formatPercentBasis(_percentBasis(variance, previousMinor))})',
     );
   }
 }

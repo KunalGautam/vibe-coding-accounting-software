@@ -1295,36 +1295,41 @@ void main() {
             netIncomeMinor: incomeMinor - expenseMinor,
           );
         },
-        balanceSheetLoader: (_, asOf) async => BalanceSheetReport(
-          asOfDate: asOf,
-          assetRows: const [
-            ReportRowSummary(
-              accountId: 'acct-bank',
-              accountCode: '1010',
-              accountName: 'Bank',
-              accountType: 'asset',
-              debitMinor: 350000,
-              creditMinor: 0,
-              balanceMinor: 350000,
-            ),
-          ],
-          liabilityRows: const [],
-          equityRows: const [
-            ReportRowSummary(
-              accountId: 'acct-retained',
-              accountCode: '3100',
-              accountName: 'Retained Earnings',
-              accountType: 'equity',
-              debitMinor: 0,
-              creditMinor: 350000,
-              balanceMinor: -350000,
-            ),
-          ],
-          totalAssetsMinor: 350000,
-          totalLiabilitiesMinor: 0,
-          totalEquityMinor: 350000,
-          balanced: true,
-        ),
+        balanceSheetLoader: (_, asOf) async {
+          final isPriorPeriod = asOf.year < 2026;
+          final assetsMinor = isPriorPeriod ? 300000 : 350000;
+          final equityMinor = isPriorPeriod ? 300000 : 350000;
+          return BalanceSheetReport(
+            asOfDate: asOf,
+            assetRows: [
+              ReportRowSummary(
+                accountId: 'acct-bank',
+                accountCode: '1010',
+                accountName: 'Bank',
+                accountType: 'asset',
+                debitMinor: assetsMinor,
+                creditMinor: 0,
+                balanceMinor: assetsMinor,
+              ),
+            ],
+            liabilityRows: const [],
+            equityRows: [
+              ReportRowSummary(
+                accountId: 'acct-retained',
+                accountCode: '3100',
+                accountName: 'Retained Earnings',
+                accountType: 'equity',
+                debitMinor: 0,
+                creditMinor: equityMinor,
+                balanceMinor: -equityMinor,
+              ),
+            ],
+            totalAssetsMinor: assetsMinor,
+            totalLiabilitiesMinor: 0,
+            totalEquityMinor: equityMinor,
+            balanced: true,
+          );
+        },
         cashFlowLoader: (_, from, to) async => CashFlowReport(
           fromDate: from,
           toDate: to,
@@ -1481,6 +1486,17 @@ void main() {
     await tester.ensureVisible(find.text('Fetch balance sheet'));
     await tester.tap(find.text('Fetch balance sheet'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch balance sheet comparison'));
+    await tester.tap(find.text('Fetch balance sheet comparison'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Assets prior INR 3000.00 · Var INR 500.00 (+16.67%)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Equity prior INR 3000.00 · Var INR 500.00 (+16.67%)'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Fetch cash flow'));
     await tester.tap(find.text('Fetch cash flow'));
     await tester.pumpAndSettle();
