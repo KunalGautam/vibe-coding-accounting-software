@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../api/accounting_api_client.dart';
+import '../storage/offline_sqlite.dart';
 
 class SyncSettings {
   const SyncSettings({
@@ -150,9 +151,63 @@ class FileSyncSettingsRepository implements SyncSettingsRepository {
   }
 }
 
+class SqliteSyncSettingsRepository implements SyncSettingsRepository {
+  const SqliteSyncSettingsRepository(this.database);
+
+  final Database database;
+
+  @override
+  Future<SyncSettings> load() async {
+    final rows = await database.query(
+      'sync_settings',
+      where: 'id = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return const SyncSettings();
+    }
+    return _settingsFromRow(rows.single);
+  }
+
+  @override
+  Future<void> save(SyncSettings settings) async {
+    await database.insert(
+      'sync_settings',
+      _settingsToRow(settings),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+}
+
+Future<void> createSyncSettingsTables(DatabaseExecutor database) async {
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS sync_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  api_base_url TEXT NOT NULL,
+  access_token TEXT NOT NULL DEFAULT '',
+  organization_id TEXT NOT NULL DEFAULT '',
+  default_expense_account_id TEXT NOT NULL DEFAULT '',
+  default_payment_account_id TEXT NOT NULL DEFAULT '',
+  default_tax_rate_id TEXT NOT NULL DEFAULT '',
+  default_tax_group_id TEXT NOT NULL DEFAULT ''
+)
+''');
+}
+
+Map<String, Object?> _settingsToRow(SyncSettings settings) {
+  return {'id': 1, ...settings.toJson()};
+}
+
+SyncSettings _settingsFromRow(Map<String, Object?> row) {
+  return SyncSettings.fromJson(row);
+}
+
 Future<SyncSettingsRepository> createDefaultSyncSettingsRepository() async {
-  final directory = await getApplicationSupportDirectory();
-  return FileSyncSettingsRepository(
-    File('${directory.path}/sync-settings.json'),
+  final database = await openOfflineDatabase(
+    fileName: 'offline-settings.sqlite',
+    version: 1,
+    onCreate: (database, _) => createSyncSettingsTables(database),
   );
+  return SqliteSyncSettingsRepository(database);
 }

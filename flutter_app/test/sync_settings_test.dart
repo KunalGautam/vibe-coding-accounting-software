@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:accounting_app/settings/sync_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  setUpAll(sqfliteFfiInit);
+
   test('detects whether expense sync settings are complete', () {
     expect(const SyncSettings().canSyncExpenses, false);
 
@@ -73,6 +76,62 @@ void main() {
 
     final loaded = await repository.load();
     expect(loaded.accessToken, 'token');
+    expect(loaded.canSyncExpenses, true);
+  });
+
+  test(
+    'sqlite repository returns defaults before settings are saved',
+    () async {
+      final database = await databaseFactoryFfi.openDatabase(
+        inMemoryDatabasePath,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (database, _) => createSyncSettingsTables(database),
+        ),
+      );
+      addTearDown(database.close);
+      final repository = SqliteSyncSettingsRepository(database);
+
+      final loaded = await repository.load();
+      expect(loaded.apiBaseUrl, const SyncSettings().apiBaseUrl);
+      expect(loaded.canFetchAccounts, false);
+    },
+  );
+
+  test('sqlite repository persists and overwrites settings', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createSyncSettingsTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteSyncSettingsRepository(database);
+
+    await repository.save(
+      const SyncSettings(accessToken: 'old-token', organizationId: 'old-org'),
+    );
+    await repository.save(
+      const SyncSettings(
+        apiBaseUrl: 'https://api.example.test/api/v1',
+        accessToken: 'token',
+        organizationId: 'org-1',
+        defaultExpenseAccountId: 'expense-account',
+        defaultPaymentAccountId: 'cash-account',
+        defaultTaxRateId: 'tax-rate-1',
+        defaultTaxGroupId: 'tax-group-1',
+      ),
+    );
+
+    final loaded = await repository.load();
+    expect(loaded.apiBaseUrl, 'https://api.example.test/api/v1');
+    expect(loaded.accessToken, 'token');
+    expect(loaded.organizationId, 'org-1');
+    expect(loaded.defaultExpenseAccountId, 'expense-account');
+    expect(loaded.defaultPaymentAccountId, 'cash-account');
+    expect(loaded.defaultTaxRateId, 'tax-rate-1');
+    expect(loaded.defaultTaxGroupId, 'tax-group-1');
     expect(loaded.canSyncExpenses, true);
   });
 }
