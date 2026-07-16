@@ -258,6 +258,23 @@ class AccountingApiClient {
     return TrialBalanceReport.fromJson(_decodeObject(response));
   }
 
+  Future<ProfitAndLossReport> getProfitAndLoss({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final params = Uri(
+      queryParameters: {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    ).query;
+    final response = await _send('GET', '/reports/profit-and-loss?$params');
+    return ProfitAndLossReport.fromJson(_decodeObject(response));
+  }
+
+  Future<BalanceSheetReport> getBalanceSheet({required DateTime asOf}) async {
+    final params = Uri(queryParameters: {'as_of': _dateOnly(asOf)}).query;
+    final response = await _send('GET', '/reports/balance-sheet?$params');
+    return BalanceSheetReport.fromJson(_decodeObject(response));
+  }
+
   Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
     final response = await _send('GET', '/investments/prices');
     return _decodeList(response, InvestmentPriceSummary.fromJson);
@@ -1232,6 +1249,123 @@ class TrialBalanceReport {
       'rows': rows.map((row) => row.toJson()).toList(growable: false),
       'total_debit_minor': totalDebitMinor,
       'total_credit_minor': totalCreditMinor,
+      'balanced': balanced,
+    };
+  }
+}
+
+class ProfitAndLossReport {
+  const ProfitAndLossReport({
+    required this.fromDate,
+    required this.toDate,
+    required this.incomeRows,
+    required this.expenseRows,
+    required this.totalIncomeMinor,
+    required this.totalExpenseMinor,
+    required this.netIncomeMinor,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final List<ReportRowSummary> incomeRows;
+  final List<ReportRowSummary> expenseRows;
+  final int totalIncomeMinor;
+  final int totalExpenseMinor;
+  final int netIncomeMinor;
+
+  factory ProfitAndLossReport.fromJson(Map<String, Object?> json) {
+    return ProfitAndLossReport(
+      fromDate: DateTime.parse(json['from_date']! as String),
+      toDate: DateTime.parse(json['to_date']! as String),
+      incomeRows: (json['income_rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      expenseRows: (json['expense_rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      totalIncomeMinor: json['total_income_minor'] as int? ?? 0,
+      totalExpenseMinor: json['total_expense_minor'] as int? ?? 0,
+      netIncomeMinor: json['net_income_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'from_date': _dateOnly(fromDate),
+      'to_date': _dateOnly(toDate),
+      'income_rows': incomeRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
+      'expense_rows': expenseRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
+      'total_income_minor': totalIncomeMinor,
+      'total_expense_minor': totalExpenseMinor,
+      'net_income_minor': netIncomeMinor,
+    };
+  }
+}
+
+class BalanceSheetReport {
+  const BalanceSheetReport({
+    required this.asOfDate,
+    required this.assetRows,
+    required this.liabilityRows,
+    required this.equityRows,
+    required this.totalAssetsMinor,
+    required this.totalLiabilitiesMinor,
+    required this.totalEquityMinor,
+    required this.balanced,
+  });
+
+  final DateTime asOfDate;
+  final List<ReportRowSummary> assetRows;
+  final List<ReportRowSummary> liabilityRows;
+  final List<ReportRowSummary> equityRows;
+  final int totalAssetsMinor;
+  final int totalLiabilitiesMinor;
+  final int totalEquityMinor;
+  final bool balanced;
+
+  factory BalanceSheetReport.fromJson(Map<String, Object?> json) {
+    return BalanceSheetReport(
+      asOfDate: DateTime.parse(json['as_of_date']! as String),
+      assetRows: (json['asset_rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      liabilityRows: (json['liability_rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      equityRows: (json['equity_rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      totalAssetsMinor: json['total_assets_minor'] as int? ?? 0,
+      totalLiabilitiesMinor: json['total_liabilities_minor'] as int? ?? 0,
+      totalEquityMinor: json['total_equity_minor'] as int? ?? 0,
+      balanced: json['balanced'] as bool? ?? false,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'as_of_date': _dateOnly(asOfDate),
+      'asset_rows': assetRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
+      'liability_rows': liabilityRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
+      'equity_rows': equityRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
+      'total_assets_minor': totalAssetsMinor,
+      'total_liabilities_minor': totalLiabilitiesMinor,
+      'total_equity_minor': totalEquityMinor,
       'balanced': balanced,
     };
   }

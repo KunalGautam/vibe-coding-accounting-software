@@ -139,6 +139,112 @@ void main() {
     expect(report.rows.single.accountName, 'Cash');
   });
 
+  test('fetches profit and loss reports', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path.endsWith('/reports/profit-and-loss'), true);
+        expect(request.url.queryParameters['from'], '2026-04-01');
+        expect(request.url.queryParameters['to'], '2026-07-31');
+        return http.Response(
+          jsonEncode({
+            'from_date': '2026-04-01T00:00:00Z',
+            'to_date': '2026-07-31T00:00:00Z',
+            'total_income_minor': 500000,
+            'total_expense_minor': 150000,
+            'net_income_minor': 350000,
+            'income_rows': [
+              {
+                'account_id': 'acct-sales',
+                'account_code': '4000',
+                'account_name': 'Sales',
+                'account_type': 'income',
+                'debit_minor': 0,
+                'credit_minor': 500000,
+                'balance_minor': -500000,
+              },
+            ],
+            'expense_rows': [
+              {
+                'account_id': 'acct-rent',
+                'account_code': '5000',
+                'account_name': 'Rent',
+                'account_type': 'expense',
+                'debit_minor': 150000,
+                'credit_minor': 0,
+                'balance_minor': 150000,
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final report = await client.getProfitAndLoss(
+      from: DateTime.utc(2026, 4),
+      to: DateTime.utc(2026, 7, 31),
+    );
+
+    expect(report.netIncomeMinor, 350000);
+    expect(report.incomeRows.single.accountName, 'Sales');
+    expect(report.expenseRows.single.accountName, 'Rent');
+  });
+
+  test('fetches balance sheet reports', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path.endsWith('/reports/balance-sheet'), true);
+        expect(request.url.queryParameters['as_of'], '2026-07-31');
+        return http.Response(
+          jsonEncode({
+            'as_of_date': '2026-07-31T00:00:00Z',
+            'total_assets_minor': 350000,
+            'total_liabilities_minor': 0,
+            'total_equity_minor': 350000,
+            'balanced': true,
+            'asset_rows': [
+              {
+                'account_id': 'acct-bank',
+                'account_code': '1010',
+                'account_name': 'Bank',
+                'account_type': 'asset',
+                'debit_minor': 350000,
+                'credit_minor': 0,
+                'balance_minor': 350000,
+              },
+            ],
+            'liability_rows': [],
+            'equity_rows': [
+              {
+                'account_id': 'acct-retained',
+                'account_code': '3100',
+                'account_name': 'Retained Earnings',
+                'account_type': 'equity',
+                'debit_minor': 0,
+                'credit_minor': 350000,
+                'balance_minor': -350000,
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final report = await client.getBalanceSheet(
+      asOf: DateTime.utc(2026, 7, 31),
+    );
+
+    expect(report.balanced, true);
+    expect(report.totalAssetsMinor, 350000);
+    expect(report.assetRows.single.accountName, 'Bank');
+    expect(report.equityRows.single.accountName, 'Retained Earnings');
+  });
+
   test('lists invoice and expense summaries', () async {
     final client = AccountingApiClient(
       config: config,

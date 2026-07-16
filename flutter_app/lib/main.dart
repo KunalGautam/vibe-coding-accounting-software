@@ -28,6 +28,14 @@ typedef VendorLoader =
     Future<List<VendorSummary>> Function(SyncSettings settings);
 typedef TrialBalanceLoader =
     Future<TrialBalanceReport> Function(SyncSettings settings, DateTime asOf);
+typedef ProfitAndLossLoader =
+    Future<ProfitAndLossReport> Function(
+      SyncSettings settings,
+      DateTime from,
+      DateTime to,
+    );
+typedef BalanceSheetLoader =
+    Future<BalanceSheetReport> Function(SyncSettings settings, DateTime asOf);
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -119,6 +127,8 @@ class AccountingApp extends StatelessWidget {
     this.customerLoader,
     this.vendorLoader,
     this.trialBalanceLoader,
+    this.profitAndLossLoader,
+    this.balanceSheetLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -148,6 +158,8 @@ class AccountingApp extends StatelessWidget {
   final CustomerLoader? customerLoader;
   final VendorLoader? vendorLoader;
   final TrialBalanceLoader? trialBalanceLoader;
+  final ProfitAndLossLoader? profitAndLossLoader;
+  final BalanceSheetLoader? balanceSheetLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -189,6 +201,8 @@ class AccountingApp extends StatelessWidget {
         customerLoader: customerLoader,
         vendorLoader: vendorLoader,
         trialBalanceLoader: trialBalanceLoader,
+        profitAndLossLoader: profitAndLossLoader,
+        balanceSheetLoader: balanceSheetLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -222,6 +236,8 @@ class MobileDeskShell extends StatefulWidget {
     this.customerLoader,
     this.vendorLoader,
     this.trialBalanceLoader,
+    this.profitAndLossLoader,
+    this.balanceSheetLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -251,6 +267,8 @@ class MobileDeskShell extends StatefulWidget {
   final CustomerLoader? customerLoader;
   final VendorLoader? vendorLoader;
   final TrialBalanceLoader? trialBalanceLoader;
+  final ProfitAndLossLoader? profitAndLossLoader;
+  final BalanceSheetLoader? balanceSheetLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -310,6 +328,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   List<CustomerSummary> cachedCustomers = const [];
   List<VendorSummary> cachedVendors = const [];
   TrialBalanceReport? cachedTrialBalanceReport;
+  ProfitAndLossReport? cachedProfitAndLossReport;
+  BalanceSheetReport? cachedBalanceSheetReport;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -411,6 +431,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
     setState(() {
       cachedTrialBalanceReport = snapshot.trialBalance;
+      cachedProfitAndLossReport = snapshot.profitAndLoss;
+      cachedBalanceSheetReport = snapshot.balanceSheet;
     });
   }
 
@@ -740,8 +762,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
             config: settings.toApiConfig(),
           ).getTrialBalance(asOf: asOf);
       final report = await loader(settings, asOf);
+      final snapshot = await reportCacheRepository.loadCached();
       await reportCacheRepository.saveCached(
-        ReportCacheSnapshot(trialBalance: report),
+        snapshot.copyWith(trialBalance: report),
       );
       setState(() {
         cachedTrialBalanceReport = report;
@@ -751,6 +774,92 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'Trial balance fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchProfitAndLoss(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.profitAndLossLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getProfitAndLoss(from: from, to: to);
+      final report = await loader(settings, from, to);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(profitAndLoss: report),
+      );
+      setState(() {
+        cachedProfitAndLossReport = report;
+        syncNotice =
+            'Fetched P&L from ${formatDateOnly(report.fromDate)} to ${formatDateOnly(report.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'P&L fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchBalanceSheet(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.balanceSheetLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getBalanceSheet(asOf: asOf);
+      final report = await loader(settings, asOf);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(balanceSheet: report),
+      );
+      setState(() {
+        cachedBalanceSheetReport = report;
+        syncNotice =
+            'Fetched balance sheet as of ${formatDateOnly(report.asOfDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Balance sheet fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -1304,9 +1413,13 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       ),
       ReportsPage(
         trialBalance: cachedTrialBalanceReport,
+        profitAndLoss: cachedProfitAndLossReport,
+        balanceSheet: cachedBalanceSheetReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
         onFetchTrialBalance: fetchTrialBalance,
+        onFetchProfitAndLoss: fetchProfitAndLoss,
+        onFetchBalanceSheet: fetchBalanceSheet,
       ),
       SyncPage(
         settings: settings,
@@ -2657,20 +2770,31 @@ class InvestmentsPage extends StatelessWidget {
 class ReportsPage extends StatelessWidget {
   const ReportsPage({
     required this.trialBalance,
+    required this.profitAndLoss,
+    required this.balanceSheet,
     required this.isLoading,
     required this.onFetchTrialBalance,
+    required this.onFetchProfitAndLoss,
+    required this.onFetchBalanceSheet,
     this.notice,
     super.key,
   });
 
   final TrialBalanceReport? trialBalance;
+  final ProfitAndLossReport? profitAndLoss;
+  final BalanceSheetReport? balanceSheet;
   final bool isLoading;
   final String? notice;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
+  final Future<void> Function(DateTime from, DateTime to) onFetchProfitAndLoss;
+  final Future<void> Function(DateTime asOf) onFetchBalanceSheet;
 
   @override
   Widget build(BuildContext context) {
     final asOf = DateTime.now().toUtc();
+    final fiscalStart = asOf.month >= 4
+        ? DateTime.utc(asOf.year, 4)
+        : DateTime.utc(asOf.year - 1, 4);
     return AppPage(
       eyebrow: 'Reports',
       title: 'Financial snapshots',
@@ -2678,66 +2802,180 @@ class ReportsPage extends StatelessWidget {
         const Text(
           'Refresh core statements from the API and keep the latest report available offline.',
         ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Trial balance',
-                  style: Theme.of(context).textTheme.titleLarge,
+        _ReportCard(
+          title: 'Trial balance',
+          description:
+              'Fetches account balances as of ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch trial balance',
+          icon: Icons.assessment_outlined,
+          isLoading: isLoading,
+          onPressed: () => onFetchTrialBalance(asOf),
+          children: [
+            if (trialBalance == null)
+              const Text('No cached trial balance yet.')
+            else ...[
+              Text('As of ${formatDateOnly(trialBalance!.asOfDate)}'),
+              Text(
+                trialBalance!.balanced ? 'Balanced' : 'Out of balance',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: trialBalance!.balanced
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
                 ),
-                const SizedBox(height: 8),
-                Text('Fetches account balances as of ${formatDateOnly(asOf)}.'),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: isLoading ? null : () => onFetchTrialBalance(asOf),
-                  icon: const Icon(Icons.assessment_outlined),
-                  label: Text(
-                    isLoading
-                        ? 'Loading trial balance...'
-                        : 'Fetch trial balance',
-                  ),
+              ),
+              Text(
+                'Debits ${formatMinorAsInr(trialBalance!.totalDebitMinor)} · Credits ${formatMinorAsInr(trialBalance!.totalCreditMinor)}',
+              ),
+              const SizedBox(height: 8),
+              _ReportRows(rows: trialBalance!.rows),
+            ],
+          ],
+        ),
+        _ReportCard(
+          title: 'Profit and loss',
+          description:
+              'Uses the Indian fiscal year window ${formatDateOnly(fiscalStart)} to ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch P&L',
+          icon: Icons.trending_up,
+          isLoading: isLoading,
+          onPressed: () => onFetchProfitAndLoss(fiscalStart, asOf),
+          children: [
+            if (profitAndLoss == null)
+              const Text('No cached P&L yet.')
+            else ...[
+              Text(
+                '${formatDateOnly(profitAndLoss!.fromDate)} to ${formatDateOnly(profitAndLoss!.toDate)}',
+              ),
+              Text(
+                'Income ${formatMinorAsInr(profitAndLoss!.totalIncomeMinor)} · Expenses ${formatMinorAsInr(profitAndLoss!.totalExpenseMinor)}',
+              ),
+              Text(
+                'Net income ${formatMinorAsInr(profitAndLoss!.netIncomeMinor)}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text('Income'),
+              _ReportRows(rows: profitAndLoss!.incomeRows),
+              const SizedBox(height: 8),
+              const Text('Expenses'),
+              _ReportRows(rows: profitAndLoss!.expenseRows),
+            ],
+          ],
+        ),
+        _ReportCard(
+          title: 'Balance sheet',
+          description:
+              'Fetches assets, liabilities, and equity as of ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch balance sheet',
+          icon: Icons.account_balance,
+          isLoading: isLoading,
+          onPressed: () => onFetchBalanceSheet(asOf),
+          children: [
+            if (balanceSheet == null)
+              const Text('No cached balance sheet yet.')
+            else ...[
+              Text('As of ${formatDateOnly(balanceSheet!.asOfDate)}'),
+              Text(
+                balanceSheet!.balanced ? 'Balanced' : 'Out of balance',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: balanceSheet!.balanced
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
                 ),
-                if (trialBalance != null) ...[
-                  const SizedBox(height: 16),
-                  Text('As of ${formatDateOnly(trialBalance!.asOfDate)}'),
-                  Text(
-                    trialBalance!.balanced ? 'Balanced' : 'Out of balance',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: trialBalance!.balanced
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  Text(
-                    'Debits ${formatMinorAsInr(trialBalance!.totalDebitMinor)} · Credits ${formatMinorAsInr(trialBalance!.totalCreditMinor)}',
-                  ),
-                  const SizedBox(height: 8),
-                  if (trialBalance!.rows.isEmpty)
-                    const Text('No account activity in the cached report.')
-                  else
-                    for (final row in trialBalance!.rows.take(12))
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          '${row.accountCode} · ${row.accountName} · ${row.accountType} · Dr ${formatMinorAsInr(row.debitMinor)} · Cr ${formatMinorAsInr(row.creditMinor)} · Bal ${formatMinorAsInr(row.balanceMinor)}',
-                        ),
-                      ),
-                ],
-              ],
-            ),
-          ),
+              ),
+              Text(
+                'Assets ${formatMinorAsInr(balanceSheet!.totalAssetsMinor)} · Liabilities ${formatMinorAsInr(balanceSheet!.totalLiabilitiesMinor)} · Equity ${formatMinorAsInr(balanceSheet!.totalEquityMinor)}',
+              ),
+              const SizedBox(height: 8),
+              const Text('Assets'),
+              _ReportRows(rows: balanceSheet!.assetRows),
+              const SizedBox(height: 8),
+              const Text('Liabilities'),
+              _ReportRows(rows: balanceSheet!.liabilityRows),
+              const SizedBox(height: 8),
+              const Text('Equity'),
+              _ReportRows(rows: balanceSheet!.equityRows),
+            ],
+          ],
         ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
-            'Target API: GET /reports/trial-balance',
-            'Latest trial balance is cached locally for offline review',
-            'P&L, balance sheet, cash flow, and aging report screens remain next parity targets',
+            'Target APIs: GET /reports/trial-balance, GET /reports/profit-and-loss, and GET /reports/balance-sheet',
+            'Latest core statements are cached locally for offline review',
+            'Cash flow and AR/AP aging report screens remain next parity targets',
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({
+    required this.title,
+    required this.description,
+    required this.buttonLabel,
+    required this.icon,
+    required this.isLoading,
+    required this.onPressed,
+    required this.children,
+  });
+
+  final String title;
+  final String description;
+  final String buttonLabel;
+  final IconData icon;
+  final bool isLoading;
+  final VoidCallback onPressed;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(description),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isLoading ? null : onPressed,
+              icon: Icon(icon),
+              label: Text(buttonLabel),
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportRows extends StatelessWidget {
+  const _ReportRows({required this.rows});
+
+  final List<ReportRowSummary> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No account activity in this section.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.accountCode} · ${row.accountName} · ${row.accountType} · Dr ${formatMinorAsInr(row.debitMinor)} · Cr ${formatMinorAsInr(row.creditMinor)} · Bal ${formatMinorAsInr(row.balanceMinor)}',
+            ),
+          ),
       ],
     );
   }

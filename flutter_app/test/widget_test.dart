@@ -1221,7 +1221,7 @@ void main() {
     expect(find.text('Tax config: gst-rate-18'), findsOneWidget);
   });
 
-  testWidgets('fetches and caches trial balance reports', (tester) async {
+  testWidgets('fetches and caches core financial reports', (tester) async {
     useTallTestViewport(tester);
     final settingsRepository = MemorySyncSettingsRepository(
       const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
@@ -1258,6 +1258,65 @@ void main() {
           totalCreditMinor: 125000,
           balanced: true,
         ),
+        profitAndLossLoader: (_, from, to) async => ProfitAndLossReport(
+          fromDate: from,
+          toDate: to,
+          incomeRows: const [
+            ReportRowSummary(
+              accountId: 'acct-sales',
+              accountCode: '4000',
+              accountName: 'Sales',
+              accountType: 'income',
+              debitMinor: 0,
+              creditMinor: 500000,
+              balanceMinor: -500000,
+            ),
+          ],
+          expenseRows: const [
+            ReportRowSummary(
+              accountId: 'acct-rent',
+              accountCode: '5000',
+              accountName: 'Rent',
+              accountType: 'expense',
+              debitMinor: 150000,
+              creditMinor: 0,
+              balanceMinor: 150000,
+            ),
+          ],
+          totalIncomeMinor: 500000,
+          totalExpenseMinor: 150000,
+          netIncomeMinor: 350000,
+        ),
+        balanceSheetLoader: (_, asOf) async => BalanceSheetReport(
+          asOfDate: asOf,
+          assetRows: const [
+            ReportRowSummary(
+              accountId: 'acct-bank',
+              accountCode: '1010',
+              accountName: 'Bank',
+              accountType: 'asset',
+              debitMinor: 350000,
+              creditMinor: 0,
+              balanceMinor: 350000,
+            ),
+          ],
+          liabilityRows: const [],
+          equityRows: const [
+            ReportRowSummary(
+              accountId: 'acct-retained',
+              accountCode: '3100',
+              accountName: 'Retained Earnings',
+              accountType: 'equity',
+              debitMinor: 0,
+              creditMinor: 350000,
+              balanceMinor: -350000,
+            ),
+          ],
+          totalAssetsMinor: 350000,
+          totalLiabilitiesMinor: 0,
+          totalEquityMinor: 350000,
+          balanced: true,
+        ),
       ),
     );
     await tester.pump();
@@ -1266,11 +1325,19 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Fetch trial balance'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch P&L'));
+    await tester.tap(find.text('Fetch P&L'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch balance sheet'));
+    await tester.tap(find.text('Fetch balance sheet'));
+    await tester.pumpAndSettle();
 
     final cached = await reportCacheRepository.loadCached();
     expect(cached.trialBalance?.balanced, true);
     expect(cached.trialBalance?.rows, hasLength(2));
-    expect(find.text('Balanced'), findsOneWidget);
+    expect(cached.profitAndLoss?.netIncomeMinor, 350000);
+    expect(cached.balanceSheet?.balanced, true);
+    expect(find.text('Balanced'), findsNWidgets(2));
     expect(
       find.text('Debits INR 1250.00 · Credits INR 1250.00'),
       findsOneWidget,
@@ -1278,6 +1345,13 @@ void main() {
     expect(
       find.text(
         '1000 · Cash · asset · Dr INR 1250.00 · Cr INR 0.00 · Bal INR 1250.00',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Net income INR 3500.00'), findsOneWidget);
+    expect(
+      find.text(
+        'Assets INR 3500.00 · Liabilities INR 0.00 · Equity INR 3500.00',
       ),
       findsOneWidget,
     );

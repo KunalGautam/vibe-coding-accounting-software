@@ -8,6 +8,7 @@ Future<Database> openOfflineDatabase({
   required String fileName,
   required int version,
   required OnDatabaseCreateFn onCreate,
+  OnDatabaseVersionChangeFn? onUpgrade,
 }) async {
   final directory = await getApplicationSupportDirectory();
   final databasePath = p.join(directory.path, fileName);
@@ -15,8 +16,17 @@ Future<Database> openOfflineDatabase({
     sqfliteFfiInit();
     return databaseFactoryFfi.openDatabase(
       databasePath,
-      options: OpenDatabaseOptions(version: version, onCreate: onCreate),
+      options: OpenDatabaseOptions(
+        version: version,
+        onCreate: onCreate,
+        onUpgrade: onUpgrade,
+      ),
     );
   }
-  return openDatabase(databasePath, version: version, onCreate: onCreate);
+  return openDatabase(
+    databasePath,
+    version: version,
+    onCreate: onCreate,
+    onUpgrade: onUpgrade,
+  );
 }

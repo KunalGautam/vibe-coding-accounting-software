@@ -55,7 +55,7 @@ flutter test
 - Expense capture entry point for receipt and reimbursable workflows.
 - Invoice cache refresh for offline AR snapshots with line-level GST/VAT tax context visible while offline.
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
-- Reports page with Trial Balance API refresh and SQLite-backed offline report snapshot review.
+- Reports page with Trial Balance, P&L, and Balance Sheet API refresh plus SQLite-backed offline report snapshot review.
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
 - Typed investment transport for average-cost pooled sales, price maintenance, realized gains, and valuation reports.
 - Sync settings placeholder for API base URL and organization selection.
