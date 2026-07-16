@@ -28,9 +28,9 @@ The app stores API connection settings in local storage:
 - First-admin bootstrap, login, password reset request/confirm, token refresh, organization create/list/select, and manual token override.
 - Chart of accounts list/create.
 - Manual journal transaction posting plus account register loading with cached running-balance review.
-- Customer master-data create/list plus single-line draft invoice create/review/posting and cached invoice detail review with last-known AR data.
-- Vendor master-data create/list plus draft expense and vendor bill create/review/posting with cached bill detail review and last-known AP/spend data.
-- Invoice and bill detail/payment history panels with drilldown-sourced payment highlighting.
+- Customer master-data create/list plus single-line draft invoice/estimate create/review/posting and cached invoice/estimate detail review with last-known AR data.
+- Vendor master-data create/list plus draft expense, purchase order, and vendor bill create/review/posting with cached purchase-order/bill detail review and last-known AP/spend data.
+- Invoice, estimate, purchase-order, and bill detail panels plus invoice/bill payment history panels with drilldown-sourced payment highlighting.
 - Documents page for attachment metadata creation, local file upload, download links, and cached attachment catalog review.
 - Budgets page for account-period budget creation, saved budget review, and shared report-runner budget cache.
 - Investments page supports generic CSV, AMFI NAV, NSE equity CSV, BSE equity CSV, and Alpha Vantage CSV price imports.

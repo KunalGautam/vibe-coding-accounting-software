@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -4374,6 +4374,7 @@ function InvoicesPage({
   const [customerPaymentsInvoiceId, setCustomerPaymentsInvoiceId] = useState("");
   const [resolvedCustomerPaymentId, setResolvedCustomerPaymentId] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
+  const [selectedEstimateId, setSelectedEstimateId] = useState("");
   const [customerForm, setCustomerForm] = useState({
     display_name: "",
     email: "",
@@ -4861,7 +4862,18 @@ function InvoicesPage({
     return "No tax";
   }
 
+  function estimateTaxName(line: EstimateLine) {
+    if (line.tax_group_id) {
+      return taxGroups.find((group) => group.id === line.tax_group_id)?.name ?? line.tax_group_id;
+    }
+    if (line.tax_rate_id) {
+      return taxRates.find((rate) => rate.id === line.tax_rate_id)?.name ?? line.tax_rate_id;
+    }
+    return "No tax";
+  }
+
   const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+  const selectedEstimate = estimates.find((estimate) => estimate.id === selectedEstimateId) ?? null;
 
   useEffect(() => {
     if (focusTarget?.documentType !== "customer_payment") {
@@ -5158,10 +5170,51 @@ function InvoicesPage({
               <button className="secondary compact" disabled={loading === `${estimate.id}-void`} onClick={() => void updateEstimateStatus(estimate, "void")}>
                 {loading === `${estimate.id}-void` ? "Voiding..." : "Void"}
               </button>
+              <button className="secondary compact" onClick={() => setSelectedEstimateId(estimate.id)}>
+                Details
+              </button>
             </span>
           ))}
         </div>
       </section>
+
+      {selectedEstimate && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Estimate detail</p>
+              <h3>{selectedEstimate.estimate_number} · {customerName(selectedEstimate.customer_id)}</h3>
+              <p>
+                {selectedEstimate.status} · {selectedEstimate.issue_date.slice(0, 10)} to {selectedEstimate.expiry_date.slice(0, 10)}
+                {" "}· {selectedEstimate.tax_inclusive ? "Tax inclusive" : "Tax exclusive"}
+              </p>
+            </div>
+            <button className="secondary compact" onClick={() => setSelectedEstimateId("")}>Close</button>
+          </div>
+          <div className="metric-grid">
+            <div><span>Subtotal</span><strong>{formatMinor(selectedEstimate.subtotal_minor, selectedEstimate.currency)}</strong></div>
+            <div><span>Tax</span><strong>{formatMinor(selectedEstimate.tax_total_minor, selectedEstimate.currency)}</strong></div>
+            <div><span>Total</span><strong>{formatMinor(selectedEstimate.total_minor, selectedEstimate.currency)}</strong></div>
+          </div>
+          {selectedEstimate.lines && selectedEstimate.lines.length > 0 ? (
+            <DataTable
+              headers={["Description", "Qty", "Unit", "Income", "Tax", "Subtotal", "Tax amount", "Line total"]}
+              rows={selectedEstimate.lines.map((line) => [
+                line.description ?? "-",
+                formatQuantityMillis(line.quantity_millis ?? 0),
+                formatMinor(line.unit_price_minor ?? 0, selectedEstimate.currency),
+                accountName(line.income_account_id),
+                estimateTaxName(line),
+                formatMinor(line.line_subtotal_minor ?? 0, selectedEstimate.currency),
+                formatMinor(line.tax_amount_minor ?? 0, selectedEstimate.currency),
+                formatMinor(line.line_total_minor ?? 0, selectedEstimate.currency)
+              ])}
+            />
+          ) : (
+            <p>No estimate lines are cached for this estimate yet. Refresh estimates while online to update local detail data.</p>
+          )}
+        </section>
+      )}
 
       <form className="panel form-grid" onSubmit={createCreditNote}>
         <label>
@@ -5544,6 +5597,7 @@ function ExpensesPage({
   const [vendorPaymentsBillId, setVendorPaymentsBillId] = useState("");
   const [resolvedVendorPaymentId, setResolvedVendorPaymentId] = useState("");
   const [selectedBillId, setSelectedBillId] = useState("");
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState("");
   const [vendorForm, setVendorForm] = useState({
     display_name: "",
     email: "",
@@ -5959,7 +6013,18 @@ function ExpensesPage({
     return "No tax";
   }
 
+  function purchaseOrderTaxName(line: PurchaseOrderLine) {
+    if (line.tax_group_id) {
+      return taxGroups.find((group) => group.id === line.tax_group_id)?.name ?? line.tax_group_id;
+    }
+    if (line.tax_rate_id) {
+      return taxRates.find((rate) => rate.id === line.tax_rate_id)?.name ?? line.tax_rate_id;
+    }
+    return "No tax";
+  }
+
   const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
+  const selectedPurchaseOrder = purchaseOrders.find((purchaseOrder) => purchaseOrder.id === selectedPurchaseOrderId) ?? null;
 
   useEffect(() => {
     if (focusTarget?.documentType !== "vendor_payment") {
@@ -6138,10 +6203,52 @@ function ExpensesPage({
               <button className="secondary compact" disabled={loading === `${purchaseOrder.id}-void`} onClick={() => void updatePurchaseOrderStatus(purchaseOrder, "void")}>
                 {loading === `${purchaseOrder.id}-void` ? "Voiding..." : "Void"}
               </button>
+              <button className="secondary compact" onClick={() => setSelectedPurchaseOrderId(purchaseOrder.id)}>
+                Details
+              </button>
             </span>
           ))}
         </div>
       </section>
+
+      {selectedPurchaseOrder && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Purchase order detail</p>
+              <h3>{selectedPurchaseOrder.purchase_order_number} · {vendorName(selectedPurchaseOrder.vendor_id)}</h3>
+              <p>
+                {selectedPurchaseOrder.status} · {selectedPurchaseOrder.issue_date.slice(0, 10)}
+                {selectedPurchaseOrder.expected_date ? ` to ${selectedPurchaseOrder.expected_date.slice(0, 10)}` : ""}
+                {" "}· {selectedPurchaseOrder.tax_inclusive ? "Tax inclusive" : "Tax exclusive"}
+              </p>
+            </div>
+            <button className="secondary compact" onClick={() => setSelectedPurchaseOrderId("")}>Close</button>
+          </div>
+          <div className="metric-grid">
+            <div><span>Subtotal</span><strong>{formatMinor(selectedPurchaseOrder.subtotal_minor, selectedPurchaseOrder.currency)}</strong></div>
+            <div><span>Tax</span><strong>{formatMinor(selectedPurchaseOrder.tax_total_minor, selectedPurchaseOrder.currency)}</strong></div>
+            <div><span>Total</span><strong>{formatMinor(selectedPurchaseOrder.total_minor, selectedPurchaseOrder.currency)}</strong></div>
+          </div>
+          {selectedPurchaseOrder.lines && selectedPurchaseOrder.lines.length > 0 ? (
+            <DataTable
+              headers={["Description", "Qty", "Unit", "Expense", "Tax", "Subtotal", "Tax amount", "Line total"]}
+              rows={selectedPurchaseOrder.lines.map((line) => [
+                line.description ?? "-",
+                formatQuantityMillis(line.quantity_millis ?? 0),
+                formatMinor(line.unit_price_minor ?? 0, selectedPurchaseOrder.currency),
+                accountName(line.expense_account_id),
+                purchaseOrderTaxName(line),
+                formatMinor(line.line_subtotal_minor ?? 0, selectedPurchaseOrder.currency),
+                formatMinor(line.tax_amount_minor ?? 0, selectedPurchaseOrder.currency),
+                formatMinor(line.line_total_minor ?? 0, selectedPurchaseOrder.currency)
+              ])}
+            />
+          ) : (
+            <p>No purchase order lines are cached for this purchase order yet. Refresh purchase orders while online to update local detail data.</p>
+          )}
+        </section>
+      )}
 
       <form className="panel form-grid" onSubmit={createBill}>
         <label>
