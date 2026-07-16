@@ -711,6 +711,28 @@ void main() {
             );
           }
 
+          if (request.url.path.endsWith('/investments/corporate-actions')) {
+            expect(request.method, 'POST');
+            final body = jsonDecode(request.body) as Map<String, Object?>;
+            expect(body['account_id'], 'brokerage-1');
+            expect(body['symbol'], 'LIQUIDFUND');
+            expect(body['action_type'], 'split');
+            expect(body['action_date'], '2026-08-01');
+            expect(body['ratio_numerator'], 2);
+            expect(body['ratio_denominator'], 1);
+            return http.Response(
+              jsonEncode({
+                'id': 'corporate-action-1',
+                ...body,
+                'action_date': '2026-08-01T00:00:00Z',
+                'affected_lots': 1,
+                'quantity_delta_millis': 150000,
+                'cost_basis_delta_minor': 0,
+              }),
+              201,
+            );
+          }
+
           expect(
             request.url.path.endsWith('/investments/average-cost-sales'),
             isTrue,
@@ -765,6 +787,16 @@ void main() {
           incomeAccountId: 'dividend-income-1',
         ),
       );
+      final corporateAction = await client.createInvestmentCorporateAction(
+        CreateInvestmentCorporateActionRequest(
+          accountId: 'brokerage-1',
+          symbol: 'LIQUIDFUND',
+          actionType: 'split',
+          actionDate: DateTime.utc(2026, 8),
+          ratioNumerator: 2,
+          ratioDenominator: 1,
+        ),
+      );
       final sale = await client.sellAverageCost(
         SellAverageCostRequest(
           accountId: 'brokerage-1',
@@ -781,6 +813,8 @@ void main() {
       expect(valuation.rows.single.marketValueMinor, 2400000);
       expect(dividend.journalTransactionId, 'journal-dividend-1');
       expect(dividend.amountMinor, 12500);
+      expect(corporateAction.affectedLots, 1);
+      expect(corporateAction.quantityDeltaMillis, 150000);
       expect(sale.journalTransactionId, 'journal-1');
       expect(sale.dispositions.single.realizedGainLossMinor, 150000);
     },

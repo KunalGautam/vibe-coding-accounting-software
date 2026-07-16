@@ -725,6 +725,30 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvestmentCorporateAction({
+    required String accountId,
+    required String symbol,
+    required String actionType,
+    required DateTime actionDate,
+    required int ratioNumerator,
+    required int ratioDenominator,
+    required String notes,
+  }) async {
+    final operation = syncQueue.enqueueInvestmentCorporateAction(
+      accountId: accountId,
+      symbol: symbol,
+      actionType: actionType,
+      actionDate: actionDate,
+      ratioNumerator: ratioNumerator,
+      ratioDenominator: ratioDenominator,
+      notes: notes,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Corporate action queued for sync: ${operation.id}';
+    });
+  }
+
   Future<PickedTextFile?> pickBrokerHoldingsCSV() {
     final picker = widget.textFilePicker ?? pickTextFile;
     return picker();
@@ -2362,6 +2386,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onQueueInvestmentPrice: queueInvestmentPrice,
         onQueueAverageCostSale: queueAverageCostSale,
         onQueueInvestmentDividend: queueInvestmentDividend,
+        onQueueInvestmentCorporateAction: queueInvestmentCorporateAction,
         onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
         onPickBrokerHoldingsCSV: pickBrokerHoldingsCSV,
       ),
@@ -3607,6 +3632,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onQueueInvestmentPrice,
     required this.onQueueAverageCostSale,
     required this.onQueueInvestmentDividend,
+    required this.onQueueInvestmentCorporateAction,
     required this.onQueueBrokerHoldingsImport,
     required this.onPickBrokerHoldingsCSV,
     super.key,
@@ -3648,6 +3674,16 @@ class InvestmentsPage extends StatelessWidget {
     required String notes,
   })
   onQueueInvestmentDividend;
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required String actionType,
+    required DateTime actionDate,
+    required int ratioNumerator,
+    required int ratioDenominator,
+    required String notes,
+  })
+  onQueueInvestmentCorporateAction;
   final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
   final Future<PickedTextFile?> Function() onPickBrokerHoldingsCSV;
 
@@ -3671,6 +3707,9 @@ class InvestmentsPage extends StatelessWidget {
         ),
         ManualInvestmentPriceCard(onQueuePrice: onQueueInvestmentPrice),
         InvestmentDividendCard(onQueueDividend: onQueueInvestmentDividend),
+        InvestmentCorporateActionCard(
+          onQueueAction: onQueueInvestmentCorporateAction,
+        ),
         AverageCostSaleCard(onQueueSale: onQueueAverageCostSale),
         BrokerHoldingsImportCard(
           onQueueImport: onQueueBrokerHoldingsImport,
@@ -3823,7 +3862,7 @@ class InvestmentsPage extends StatelessWidget {
         const InfoList(
           items: [
             'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Manual market prices, dividends, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
+            'Manual market prices, dividends, corporate actions, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
             'Create lot and specific-lot sale workflows are currently available in the web app/API',
           ],
         ),
@@ -4192,6 +4231,227 @@ class _InvestmentDividendCardState extends State<InvestmentDividendCard> {
                 isQueueing
                     ? 'Queueing investment dividend...'
                     : 'Queue investment dividend',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InvestmentCorporateActionCard extends StatefulWidget {
+  const InvestmentCorporateActionCard({required this.onQueueAction, super.key});
+
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required String actionType,
+    required DateTime actionDate,
+    required int ratioNumerator,
+    required int ratioDenominator,
+    required String notes,
+  })
+  onQueueAction;
+
+  @override
+  State<InvestmentCorporateActionCard> createState() =>
+      _InvestmentCorporateActionCardState();
+}
+
+class _InvestmentCorporateActionCardState
+    extends State<InvestmentCorporateActionCard> {
+  late final TextEditingController accountIdController;
+  late final TextEditingController symbolController;
+  late final TextEditingController actionDateController;
+  late final TextEditingController ratioNumeratorController;
+  late final TextEditingController ratioDenominatorController;
+  late final TextEditingController notesController;
+  String actionType = 'split';
+  bool isQueueing = false;
+  String? validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    accountIdController = TextEditingController(text: 'brokerage-account-id');
+    symbolController = TextEditingController(text: 'NIFTYBEES');
+    actionDateController = TextEditingController(
+      text: formatDateOnly(DateTime.now()),
+    );
+    ratioNumeratorController = TextEditingController(text: '2');
+    ratioDenominatorController = TextEditingController(text: '1');
+    notesController = TextEditingController(text: 'Offline split capture');
+  }
+
+  @override
+  void dispose() {
+    accountIdController.dispose();
+    symbolController.dispose();
+    actionDateController.dispose();
+    ratioNumeratorController.dispose();
+    ratioDenominatorController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> queueAction() async {
+    if (isQueueing) {
+      return;
+    }
+    final accountId = accountIdController.text.trim();
+    final symbol = symbolController.text.trim().toUpperCase();
+    final actionDate = parseIsoDateOnlyUtc(actionDateController.text.trim());
+    final ratioNumerator = int.tryParse(ratioNumeratorController.text.trim());
+    final ratioDenominator = int.tryParse(
+      ratioDenominatorController.text.trim(),
+    );
+
+    if (accountId.isEmpty ||
+        symbol.isEmpty ||
+        actionDate == null ||
+        ratioNumerator == null ||
+        ratioDenominator == null) {
+      setState(() {
+        validationError =
+            'Enter account ID, symbol, ISO date, numerator, and denominator.';
+      });
+      return;
+    }
+    if (ratioNumerator <= 0 || ratioDenominator <= 0) {
+      setState(() {
+        validationError = 'Ratio numerator and denominator must be positive.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationError = null;
+    });
+    try {
+      await widget.onQueueAction(
+        accountId: accountId,
+        symbol: symbol,
+        actionType: actionType,
+        actionDate: actionDate,
+        ratioNumerator: ratioNumerator,
+        ratioDenominator: ratioDenominator,
+        notes: notesController.text.trim(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Corporate action',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Queue split or bonus actions while offline. The API applies the ratio across matching lots when synced.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: accountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action account ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: symbolController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action symbol',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: actionType,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action type',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'split', child: Text('Split')),
+                DropdownMenuItem(value: 'bonus', child: Text('Bonus')),
+              ],
+              onChanged: isQueueing
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() {
+                          actionType = value;
+                        });
+                      }
+                    },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: actionDateController,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action date',
+                hintText: '2026-07-31',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ratioNumeratorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action ratio numerator',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ratioDenominatorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action ratio denominator',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Corporate action notes optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                validationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueAction,
+              icon: const Icon(Icons.call_split_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing corporate action...'
+                    : 'Queue corporate action',
               ),
             ),
           ],

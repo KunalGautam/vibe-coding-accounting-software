@@ -404,6 +404,31 @@ void main() {
     expect(operation.payload['notes'], 'Quarterly dividend');
   });
 
+  test('queues investment corporate actions for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvestmentCorporateAction(
+      accountId: 'acct-invest',
+      symbol: 'INFY',
+      actionType: 'split',
+      actionDate: DateTime.utc(2026, 8, 1),
+      ratioNumerator: 2,
+      ratioDenominator: 1,
+      notes: 'Two-for-one split',
+      createdAt: DateTime.utc(2026, 8, 1, 10),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'create_corporate_action');
+    expect(operation.payload['account_id'], 'acct-invest');
+    expect(operation.payload['symbol'], 'INFY');
+    expect(operation.payload['action_type'], 'split');
+    expect(operation.payload['action_date'], '2026-08-01');
+    expect(operation.payload['ratio_numerator'], 2);
+    expect(operation.payload['ratio_denominator'], 1);
+    expect(operation.payload['notes'], 'Two-for-one split');
+  });
+
   test('queues structured bank statement imports for later replay', () {
     final queue = OfflineSyncQueue();
 

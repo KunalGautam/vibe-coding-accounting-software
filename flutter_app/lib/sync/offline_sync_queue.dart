@@ -419,6 +419,36 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvestmentCorporateAction({
+    required String accountId,
+    required String symbol,
+    required String actionType,
+    required DateTime actionDate,
+    required int ratioNumerator,
+    required int ratioDenominator,
+    String notes = '',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'investment-corporate-action-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'create_corporate_action',
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'symbol': symbol,
+        'action_type': actionType,
+        'action_date': dateOnlyString(actionDate),
+        'ratio_numerator': ratioNumerator,
+        'ratio_denominator': ratioDenominator,
+        'notes': ?normalizedOptional(notes),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueStructuredBankStatementImport({
     required String accountId,
     required List<Map<String, Object?>> lines,

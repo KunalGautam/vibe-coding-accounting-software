@@ -120,6 +120,9 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'investments.create_dividend': (client, operation) async {
     await client.syncInvestmentDividend(operation);
   },
+  'investments.create_corporate_action': (client, operation) async {
+    await client.syncInvestmentCorporateAction(operation);
+  },
   'payments.record_customer': (client, operation) async {
     await client.syncCustomerPayment(operation);
   },

@@ -378,6 +378,31 @@ class AccountingApiClient {
     );
   }
 
+  Future<List<InvestmentCorporateActionSummary>>
+  listInvestmentCorporateActions() async {
+    final response = await _send('GET', '/investments/corporate-actions');
+    return _decodeList(response, InvestmentCorporateActionSummary.fromJson);
+  }
+
+  Future<InvestmentCorporateActionSummary> createInvestmentCorporateAction(
+    CreateInvestmentCorporateActionRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/corporate-actions',
+      body: request.toJson(),
+    );
+    return InvestmentCorporateActionSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentCorporateActionSummary> syncInvestmentCorporateAction(
+    SyncOperation operation,
+  ) {
+    return createInvestmentCorporateAction(
+      CreateInvestmentCorporateActionRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<InvestmentPriceImportResult> importBrokerHoldingsPrices(
     ImportInvestmentPricesRequest request,
   ) async {
@@ -1331,6 +1356,113 @@ class CreateInvestmentDividendRequest {
       'currency': currency,
       if (cashAccountId != null) 'cash_account_id': cashAccountId,
       if (incomeAccountId != null) 'income_account_id': incomeAccountId,
+      if (notes.isNotEmpty) 'notes': notes,
+    };
+  }
+}
+
+class InvestmentCorporateActionSummary {
+  const InvestmentCorporateActionSummary({
+    required this.id,
+    required this.accountId,
+    required this.symbol,
+    required this.actionType,
+    required this.actionDate,
+    required this.ratioNumerator,
+    required this.ratioDenominator,
+    required this.affectedLots,
+    required this.quantityDeltaMillis,
+    required this.costBasisDeltaMinor,
+    this.notes = '',
+  });
+
+  final String id;
+  final String accountId;
+  final String symbol;
+  final String actionType;
+  final DateTime actionDate;
+  final int ratioNumerator;
+  final int ratioDenominator;
+  final int affectedLots;
+  final int quantityDeltaMillis;
+  final int costBasisDeltaMinor;
+  final String notes;
+
+  factory InvestmentCorporateActionSummary.fromJson(Map<String, Object?> json) {
+    return InvestmentCorporateActionSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      symbol: json['symbol']! as String,
+      actionType: json['action_type']! as String,
+      actionDate: DateTime.parse(json['action_date']! as String),
+      ratioNumerator: json['ratio_numerator'] as int? ?? 0,
+      ratioDenominator: json['ratio_denominator'] as int? ?? 0,
+      affectedLots: json['affected_lots'] as int? ?? 0,
+      quantityDeltaMillis: json['quantity_delta_millis'] as int? ?? 0,
+      costBasisDeltaMinor: json['cost_basis_delta_minor'] as int? ?? 0,
+      notes: json['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'account_id': accountId,
+      'symbol': symbol,
+      'action_type': actionType,
+      'action_date': _dateOnly(actionDate),
+      'ratio_numerator': ratioNumerator,
+      'ratio_denominator': ratioDenominator,
+      'affected_lots': affectedLots,
+      'quantity_delta_millis': quantityDeltaMillis,
+      'cost_basis_delta_minor': costBasisDeltaMinor,
+      'notes': notes,
+    };
+  }
+}
+
+class CreateInvestmentCorporateActionRequest {
+  const CreateInvestmentCorporateActionRequest({
+    required this.accountId,
+    required this.symbol,
+    required this.actionType,
+    required this.actionDate,
+    required this.ratioNumerator,
+    required this.ratioDenominator,
+    this.notes = '',
+  });
+
+  final String accountId;
+  final String symbol;
+  final String actionType;
+  final DateTime actionDate;
+  final int ratioNumerator;
+  final int ratioDenominator;
+  final String notes;
+
+  factory CreateInvestmentCorporateActionRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return CreateInvestmentCorporateActionRequest(
+      accountId: payload['account_id']! as String,
+      symbol: payload['symbol']! as String,
+      actionType: payload['action_type']! as String,
+      actionDate: _parseDateOnlyUtc(payload['action_date']! as String),
+      ratioNumerator: payload['ratio_numerator']! as int,
+      ratioDenominator: payload['ratio_denominator']! as int,
+      notes: payload['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'symbol': symbol,
+      'action_type': actionType,
+      'action_date': _dateOnly(actionDate),
+      'ratio_numerator': ratioNumerator,
+      'ratio_denominator': ratioDenominator,
       if (notes.isNotEmpty) 'notes': notes,
     };
   }

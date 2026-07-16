@@ -57,9 +57,10 @@ flutter test
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
 - Reports page with Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual API refresh, prior-period comparison for statements/aging/tax reports, selected-vs-previous budget comparison, plus SQLite-backed offline report snapshot review and local app-storage/Downloads/share-sheet CSV exports.
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
-- Typed investment transport for dividend capture, average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
+- Typed investment transport for dividend capture, corporate actions, average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
 - Investments page includes manual investment price capture that queues `investments.create_price` for later sync.
 - Investments page includes dividend capture that queues `investments.create_dividend` for later sync.
+- Investments page includes split/bonus corporate action capture that queues `investments.create_corporate_action` for later sync.
 - Investments page includes average-cost sale capture that queues `investments.sell_average_cost` for later sync.
 - Offline replay for broker holdings price imports through the `investments.import_broker_holdings` sync operation.
 - Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.

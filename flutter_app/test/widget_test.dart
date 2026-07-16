@@ -1833,6 +1833,61 @@ void main() {
     );
   });
 
+  testWidgets('queues corporate actions from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Queue corporate action'));
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action account ID'),
+      'acct-invest',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action symbol'),
+      'infy',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action date'),
+      '2026-08-01',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action ratio numerator'),
+      '2',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action ratio denominator'),
+      '1',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Corporate action notes optional'),
+      'Two-for-one split from Flutter',
+    );
+    await tester.ensureVisible(find.text('Queue corporate action'));
+    await tester.tap(find.text('Queue corporate action'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'create_corporate_action');
+    expect(pending.last.payload['account_id'], 'acct-invest');
+    expect(pending.last.payload['symbol'], 'INFY');
+    expect(pending.last.payload['action_type'], 'split');
+    expect(pending.last.payload['action_date'], '2026-08-01');
+    expect(pending.last.payload['ratio_numerator'], 2);
+    expect(pending.last.payload['ratio_denominator'], 1);
+    expect(pending.last.payload['notes'], 'Two-for-one split from Flutter');
+    expect(
+      find.textContaining('Corporate action queued for sync'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'queues average-cost investment sales from the investments page',
     (tester) async {
