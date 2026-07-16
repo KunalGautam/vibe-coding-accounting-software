@@ -358,14 +358,23 @@ func (s AuthService) RequestPasswordReset(ctx context.Context, email string) (Pa
 		return PasswordResetRequestResult{}, err
 	}
 
+	now := time.Now().UTC()
 	rawToken := uuid.NewString() + "." + uuid.NewString()
-	expiresAt := time.Now().UTC().Add(time.Hour)
+	expiresAt := now.Add(time.Hour)
 	resetToken := domain.PasswordResetToken{
 		UserID:    user.ID,
 		TokenHash: auth.HashToken(rawToken),
 		ExpiresAt: expiresAt,
 	}
-	if err := s.db.WithContext(ctx).Create(&resetToken).Error; err != nil {
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&domain.PasswordResetToken{}).
+			Where("user_id = ? AND used_at IS NULL", user.ID).
+			Update("used_at", now).
+			Error; err != nil {
+			return err
+		}
+		return tx.Create(&resetToken).Error
+	}); err != nil {
 		return PasswordResetRequestResult{}, err
 	}
 	result := PasswordResetRequestResult{

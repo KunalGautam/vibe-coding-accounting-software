@@ -281,6 +281,50 @@ func TestAuthServicePasswordReset(t *testing.T) {
 	}
 }
 
+func TestAuthServicePasswordResetInvalidatesPreviousTokensAndSessions(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("old-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	user := domain.User{Email: "reset-security@example.com", Name: "Reset Security", PasswordHash: string(passwordHash), IsActive: true}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	service := NewAuthService(db, auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour))
+	login, err := service.Login(ctx, user.Email, "old-password")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	firstReset, err := service.RequestPasswordReset(ctx, user.Email)
+	if err != nil {
+		t.Fatalf("first RequestPasswordReset() error = %v", err)
+	}
+	secondReset, err := service.RequestPasswordReset(ctx, user.Email)
+	if err != nil {
+		t.Fatalf("second RequestPasswordReset() error = %v", err)
+	}
+
+	if err := service.ConfirmPasswordReset(ctx, firstReset.ResetToken, "should-not-work"); !errors.Is(err, ErrInvalidResetToken) {
+		t.Fatalf("old reset token error = %v, want %v", err, ErrInvalidResetToken)
+	}
+	if err := service.ConfirmPasswordReset(ctx, secondReset.ResetToken, "new-secure-password"); err != nil {
+		t.Fatalf("ConfirmPasswordReset() error = %v", err)
+	}
+	if _, err := service.Refresh(ctx, login.RefreshToken); !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("refresh after reset error = %v, want %v", err, ErrInvalidRefreshToken)
+	}
+	if _, err := service.Login(ctx, user.Email, "should-not-work"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("old reset token password login error = %v, want %v", err, ErrInvalidCredentials)
+	}
+	if _, err := service.Login(ctx, user.Email, "new-secure-password"); err != nil {
+		t.Fatalf("new password login error = %v", err)
+	}
+}
+
 func TestAuthServicePasswordResetSendsEmailAndHidesToken(t *testing.T) {
 	db := testDB(t)
 	ctx := context.Background()

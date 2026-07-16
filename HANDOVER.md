@@ -24,7 +24,7 @@ Project identity:
 ## Current State
 Major backend modules are implemented and tested for:
 
-- Organizations, users, JWT auth, current-user profile/name updates, self-service password change with refresh-session revocation, optional TOTP MFA with one-time recovery codes, refresh tokens, password reset token flow with optional SMTP delivery, organization invitation emails, gated self-service registration, RBAC.
+- Organizations, users, JWT auth, current-user profile/name updates, self-service password change with refresh-session revocation, optional TOTP MFA with one-time recovery codes, refresh tokens, password reset token flow with optional SMTP delivery, single-active reset-token rotation and session revocation on reset confirmation, organization invitation emails, gated self-service registration, RBAC.
 - Chart of accounts, double-entry ledger, journal posting, account registers.
 - Invoicing, recurring invoices, estimates, credit notes, customer payments.
 - Vendors, expenses, bills, purchase orders, vendor payments.
@@ -122,7 +122,7 @@ Current API coverage: `155` OpenAPI route/method pairs, matched to Gin handlers 
 
 ## Highest-Value Remaining Work
 1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
-2. Security hardening polish: broader account-management UX, recovery tests, and account lifecycle polish.
+2. Security hardening polish: broader account-management UX, remaining recovery edge cases, and account lifecycle polish.
 3. Email/account flows: richer onboarding journeys and account-management tests.
 4. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.
 5. Export/reporting polish: core drilldown, source-document focus, commercial document detail panels, and payment history panels are implemented; remaining work is broader frontend polish.
