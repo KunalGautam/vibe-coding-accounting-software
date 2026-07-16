@@ -1257,7 +1257,10 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
-  Future<void> saveReportCsvExports(List<ReportCsvExport> exports) async {
+  Future<void> saveReportCsvExports(
+    List<ReportCsvExport> exports, {
+    bool toDownloads = false,
+  }) async {
     if (exports.isEmpty) {
       setState(() {
         syncNotice = 'No cached reports available for CSV export yet.';
@@ -1271,7 +1274,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
 
     try {
-      final result = await reportExportRepository.saveExports(exports);
+      final result = toDownloads
+          ? await reportExportRepository.saveExportsToDownloads(exports)
+          : await reportExportRepository.saveExports(exports);
       setState(() {
         lastReportExportDirectory = result.directoryPath;
         syncNotice =
@@ -3255,7 +3260,8 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
   final Future<void> Function() onFetchBudgets;
   final Future<void> Function(String budgetId) onFetchBudgetVsActual;
-  final Future<void> Function(List<ReportCsvExport> exports) onSaveCsvExports;
+  final Future<void> Function(List<ReportCsvExport> exports, {bool toDownloads})
+  onSaveCsvExports;
 
   @override
   Widget build(BuildContext context) {
@@ -3546,6 +3552,7 @@ class ReportsPage extends StatelessWidget {
           isLoading: isLoading,
           lastExportDirectory: lastExportDirectory,
           onSave: () => onSaveCsvExports(exports),
+          onSaveToDownloads: () => onSaveCsvExports(exports, toDownloads: true),
         ),
         if (notice != null) Text(notice!),
         const InfoList(
@@ -3611,12 +3618,14 @@ class _ReportExportCard extends StatelessWidget {
     required this.exports,
     required this.isLoading,
     required this.onSave,
+    required this.onSaveToDownloads,
     this.lastExportDirectory,
   });
 
   final List<ReportCsvExport> exports;
   final bool isLoading;
   final VoidCallback onSave;
+  final VoidCallback onSaveToDownloads;
   final String? lastExportDirectory;
 
   @override
@@ -3635,7 +3644,7 @@ class _ReportExportCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Generated locally from the offline report cache and saveable to app storage.',
+              'Generated locally from the offline report cache and saveable to app storage or Downloads when available.',
             ),
             const SizedBox(height: 12),
             if (exports.isEmpty)
@@ -3643,12 +3652,23 @@ class _ReportExportCard extends StatelessWidget {
             else ...[
               Text('${exports.length} CSV exports ready from cache.'),
               const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: isLoading ? null : onSave,
-                icon: const Icon(Icons.save_alt_outlined),
-                label: Text(
-                  isLoading ? 'Saving CSV files...' : 'Save CSV files',
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: isLoading ? null : onSave,
+                    icon: const Icon(Icons.save_alt_outlined),
+                    label: Text(
+                      isLoading ? 'Saving CSV files...' : 'Save CSV files',
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : onSaveToDownloads,
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Save to Downloads'),
+                  ),
+                ],
               ),
               if (lastExportDirectory != null) ...[
                 const SizedBox(height: 8),

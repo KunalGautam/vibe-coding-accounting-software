@@ -7,6 +7,10 @@ import 'report_csv_exporter.dart';
 
 abstract interface class ReportExportRepository {
   Future<ReportExportResult> saveExports(List<ReportCsvExport> exports);
+
+  Future<ReportExportResult> saveExportsToDownloads(
+    List<ReportCsvExport> exports,
+  );
 }
 
 class ReportExportResult {
@@ -32,23 +36,48 @@ class ReportExportedFile {
 
 Future<ReportExportRepository> createDefaultReportExportRepository() async {
   final supportDirectory = await getApplicationSupportDirectory();
+  final downloadsDirectory = await getDownloadsDirectory();
   return FileReportExportRepository(
     Directory(p.join(supportDirectory.path, 'report-exports')),
+    downloadsDirectory: downloadsDirectory == null
+        ? null
+        : Directory(p.join(downloadsDirectory.path, 'Accounting Reports')),
   );
 }
 
 class FileReportExportRepository implements ReportExportRepository {
-  const FileReportExportRepository(this.directory);
+  const FileReportExportRepository(this.directory, {this.downloadsDirectory});
 
   final Directory directory;
+  final Directory? downloadsDirectory;
 
   @override
   Future<ReportExportResult> saveExports(List<ReportCsvExport> exports) async {
-    await directory.create(recursive: true);
+    return _saveExports(exports, directory);
+  }
+
+  @override
+  Future<ReportExportResult> saveExportsToDownloads(
+    List<ReportCsvExport> exports,
+  ) async {
+    final target = downloadsDirectory;
+    if (target == null) {
+      throw const ReportExportUnavailableException(
+        'Downloads directory is not available on this platform.',
+      );
+    }
+    return _saveExports(exports, target);
+  }
+
+  Future<ReportExportResult> _saveExports(
+    List<ReportCsvExport> exports,
+    Directory targetDirectory,
+  ) async {
+    await targetDirectory.create(recursive: true);
     final files = <ReportExportedFile>[];
     for (final export in exports) {
       final fileName = _safeFileName(export.fileName);
-      final file = File(p.join(directory.path, fileName));
+      final file = File(p.join(targetDirectory.path, fileName));
       await file.writeAsString(export.contents, flush: true);
       files.add(
         ReportExportedFile(
@@ -58,8 +87,20 @@ class FileReportExportRepository implements ReportExportRepository {
         ),
       );
     }
-    return ReportExportResult(directoryPath: directory.path, files: files);
+    return ReportExportResult(
+      directoryPath: targetDirectory.path,
+      files: files,
+    );
   }
+}
+
+class ReportExportUnavailableException implements Exception {
+  const ReportExportUnavailableException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class MemoryReportExportRepository implements ReportExportRepository {
@@ -69,6 +110,7 @@ class MemoryReportExportRepository implements ReportExportRepository {
 
   final String directoryPath;
   final Map<String, String> savedFiles = {};
+  final Map<String, String> downloadedFiles = {};
 
   @override
   Future<ReportExportResult> saveExports(List<ReportCsvExport> exports) async {
@@ -85,6 +127,26 @@ class MemoryReportExportRepository implements ReportExportRepository {
       );
     }
     return ReportExportResult(directoryPath: directoryPath, files: files);
+  }
+
+  @override
+  Future<ReportExportResult> saveExportsToDownloads(
+    List<ReportCsvExport> exports,
+  ) async {
+    final files = <ReportExportedFile>[];
+    const downloadsPath = 'memory://downloads/Accounting Reports';
+    for (final export in exports) {
+      final fileName = _safeFileName(export.fileName);
+      downloadedFiles[fileName] = export.contents;
+      files.add(
+        ReportExportedFile(
+          fileName: fileName,
+          path: '$downloadsPath/$fileName',
+          bytes: export.contents.length,
+        ),
+      );
+    }
+    return ReportExportResult(directoryPath: downloadsPath, files: files);
   }
 }
 

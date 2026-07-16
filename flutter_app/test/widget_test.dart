@@ -1529,6 +1529,16 @@ void main() {
       findsOneWidget,
     );
     expect(reportExportRepository.savedFiles, contains('budgets.csv'));
+    await tester.ensureVisible(find.text('Save to Downloads'));
+    await tester.tap(find.text('Save to Downloads'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Saved 10 report CSV files to memory://downloads/Accounting Reports.',
+      ),
+      findsOneWidget,
+    );
+    expect(reportExportRepository.downloadedFiles, contains('budgets.csv'));
   });
 
   testWidgets('fetches and caches investment valuation reports', (
