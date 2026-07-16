@@ -42,6 +42,38 @@ void main() {
     expect(operation.payload['reimbursable'], true);
   });
 
+  test('queues draft expense edits for offline replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueExpenseDraftUpdate(
+      expenseId: 'expense-1',
+      merchantName: 'Updated Client Taxi',
+      amountMinor: 99000,
+      expenseAccountId: 'acct-expense',
+      paymentAccountId: 'acct-bank',
+      receiptAttachmentId: 'receipt-new',
+      taxRateId: 'tax-rate-ignored',
+      taxGroupId: 'gst-group',
+      taxInclusive: true,
+      reimbursable: true,
+      createdAt: DateTime.utc(2026, 7, 16, 10),
+    );
+
+    expect(operation.module, 'expenses');
+    expect(operation.action, 'update_draft');
+    expect(operation.id, startsWith('expense-update-'));
+    expect(operation.payload['expense_id'], 'expense-1');
+    expect(operation.payload['merchant_name'], 'Updated Client Taxi');
+    expect(operation.payload['amount_minor'], 99000);
+    expect(operation.payload['expense_account_id'], 'acct-expense');
+    expect(operation.payload['payment_account_id'], 'acct-bank');
+    expect(operation.payload['receipt_attachment_id'], 'receipt-new');
+    expect(operation.payload['tax_rate_id'], isNull);
+    expect(operation.payload['tax_group_id'], 'gst-group');
+    expect(operation.payload['tax_inclusive'], true);
+    expect(operation.payload['reimbursable'], true);
+  });
+
   test('removes operations after successful sync', () {
     final queue = OfflineSyncQueue([
       SyncOperation(
@@ -224,6 +256,34 @@ void main() {
     expect(operation.payload['due_date'], '2026-08-14');
     final lines = operation.payload['lines']! as List<Map<String, Object?>>;
     expect(lines.single['income_account_id'], 'acct-income');
+    expect(lines.single['tax_rate_id'], isNull);
+    expect(lines.single['tax_group_id'], 'gst-group');
+  });
+
+  test('queues draft invoice edits for offline replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvoiceDraftUpdate(
+      invoiceId: 'invoice-1',
+      customerId: 'customer-1',
+      invoiceNumber: 'INV-MOB-001-EDIT',
+      accountsReceivableId: 'acct-ar',
+      description: 'Updated field service',
+      unitPriceMinor: 175000,
+      incomeAccountId: 'acct-income',
+      taxRateId: 'tax-rate-ignored',
+      taxGroupId: 'gst-group',
+      createdAt: DateTime.utc(2026, 7, 16, 9),
+    );
+
+    expect(operation.module, 'invoices');
+    expect(operation.action, 'update_draft');
+    expect(operation.id, startsWith('invoice-update-'));
+    expect(operation.payload['invoice_id'], 'invoice-1');
+    expect(operation.payload['invoice_number'], 'INV-MOB-001-EDIT');
+    final lines = operation.payload['lines']! as List<Map<String, Object?>>;
+    expect(lines.single['description'], 'Updated field service');
+    expect(lines.single['unit_price_minor'], 175000);
     expect(lines.single['tax_rate_id'], isNull);
     expect(lines.single['tax_group_id'], 'gst-group');
   });

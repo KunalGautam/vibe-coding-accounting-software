@@ -140,6 +140,26 @@ class AccountingApiClient {
     return createExpense(CreateExpenseDraft.fromSyncOperation(operation));
   }
 
+  Future<ExpenseSummary> updateExpense(
+    String expenseId,
+    CreateExpenseDraft draft,
+  ) async {
+    final response = await _send(
+      'PUT',
+      '/expenses/$expenseId',
+      body: draft.toJson(),
+    );
+    return ExpenseSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<ExpenseSummary> syncExpenseDraftUpdate(SyncOperation operation) {
+    final payload = operation.payload;
+    return updateExpense(
+      payload['expense_id']! as String,
+      CreateExpenseDraft.fromSyncOperation(operation),
+    );
+  }
+
   Future<InvoiceSummary> postInvoice(String invoiceId) async {
     final response = await _send('POST', '/invoices/$invoiceId/post');
     return InvoiceSummary.fromJson(_decodeObject(response));
@@ -165,6 +185,26 @@ class AccountingApiClient {
 
   Future<InvoiceSummary> syncInvoiceDraft(SyncOperation operation) {
     return createInvoice(CreateInvoiceDraft.fromSyncOperation(operation));
+  }
+
+  Future<InvoiceSummary> updateInvoice(
+    String invoiceId,
+    CreateInvoiceDraft draft,
+  ) async {
+    final response = await _send(
+      'PUT',
+      '/invoices/$invoiceId',
+      body: draft.toJson(),
+    );
+    return InvoiceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvoiceSummary> syncInvoiceDraftUpdate(SyncOperation operation) {
+    final payload = operation.payload;
+    return updateInvoice(
+      payload['invoice_id']! as String,
+      CreateInvoiceDraft.fromSyncOperation(operation),
+    );
   }
 
   Future<AttachmentSummary> syncAttachmentMetadata(SyncOperation operation) {
@@ -460,6 +500,9 @@ class AccountingApiClient {
     }
     if (method == 'POST') {
       return _httpClient.post(uri, headers: headers, body: jsonEncode(body));
+    }
+    if (method == 'PUT') {
+      return _httpClient.put(uri, headers: headers, body: jsonEncode(body));
     }
     throw UnsupportedError('Unsupported API method: $method');
   }

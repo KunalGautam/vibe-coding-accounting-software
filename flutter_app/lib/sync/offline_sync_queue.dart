@@ -223,6 +223,50 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvoiceDraftUpdate({
+    required String invoiceId,
+    required String customerId,
+    required String invoiceNumber,
+    required String accountsReceivableId,
+    required String description,
+    required int unitPriceMinor,
+    required String incomeAccountId,
+    DateTime? issueDate,
+    DateTime? dueDate,
+    int quantityMillis = 1000,
+    String? pdfAttachmentId,
+    String? taxRateId,
+    String? taxGroupId,
+    bool taxInclusive = false,
+    DateTime? createdAt,
+  }) {
+    final operation = enqueueInvoiceDraft(
+      customerId: customerId,
+      invoiceNumber: invoiceNumber,
+      accountsReceivableId: accountsReceivableId,
+      description: description,
+      unitPriceMinor: unitPriceMinor,
+      incomeAccountId: incomeAccountId,
+      issueDate: issueDate,
+      dueDate: dueDate,
+      quantityMillis: quantityMillis,
+      pdfAttachmentId: pdfAttachmentId,
+      taxRateId: taxRateId,
+      taxGroupId: taxGroupId,
+      taxInclusive: taxInclusive,
+      createdAt: createdAt,
+    );
+    final payload = Map<String, Object?>.from(operation.payload)
+      ..['invoice_id'] = invoiceId;
+    final updated = operation.copyWith(
+      id: 'invoice-update-${operation.createdAt.microsecondsSinceEpoch}',
+      action: 'update_draft',
+      payload: payload,
+    );
+    _operations[_operations.length - 1] = updated;
+    return updated;
+  }
+
   SyncOperation enqueueAttachmentMetadata({
     required String fileName,
     required String storageKey,
@@ -592,6 +636,42 @@ class OfflineSyncQueue {
     );
     enqueue(operation);
     return operation;
+  }
+
+  SyncOperation enqueueExpenseDraftUpdate({
+    required String expenseId,
+    required String merchantName,
+    required int amountMinor,
+    required String expenseAccountId,
+    required String paymentAccountId,
+    String? receiptAttachmentId,
+    String? taxRateId,
+    String? taxGroupId,
+    bool taxInclusive = false,
+    bool reimbursable = false,
+    DateTime? createdAt,
+  }) {
+    final operation = enqueueExpenseDraft(
+      merchantName: merchantName,
+      amountMinor: amountMinor,
+      expenseAccountId: expenseAccountId,
+      paymentAccountId: paymentAccountId,
+      receiptAttachmentId: receiptAttachmentId,
+      taxRateId: taxRateId,
+      taxGroupId: taxGroupId,
+      taxInclusive: taxInclusive,
+      reimbursable: reimbursable,
+      createdAt: createdAt,
+    );
+    final payload = Map<String, Object?>.from(operation.payload)
+      ..['expense_id'] = expenseId;
+    final updated = operation.copyWith(
+      id: 'expense-update-${operation.createdAt.microsecondsSinceEpoch}',
+      action: 'update_draft',
+      payload: payload,
+    );
+    _operations[_operations.length - 1] = updated;
+    return updated;
   }
 
   SyncOperation _enqueueRawBankStatementImport({

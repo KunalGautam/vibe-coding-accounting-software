@@ -764,6 +764,133 @@ void main() {
     expect(expense.totalMinor, 125000);
   });
 
+  test('syncs queued expense draft edits to update endpoint', () async {
+    final operation = SyncOperation(
+      id: 'expense-edit-local-1',
+      module: 'expenses',
+      action: 'update_draft',
+      createdAt: DateTime.utc(2026, 7, 16),
+      payload: const {
+        'expense_id': 'exp-1',
+        'expense_number': 'EXP-MOB-001-EDIT',
+        'amount_minor': 99000,
+        'expense_account_id': 'acct-expense',
+        'payment_account_id': 'acct-bank',
+        'receipt_attachment_id': 'attachment-2',
+        'tax_group_id': 'tax-group-1',
+        'tax_inclusive': true,
+        'reimbursable': true,
+      },
+    );
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'PUT');
+        expect(request.url.path, '/api/v1/organizations/org-1/expenses/exp-1');
+        expect(request.headers['Content-Type'], contains('application/json'));
+
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['expense_number'], 'EXP-MOB-001-EDIT');
+        expect(body['expense_date'], '2026-07-16');
+        expect(body['amount_minor'], 99000);
+        expect(body['expense_account_id'], 'acct-expense');
+        expect(body['payment_account_id'], 'acct-bank');
+        expect(body['receipt_attachment_id'], 'attachment-2');
+        expect(body['tax_group_id'], 'tax-group-1');
+        expect(body['tax_inclusive'], true);
+        expect(body['reimbursable'], true);
+
+        return http.Response(
+          jsonEncode({
+            'id': 'exp-1',
+            'expense_number': 'EXP-MOB-001-EDIT',
+            'status': 'draft',
+            'total_minor': 99000,
+            'currency': 'INR',
+          }),
+          200,
+        );
+      }),
+    );
+
+    final expense = await client.syncExpenseDraftUpdate(operation);
+
+    expect(expense.id, 'exp-1');
+    expect(expense.expenseNumber, 'EXP-MOB-001-EDIT');
+    expect(expense.totalMinor, 99000);
+  });
+
+  test('syncs queued invoice draft edits to update endpoint', () async {
+    final operation = SyncOperation(
+      id: 'invoice-edit-local-1',
+      module: 'invoices',
+      action: 'update_draft',
+      createdAt: DateTime.utc(2026, 7, 16),
+      payload: const {
+        'invoice_id': 'inv-1',
+        'customer_id': 'customer-1',
+        'invoice_number': 'INV-MOB-001-EDIT',
+        'issue_date': '2026-07-16',
+        'due_date': '2026-08-15',
+        'currency': 'INR',
+        'tax_inclusive': false,
+        'accounts_receivable_id': 'acct-ar',
+        'pdf_attachment_id': 'pdf-2',
+        'lines': [
+          {
+            'description': 'Updated field service',
+            'quantity_millis': 1000,
+            'unit_price_minor': 175000,
+            'income_account_id': 'acct-income',
+            'tax_group_id': 'tax-group-1',
+          },
+        ],
+      },
+    );
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'PUT');
+        expect(request.url.path, '/api/v1/organizations/org-1/invoices/inv-1');
+        expect(request.headers['Content-Type'], contains('application/json'));
+
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['customer_id'], 'customer-1');
+        expect(body['invoice_number'], 'INV-MOB-001-EDIT');
+        expect(body['issue_date'], '2026-07-16');
+        expect(body['due_date'], '2026-08-15');
+        expect(body['accounts_receivable_id'], 'acct-ar');
+        expect(body['pdf_attachment_id'], 'pdf-2');
+        final lines = body['lines']! as List;
+        final line = lines.single as Map<String, Object?>;
+        expect(line['description'], 'Updated field service');
+        expect(line['unit_price_minor'], 175000);
+        expect(line['tax_group_id'], 'tax-group-1');
+
+        return http.Response(
+          jsonEncode({
+            'id': 'inv-1',
+            'invoice_number': 'INV-MOB-001-EDIT',
+            'status': 'draft',
+            'subtotal_minor': 175000,
+            'tax_total_minor': 31500,
+            'total_minor': 206500,
+            'currency': 'INR',
+            'pdf_attachment_id': 'pdf-2',
+            'lines': [],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final invoice = await client.syncInvoiceDraftUpdate(operation);
+
+    expect(invoice.id, 'inv-1');
+    expect(invoice.invoiceNumber, 'INV-MOB-001-EDIT');
+    expect(invoice.totalMinor, 206500);
+  });
+
   test('throws API exception with backend error message', () async {
     final client = AccountingApiClient(
       config: config,

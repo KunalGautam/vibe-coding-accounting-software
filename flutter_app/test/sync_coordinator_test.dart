@@ -342,6 +342,106 @@ void main() {
     );
   });
 
+  test('syncs queued draft invoice and expense edits', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'invoice-edit-local-1',
+        module: 'invoices',
+        action: 'update_draft',
+        createdAt: DateTime.utc(2026, 7, 16),
+        payload: const {
+          'invoice_id': 'invoice-1',
+          'customer_id': 'customer-1',
+          'invoice_number': 'INV-MOB-001-EDIT',
+          'issue_date': '2026-07-16',
+          'due_date': '2026-08-15',
+          'currency': 'INR',
+          'tax_inclusive': false,
+          'accounts_receivable_id': 'acct-ar',
+          'lines': [
+            {
+              'description': 'Updated field service',
+              'quantity_millis': 1000,
+              'unit_price_minor': 175000,
+              'income_account_id': 'acct-income',
+            },
+          ],
+        },
+      ),
+      SyncOperation(
+        id: 'expense-edit-local-1',
+        module: 'expenses',
+        action: 'update_draft',
+        createdAt: DateTime.utc(2026, 7, 16),
+        payload: const {
+          'expense_id': 'expense-1',
+          'expense_number': 'EXP-MOB-001-EDIT',
+          'amount_minor': 99000,
+          'expense_account_id': 'acct-expense',
+          'payment_account_id': 'acct-bank',
+          'tax_inclusive': true,
+          'reimbursable': true,
+        },
+      ),
+    ]);
+    final requested = <String, String>{};
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requested[request.url.path] = request.method;
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith('/invoices/invoice-1')) {
+          expect(request.method, 'PUT');
+          expect(body['invoice_number'], 'INV-MOB-001-EDIT');
+          return http.Response(
+            jsonEncode({
+              'id': 'invoice-1',
+              'invoice_number': 'INV-MOB-001-EDIT',
+              'status': 'draft',
+              'subtotal_minor': 175000,
+              'tax_total_minor': 0,
+              'total_minor': 175000,
+              'currency': 'INR',
+              'lines': [],
+            }),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/expenses/expense-1')) {
+          expect(request.method, 'PUT');
+          expect(body['expense_number'], 'EXP-MOB-001-EDIT');
+          return http.Response(
+            jsonEncode({
+              'id': 'expense-1',
+              'expense_number': 'EXP-MOB-001-EDIT',
+              'status': 'draft',
+              'total_minor': 99000,
+              'currency': 'INR',
+            }),
+            200,
+          );
+        }
+
+        fail('unexpected path: ${request.url.path}');
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 2);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requested, {
+      '/api/v1/organizations/org-1/invoices/invoice-1': 'PUT',
+      '/api/v1/organizations/org-1/expenses/expense-1': 'PUT',
+    });
+  });
+
   test('syncs queued attachment binary uploads', () async {
     final directory = await Directory.systemTemp.createTemp(
       'ledger-upload-sync-test',

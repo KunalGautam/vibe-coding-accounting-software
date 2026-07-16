@@ -33,6 +33,7 @@ flutter test
 - Offline attachment metadata cache with file-backed storage for receipt/PDF ID review.
 - Offline attachment binary cache with file-backed storage for downloaded receipt/PDF bytes.
 - Offline tax catalog cache with file-backed storage for configured tax rate/group lookup.
+- Offline queued replay for draft invoice and draft expense edits against the API `PUT` update endpoints.
 - Sync coordinator that drains successful expense draft operations and keeps failures queued for retry.
 - Sync operation repository boundary with an in-memory implementation ready to swap for SQLite.
 - File-backed sync operation repository using each platform's application support directory.
@@ -47,6 +48,7 @@ flutter test
 - Resolved default tax labels from the cached tax catalog for offline review.
 - Attachment metadata lookup, sample binary upload, binary download check, cached binary inspection, offline availability status, and local metadata/binary caching from the sync page.
 - Local receipt file-path upload bridge for desktop/offline attachment capture without adding a picker plugin yet.
+- Draft invoice/expense edit replay through `invoices.update_draft` and `expenses.update_draft` sync operations.
 - Cached attachment IDs can be selected directly from the expense draft form for receipt posting.
 - Tax preview for draft expenses using configured API tax rates/groups before queueing.
 - Expense capture entry point for receipt and reimbursable workflows.
@@ -56,4 +58,4 @@ flutter test
 - Typed investment transport for average-cost pooled sales, price maintenance, realized gains, and valuation reports.
 - Sync settings placeholder for API base URL and organization selection.
 
-The real SQLite persistence layer, full generated OpenAPI client, camera receipt capture, desktop import/export actions, polished Flutter file picker/camera selection for binary attachments, and invoice PDF generation/detail views are still pending.
+The full generated OpenAPI client, camera receipt capture, desktop import/export actions, polished Flutter file picker/camera selection for binary attachments, and invoice PDF generation/detail views are still pending.

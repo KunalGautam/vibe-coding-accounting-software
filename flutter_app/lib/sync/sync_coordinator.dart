@@ -81,8 +81,14 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'expenses.create_draft': (client, operation) async {
     await client.syncExpenseDraft(operation);
   },
+  'expenses.update_draft': (client, operation) async {
+    await client.syncExpenseDraftUpdate(operation);
+  },
   'invoices.create_draft': (client, operation) async {
     await client.syncInvoiceDraft(operation);
+  },
+  'invoices.update_draft': (client, operation) async {
+    await client.syncInvoiceDraftUpdate(operation);
   },
   'ledger.post_invoice': (client, operation) async {
     await client.syncInvoicePost(operation);
