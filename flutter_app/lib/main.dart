@@ -642,6 +642,14 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueBrokerHoldingsImport(String csv) async {
+    final operation = syncQueue.enqueueBrokerHoldingsPriceImport(csv: csv);
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Broker holdings import queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> deletePendingDraft(String operationId) async {
     syncQueue.remove(operationId);
     await repository.savePending(syncQueue.pending);
@@ -2271,6 +2279,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchLots: fetchInvestmentLots,
         onFetchRealizedGains: fetchRealizedGains,
         onFetchValuation: fetchInvestmentValuation,
+        onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
       ),
       ReportsPage(
         trialBalance: cachedTrialBalanceReport,
@@ -3475,6 +3484,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onFetchLots,
     required this.onFetchRealizedGains,
     required this.onFetchValuation,
+    required this.onQueueBrokerHoldingsImport,
     super.key,
   });
 
@@ -3486,6 +3496,7 @@ class InvestmentsPage extends StatelessWidget {
   final Future<void> Function() onFetchLots;
   final Future<void> Function(DateTime from, DateTime to) onFetchRealizedGains;
   final Future<void> Function(DateTime asOf) onFetchValuation;
+  final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
 
   @override
   Widget build(BuildContext context) {
@@ -3501,10 +3512,11 @@ class InvestmentsPage extends StatelessWidget {
         FeaturePanel(
           title: 'Offline investment packet',
           description:
-              'Review cached investment lots and fetch a realized gains report for tax-season checks while keeping the mobile workflow read-focused.',
+              'Review cached investment lots, queue broker holdings price imports, and fetch reports for tax-season checks while offline-first.',
           actionLabel: isLoading ? 'Refreshing investments...' : 'Refresh lots',
           onPressed: isLoading ? null : () => onFetchLots(),
         ),
+        BrokerHoldingsImportCard(onQueueImport: onQueueBrokerHoldingsImport),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -3651,12 +3663,99 @@ class InvestmentsPage extends StatelessWidget {
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
-            'Target APIs: GET /investments/lots, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Cached locally for read-only offline investment review',
+            'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
+            'Broker holdings CSV imports queue offline and replay through the shared sync coordinator',
             'Create/sell lot and price maintenance workflows are currently available in the web app/API',
           ],
         ),
       ],
+    );
+  }
+}
+
+class BrokerHoldingsImportCard extends StatefulWidget {
+  const BrokerHoldingsImportCard({required this.onQueueImport, super.key});
+
+  final Future<void> Function(String csv) onQueueImport;
+
+  @override
+  State<BrokerHoldingsImportCard> createState() =>
+      _BrokerHoldingsImportCardState();
+}
+
+class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
+  final controller = TextEditingController(
+    text:
+        'Symbol,ISIN,As of Date,Last Traded Price,Quantity\nTCS,INE467B01029,31-Jul-2026,3450.75,10',
+  );
+  bool isQueueing = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> queueImport() async {
+    final csv = controller.text.trim();
+    if (csv.isEmpty || isQueueing) {
+      return;
+    }
+    setState(() {
+      isQueueing = true;
+    });
+    try {
+      await widget.onQueueImport(csv);
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Broker holdings import',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Paste a broker holdings CSV with Symbol/ISIN, date, and LTP/current price columns. It will queue offline and sync when credentials are available.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Holdings CSV',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing || controller.text.trim().isEmpty
+                  ? null
+                  : queueImport,
+              icon: const Icon(Icons.upload_file_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing broker import...'
+                    : 'Queue broker holdings import',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

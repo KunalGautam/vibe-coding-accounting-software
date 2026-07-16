@@ -1716,4 +1716,29 @@ void main() {
     expect(find.textContaining('NIFTYBEES'), findsWidgets);
     expect(find.textContaining('INR 2400.00 unrealized'), findsOneWidget);
   });
+
+  testWidgets('queues broker holdings imports from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Queue broker holdings import'));
+    await tester.tap(find.text('Queue broker holdings import'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'import_broker_holdings');
+    expect(pending.last.payload['source'], 'broker_holdings_csv');
+    expect(pending.last.payload['csv'], contains('Last Traded Price'));
+    expect(
+      find.textContaining('Broker holdings import queued for sync'),
+      findsOneWidget,
+    );
+  });
 }
