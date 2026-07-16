@@ -1516,6 +1516,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('10 CSV exports ready from cache.'), findsOneWidget);
+    expect(find.textContaining('trial_balance_'), findsWidgets);
   });
 
   testWidgets('fetches and caches investment valuation reports', (

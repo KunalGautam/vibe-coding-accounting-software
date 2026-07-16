@@ -11,6 +11,7 @@ import 'attachments/attachment_cache_repository.dart';
 import 'invoices/invoice_cache_repository.dart';
 import 'investments/investment_cache_repository.dart';
 import 'parties/party_cache_repository.dart';
+import 'reports/report_csv_exporter.dart';
 import 'reports/report_cache_repository.dart';
 import 'settings/sync_settings.dart';
 import 'sync/offline_sync_queue.dart';
@@ -3212,6 +3213,20 @@ class ReportsPage extends StatelessWidget {
         ? DateTime.utc(asOf.year, 4)
         : DateTime.utc(asOf.year - 1, 4);
     final selectedBudget = _selectedBudget(budgets, budgetVsActual?.budgetId);
+    final exports = buildReportCsvExports(
+      ReportCacheSnapshot(
+        trialBalance: trialBalance,
+        profitAndLoss: profitAndLoss,
+        balanceSheet: balanceSheet,
+        cashFlow: cashFlow,
+        arAging: arAging,
+        apAging: apAging,
+        taxLiability: taxLiability,
+        taxSummary: taxSummary,
+        budgets: budgets,
+        budgetVsActual: budgetVsActual,
+      ),
+    );
     return AppPage(
       eyebrow: 'Reports',
       title: 'Financial snapshots',
@@ -3475,12 +3490,14 @@ class ReportsPage extends StatelessWidget {
             ],
           ],
         ),
+        _ReportExportCard(exports: exports),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
             'Target APIs: financial statements, aging, tax liability, and tax summary reports',
             'Latest financial report snapshots are cached locally for offline review',
-            'Comparative periods and export polish remain next reporting parity targets',
+            'CSV export payloads are generated locally from cached reports',
+            'Comparative periods remain the next reporting parity target',
           ],
         ),
       ],
@@ -3526,6 +3543,57 @@ class _ReportCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportExportCard extends StatelessWidget {
+  const _ReportExportCard({required this.exports});
+
+  final List<ReportCsvExport> exports;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstExport = exports.isEmpty ? null : exports.first;
+    final previewLines = firstExport?.contents.split('\n').take(4).join('\n');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CSV export preview',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Generated locally from the offline report cache. File-save/share wiring can reuse these payloads.',
+            ),
+            const SizedBox(height: 12),
+            if (exports.isEmpty)
+              const Text('No cached reports available for CSV export yet.')
+            else ...[
+              Text('${exports.length} CSV exports ready from cache.'),
+              const SizedBox(height: 8),
+              for (final export in exports.take(8))
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text('${export.fileName} · ${export.rowCount} rows'),
+                ),
+              if (previewLines != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Preview: ${firstExport!.fileName}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                SelectableText(previewLines),
+              ],
+            ],
           ],
         ),
       ),
