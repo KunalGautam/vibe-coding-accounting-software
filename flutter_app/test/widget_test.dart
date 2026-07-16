@@ -830,6 +830,117 @@ void main() {
     expect(find.text('Available offline'), findsOneWidget);
   });
 
+  testWidgets('uploads a picked receipt file from the sync page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final settingsRepository = MemorySyncSettingsRepository(
+      const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
+    );
+    final attachmentCacheRepository = MemoryAttachmentCacheRepository();
+    final attachmentBinaryCacheRepository =
+        MemoryAttachmentBinaryCacheRepository();
+
+    await tester.pumpWidget(
+      AccountingApp(
+        settingsRepository: settingsRepository,
+        attachmentCacheRepository: attachmentCacheRepository,
+        attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
+        attachmentPicker: (source) async {
+          expect(source, AttachmentPickSource.file);
+          return const PickedAttachmentFile(
+            fileName: 'picked-receipt.pdf',
+            bytes: [1, 2, 3, 4],
+            localFilePath: '/tmp/picked-receipt.pdf',
+            contentType: 'application/pdf',
+          );
+        },
+        attachmentUploader: (_, fileName, bytes) async {
+          expect(fileName, 'picked-receipt.pdf');
+          expect(bytes, [1, 2, 3, 4]);
+          return const AttachmentSummary(
+            id: 'attachment-picked',
+            fileName: 'picked-receipt.pdf',
+            contentType: 'application/pdf',
+            storageDriver: 'local',
+            storageKey: 'org-1/attachment-picked/picked-receipt.pdf',
+            sizeBytes: 4,
+          );
+        },
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Sync'));
+    await tester.pump();
+    await tester.tap(find.text('Choose receipt/PDF'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Uploaded attachment picked-receipt.pdf.'),
+      findsOneWidget,
+    );
+    expect((await attachmentCacheRepository.loadCached()), hasLength(1));
+    expect(
+      await attachmentBinaryCacheRepository.loadDownloaded('attachment-picked'),
+      isNotNull,
+    );
+    expect(
+      find.text('picked-receipt.pdf · application/pdf · 4 bytes'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'queues picked camera receipts offline when credentials are absent',
+    (tester) async {
+      useTallTestViewport(tester);
+      final syncRepository = MemorySyncOperationRepository();
+      final uploadManifestRepository =
+          MemoryAttachmentUploadManifestRepository();
+
+      await tester.pumpWidget(
+        AccountingApp(
+          syncRepository: syncRepository,
+          attachmentUploadManifestRepository: uploadManifestRepository,
+          attachmentPicker: (source) async {
+            expect(source, AttachmentPickSource.camera);
+            return const PickedAttachmentFile(
+              fileName: 'camera-receipt.jpg',
+              bytes: [9, 8, 7],
+              localFilePath: '/tmp/camera-receipt.jpg',
+              contentType: 'image/jpeg',
+            );
+          },
+          attachmentUploader: (_, _, _) async {
+            fail('offline picked receipts should queue instead of uploading');
+          },
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Sync'));
+      await tester.pump();
+      await tester.tap(find.text('Camera receipt'));
+      await tester.pumpAndSettle();
+
+      final pending = await syncRepository.loadPending();
+      expect(pending, hasLength(4));
+      final upload = pending.last;
+      expect(upload.module, 'attachments');
+      expect(upload.action, 'upload_binary');
+      expect(upload.payload['file_name'], 'camera-receipt.jpg');
+      expect(upload.payload['local_file_path'], '/tmp/camera-receipt.jpg');
+      final manifest = await uploadManifestRepository.loadPending();
+      expect(manifest.single.fileName, 'camera-receipt.jpg');
+      expect(manifest.single.contentType, 'image/jpeg');
+      expect(
+        find.text('Attachment upload queued for sync: camera-receipt.jpg'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('hydrates cached attachments into the sync page', (tester) async {
     useTallTestViewport(tester);
     final attachmentCacheRepository = MemoryAttachmentCacheRepository([

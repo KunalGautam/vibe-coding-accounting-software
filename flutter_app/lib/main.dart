@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'accounts/account_cache_repository.dart';
 import 'api/accounting_api_client.dart';
@@ -48,6 +50,8 @@ typedef AttachmentDownloader =
       SyncSettings settings,
       AttachmentSummary attachment,
     );
+typedef AttachmentPicker =
+    Future<PickedAttachmentFile?> Function(AttachmentPickSource source);
 typedef TaxCalculator =
     Future<TaxCalculationResult> Function(
       SyncSettings settings,
@@ -106,6 +110,7 @@ class AccountingApp extends StatelessWidget {
     this.investmentValuationLoader,
     this.attachmentUploader,
     this.attachmentDownloader,
+    this.attachmentPicker,
     this.taxCalculator,
     super.key,
   });
@@ -129,6 +134,7 @@ class AccountingApp extends StatelessWidget {
   final InvestmentValuationLoader? investmentValuationLoader;
   final AttachmentUploader? attachmentUploader;
   final AttachmentDownloader? attachmentDownloader;
+  final AttachmentPicker? attachmentPicker;
   final TaxCalculator? taxCalculator;
 
   @override
@@ -164,6 +170,7 @@ class AccountingApp extends StatelessWidget {
         investmentValuationLoader: investmentValuationLoader,
         attachmentUploader: attachmentUploader,
         attachmentDownloader: attachmentDownloader,
+        attachmentPicker: attachmentPicker,
         taxCalculator: taxCalculator,
       ),
     );
@@ -191,6 +198,7 @@ class MobileDeskShell extends StatefulWidget {
     this.investmentValuationLoader,
     this.attachmentUploader,
     this.attachmentDownloader,
+    this.attachmentPicker,
     this.taxCalculator,
     super.key,
   });
@@ -214,6 +222,7 @@ class MobileDeskShell extends StatefulWidget {
   final InvestmentValuationLoader? investmentValuationLoader;
   final AttachmentUploader? attachmentUploader;
   final AttachmentDownloader? attachmentDownloader;
+  final AttachmentPicker? attachmentPicker;
   final TaxCalculator? taxCalculator;
 
   @override
@@ -926,6 +935,59 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> pickAndUploadAttachment(AttachmentPickSource source) async {
+    try {
+      final picker = widget.attachmentPicker ?? pickAttachmentFile;
+      final picked = await picker(source);
+      if (picked == null) {
+        setState(() {
+          syncNotice = 'Attachment selection cancelled.';
+        });
+        return;
+      }
+      await uploadPickedAttachment(picked);
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Attachment selection failed: $error';
+      });
+    }
+  }
+
+  Future<void> uploadPickedAttachment(PickedAttachmentFile picked) async {
+    if (!settings.canFetchAccounts) {
+      final localFilePath = picked.localFilePath;
+      if (localFilePath == null || localFilePath.trim().isEmpty) {
+        setState(() {
+          syncNotice =
+              'Selected attachment cannot be queued offline because no local file path was provided.';
+        });
+        return;
+      }
+      final operation = syncQueue.enqueueAttachmentUpload(
+        fileName: picked.fileName,
+        localFilePath: localFilePath,
+      );
+      await attachmentUploadManifestRepository.upsert(
+        AttachmentUploadManifestEntry(
+          operationId: operation.id,
+          fileName: picked.fileName,
+          localFilePath: localFilePath,
+          sizeBytes: picked.bytes.length,
+          createdAt: operation.createdAt,
+          contentType: picked.contentType ?? 'application/octet-stream',
+        ),
+      );
+      await repository.savePending(syncQueue.pending);
+      setState(() {
+        syncNotice = 'Attachment upload queued for sync: ${picked.fileName}';
+        selectedIndex = 4;
+      });
+      return;
+    }
+
+    await uploadAttachmentBytes(picked.fileName, picked.bytes);
+  }
+
   Future<void> uploadAttachmentBytes(String fileName, List<int> bytes) async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1104,6 +1166,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchAttachments: fetchAttachments,
         onUploadSampleAttachment: uploadSampleAttachment,
         onUploadLocalAttachment: uploadLocalAttachment,
+        onPickAttachment: pickAndUploadAttachment,
         onDownloadAttachment: downloadAttachment,
         onInspectCachedAttachment: inspectCachedAttachment,
         cachedBinaryAttachmentIds: cachedAttachmentBinaryIds,
@@ -1186,12 +1249,89 @@ class LocalAttachmentFile {
   final List<int> bytes;
 }
 
+enum AttachmentPickSource { file, camera, gallery }
+
+class PickedAttachmentFile {
+  const PickedAttachmentFile({
+    required this.fileName,
+    required this.bytes,
+    this.localFilePath,
+    this.contentType,
+  });
+
+  final String fileName;
+  final List<int> bytes;
+  final String? localFilePath;
+  final String? contentType;
+}
+
 Future<LocalAttachmentFile> readLocalAttachmentFile(String path) async {
   final trimmedPath = path.trim();
   return LocalAttachmentFile(
     fileName: fileNameFromPath(trimmedPath),
     bytes: await File(trimmedPath).readAsBytes(),
   );
+}
+
+Future<PickedAttachmentFile?> pickAttachmentFile(
+  AttachmentPickSource source,
+) async {
+  if (source == AttachmentPickSource.file) {
+    final result = await FilePicker.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'txt'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      return null;
+    }
+    final file = result.files.single;
+    final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+    return PickedAttachmentFile(
+      fileName: file.name,
+      bytes: bytes,
+      localFilePath: file.path,
+      contentType: contentTypeForFileName(file.name),
+    );
+  }
+
+  final picker = ImagePicker();
+  final image = await picker.pickImage(
+    source: source == AttachmentPickSource.camera
+        ? ImageSource.camera
+        : ImageSource.gallery,
+    imageQuality: 85,
+  );
+  if (image == null) {
+    return null;
+  }
+  return PickedAttachmentFile(
+    fileName: fileNameFromPath(image.path),
+    bytes: await image.readAsBytes(),
+    localFilePath: image.path,
+    contentType: image.mimeType ?? contentTypeForFileName(image.name),
+  );
+}
+
+String contentTypeForFileName(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+  if (lower.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (lower.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  if (lower.endsWith('.pdf')) {
+    return 'application/pdf';
+  }
+  if (lower.endsWith('.txt')) {
+    return 'text/plain';
+  }
+  return 'application/octet-stream';
 }
 
 class AppNavigation extends StatelessWidget {
@@ -2361,6 +2501,7 @@ class SyncPage extends StatelessWidget {
     required this.onFetchAttachments,
     required this.onUploadSampleAttachment,
     required this.onUploadLocalAttachment,
+    required this.onPickAttachment,
     required this.onDownloadAttachment,
     required this.onInspectCachedAttachment,
     required this.cachedBinaryAttachmentIds,
@@ -2391,6 +2532,7 @@ class SyncPage extends StatelessWidget {
   final Future<void> Function() onFetchAttachments;
   final Future<void> Function() onUploadSampleAttachment;
   final Future<void> Function(String path) onUploadLocalAttachment;
+  final Future<void> Function(AttachmentPickSource source) onPickAttachment;
   final Future<void> Function(AttachmentSummary attachment)
   onDownloadAttachment;
   final Future<void> Function(AttachmentSummary attachment)
@@ -2494,6 +2636,7 @@ class SyncPage extends StatelessWidget {
                   onFetchAttachments: onFetchAttachments,
                   onUploadSampleAttachment: onUploadSampleAttachment,
                   onUploadLocalAttachment: onUploadLocalAttachment,
+                  onPickAttachment: onPickAttachment,
                   onDownloadAttachment: onDownloadAttachment,
                   onInspectCachedAttachment: onInspectCachedAttachment,
                   cachedBinaryAttachmentIds: cachedBinaryAttachmentIds,
@@ -2540,6 +2683,7 @@ class AttachmentDiscoveryPanel extends StatelessWidget {
     required this.onFetchAttachments,
     required this.onUploadSampleAttachment,
     required this.onUploadLocalAttachment,
+    required this.onPickAttachment,
     required this.onDownloadAttachment,
     required this.onInspectCachedAttachment,
     required this.cachedBinaryAttachmentIds,
@@ -2551,6 +2695,7 @@ class AttachmentDiscoveryPanel extends StatelessWidget {
   final Future<void> Function() onFetchAttachments;
   final Future<void> Function() onUploadSampleAttachment;
   final Future<void> Function(String path) onUploadLocalAttachment;
+  final Future<void> Function(AttachmentPickSource source) onPickAttachment;
   final Future<void> Function(AttachmentSummary attachment)
   onDownloadAttachment;
   final Future<void> Function(AttachmentSummary attachment)
@@ -2581,6 +2726,7 @@ class AttachmentDiscoveryPanel extends StatelessWidget {
             LocalAttachmentUploadForm(
               isLoading: isLoading,
               onUploadLocalAttachment: onUploadLocalAttachment,
+              onPickAttachment: onPickAttachment,
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -2678,11 +2824,13 @@ class LocalAttachmentUploadForm extends StatefulWidget {
   const LocalAttachmentUploadForm({
     required this.isLoading,
     required this.onUploadLocalAttachment,
+    required this.onPickAttachment,
     super.key,
   });
 
   final bool isLoading;
   final Future<void> Function(String path) onUploadLocalAttachment;
+  final Future<void> Function(AttachmentPickSource source) onPickAttachment;
 
   @override
   State<LocalAttachmentUploadForm> createState() =>
@@ -2708,16 +2856,43 @@ class _LocalAttachmentUploadFormState extends State<LocalAttachmentUploadForm> {
           decoration: const InputDecoration(
             labelText: 'Local receipt file path',
             helperText:
-                'Desktop/offline bridge until camera and file-picker plugins are added.',
+                'Optional fallback. Prefer the picker buttons below when available.',
           ),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: widget.isLoading
-              ? null
-              : () => widget.onUploadLocalAttachment(pathController.text),
-          icon: const Icon(Icons.folder_open_outlined),
-          label: const Text('Upload local receipt'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: widget.isLoading
+                  ? null
+                  : () => widget.onPickAttachment(AttachmentPickSource.file),
+              icon: const Icon(Icons.attach_file_outlined),
+              label: const Text('Choose receipt/PDF'),
+            ),
+            OutlinedButton.icon(
+              onPressed: widget.isLoading
+                  ? null
+                  : () => widget.onPickAttachment(AttachmentPickSource.camera),
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: const Text('Camera receipt'),
+            ),
+            OutlinedButton.icon(
+              onPressed: widget.isLoading
+                  ? null
+                  : () => widget.onPickAttachment(AttachmentPickSource.gallery),
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Gallery image'),
+            ),
+            OutlinedButton.icon(
+              onPressed: widget.isLoading
+                  ? null
+                  : () => widget.onUploadLocalAttachment(pathController.text),
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Upload path'),
+            ),
+          ],
         ),
       ],
     );

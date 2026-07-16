@@ -47,7 +47,7 @@ flutter test
 - One-tap tax rate/group selection for default config-driven tax metadata.
 - Resolved default tax labels from the cached tax catalog for offline review.
 - Attachment metadata lookup, sample binary upload, binary download check, cached binary inspection, offline availability status, and local metadata/binary caching from the sync page.
-- Local receipt file-path upload bridge for desktop/offline attachment capture without adding a picker plugin yet.
+- File picker, gallery picker, and camera receipt capture for binary attachments, with local path fallback and offline upload queueing when credentials are absent.
 - Draft invoice/expense edit replay through `invoices.update_draft` and `expenses.update_draft` sync operations.
 - Cached attachment IDs can be selected directly from the expense draft form for receipt posting.
 - Tax preview for draft expenses using configured API tax rates/groups before queueing.
@@ -58,4 +58,4 @@ flutter test
 - Typed investment transport for average-cost pooled sales, price maintenance, realized gains, and valuation reports.
 - Sync settings placeholder for API base URL and organization selection.
 
-The full generated OpenAPI client, camera receipt capture, desktop import/export actions, polished Flutter file picker/camera selection for binary attachments, and invoice PDF generation/detail views are still pending.
+The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and invoice PDF generation/detail views are still pending.

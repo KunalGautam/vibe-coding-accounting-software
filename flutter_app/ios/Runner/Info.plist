@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Capture receipt photos for offline expense attachments.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select receipt images to attach to expenses and invoices.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
