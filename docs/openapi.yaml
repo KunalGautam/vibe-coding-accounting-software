@@ -2576,6 +2576,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/alphavantage:
+    post:
+      tags: [Investments]
+      summary: Import Alpha Vantage daily price CSV
+      description: Parses Alpha Vantage-style daily CSV rows with `timestamp` and `close` columns. Provide `symbol` for raw single-symbol downloads, or include a Symbol/Ticker column for multi-symbol files.
+      operationId: importAlphaVantagePrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Alpha Vantage prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]
@@ -6543,7 +6566,7 @@ components:
           example: amfi_nav
         symbol:
           type: string
-          description: Optional provider-level symbol for single-symbol CSV formats such as Yahoo Finance historical downloads.
+          description: Optional provider-level symbol for single-symbol CSV formats such as Yahoo Finance or Alpha Vantage historical downloads.
           example: RELIANCE
     ImportAMFINAVRequest:
       type: object

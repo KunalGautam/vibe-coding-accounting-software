@@ -178,7 +178,7 @@ func (c Config) validate(runtime bool) error {
 			problems = append(problems, errors.New("MARKET_DATA_IMPORT_PATH or MARKET_DATA_IMPORT_URL is required when MARKET_DATA_IMPORT_ENABLED=true"))
 		}
 		if !isSupportedMarketDataFormat(c.MarketDataImportFormat) {
-			problems = append(problems, errors.New("MARKET_DATA_IMPORT_FORMAT must be amfi, csv, nse_equity_csv, bse_equity_csv, or yahoo_finance_csv"))
+			problems = append(problems, errors.New("MARKET_DATA_IMPORT_FORMAT must be amfi, csv, nse_equity_csv, bse_equity_csv, yahoo_finance_csv, or alpha_vantage_csv"))
 		}
 		if c.MarketDataTimeoutSeconds <= 0 {
 			problems = append(problems, errors.New("MARKET_DATA_TIMEOUT_SECONDS must be positive"))
@@ -212,7 +212,7 @@ func (c Config) validate(runtime bool) error {
 
 func isSupportedMarketDataFormat(format string) bool {
 	switch format {
-	case "amfi", "csv", "nse_equity_csv", "bse_equity_csv", "yahoo_finance_csv":
+	case "amfi", "csv", "nse_equity_csv", "bse_equity_csv", "yahoo_finance_csv", "alpha_vantage_csv":
 		return true
 	default:
 		return false

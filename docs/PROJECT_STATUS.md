@@ -13,7 +13,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
 - Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
-- Exposed NSE-style equity CSV imports through REST, React, OpenAPI, and Postman; BSE-style equity CSV imports are also available through API, React, and scheduled worker flows, with OpenAPI/Postman coverage aligned at 150 route/method pairs.
+- Added Alpha Vantage daily CSV imports for API, React, and scheduled worker flows; NSE/BSE-style equity CSV imports are also available through REST, React, OpenAPI/Postman, and worker paths, with coverage aligned at 151 route/method pairs.
 - Added managed scheduled report SMTP delivery with configurable recipients.
 - Added PDF downloads for trial balance, profit and loss, and balance sheet.
 - Added account-level report drilldown for posted ledger activity with opening/running balances.
@@ -33,7 +33,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Tax: configurable authorities/rates/groups, India GST seed data, calculation preview, tax liability and summary reports.
 - Payroll: employees, payroll runs, componentized earnings/deductions, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS, employer contribution cost, GL posting including optional employer contribution expense/liability splits, payroll summary report plus PF/ESI/PT/TDS statutory component CSV downloads, payslip preview, payslip CSV export, payslip PDF download.
 - Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, account drilldown with source-document references, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
-- Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
+- Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance and Alpha Vantage historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports, account drilldown review from generated reports with source-document module actions/focused-row highlighting, and invoice/bill payment history tables.
@@ -41,7 +41,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
-- Investment depth: AMFI, BSE/NSE-style equity CSV, Yahoo Finance historical CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
+- Investment depth: AMFI, BSE/NSE-style equity CSV, Yahoo Finance historical CSV, Alpha Vantage daily CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
 - Offline sync depth: Flutter queued writes, sync settings, downloaded attachment bytes, and read caches now persist in SQLite, surface conflict review state, track queued attachment upload blob metadata in a SQLite manifest, cache accounts and tax catalog snapshots in SQLite, and replay expense drafts, invoice drafts, draft invoice/expense edits via `PUT` update endpoints, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales.
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
@@ -50,7 +50,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, and Yahoo Finance CSV.
+1. Additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
 2. Deeper operational monitoring runbooks and managed-cloud deployment notes.
 3. Security hardening polish: broader auth UX and account recovery flows.
 4. Richer onboarding flows, frontend account-management polish, and broader frontend test coverage.

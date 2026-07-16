@@ -153,6 +153,11 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for Yahoo Finance CSV", err)
 	}
+
+	cfg.MarketDataImportFormat = "alpha_vantage_csv"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil for Alpha Vantage CSV", err)
+	}
 }
 
 func TestConfigValidateEmailDeliverySettings(t *testing.T) {

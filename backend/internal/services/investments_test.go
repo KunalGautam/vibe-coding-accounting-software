@@ -264,6 +264,26 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Yahoo price: %+v", yahooPrice)
 	}
 
+	alphaResult, err := service.ImportAlphaVantageCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		Symbol:         "MSFT",
+		CSV: "timestamp,open,high,low,close,volume\n" +
+			"2026-07-31,500.00,520.00,495.00,510.25,987654\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportAlphaVantageCSV() error = %v", err)
+	}
+	if alphaResult.Imported != 1 || alphaResult.Skipped != 0 {
+		t.Fatalf("unexpected Alpha Vantage import result: %+v", alphaResult)
+	}
+	var alphaPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "MSFT", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&alphaPrice).Error; err != nil {
+		t.Fatalf("load Alpha Vantage price: %v", err)
+	}
+	if alphaPrice.PriceMinor != 51025 || alphaPrice.Source != "alpha_vantage_csv" {
+		t.Fatalf("unexpected Alpha Vantage price: %+v", alphaPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

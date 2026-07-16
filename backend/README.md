@@ -106,7 +106,7 @@ The backend currently contains the first implementation slice:
 - Budget creation/listing and Budget vs Actual reporting.
 - Exchange-rate storage, base-currency ledger split support, and unrealized FX revaluation posting.
 - Fiscal year close posting to retained earnings.
-- Investment lots, specific-lot and average-cost sale tracking, GL sale posting, market prices, CSV/AMFI NAV/NSE/BSE/Yahoo imports, scheduled worker market-data file imports, valuation, tax-adjustment candidates, and realized gain/loss reporting.
+- Investment lots, specific-lot and average-cost sale tracking, GL sale posting, market prices, CSV/AMFI NAV/NSE/BSE/Yahoo/Alpha Vantage imports, scheduled worker market-data file imports, valuation, tax-adjustment candidates, and realized gain/loss reporting.
 - Admin/Accountant organization JSON data export plus local backup snapshot endpoints for portable backups.
 - Cron-style background worker for due recurring invoice draft generation, scheduled local backup snapshots, and optional scheduled investment market-data file imports.
 - Explicit migration CLI at `cmd/migrate`, restore CLI at `cmd/restore`, plus Docker/Compose deployment scaffolding for MySQL-backed API, worker, and React web.
@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 150 route/method pairs.
+- API route/Postman coverage validators for 151 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -231,6 +231,7 @@ Supported market-data formats are:
 - `nse_equity_csv`: NSE-style equity bhavcopy/security CSV rows with `SYMBOL`/`TckrSymb`, `DATE1`/`TradDt`, and `CLOSE_PRICE`/`ClsPric`; `EQ` series rows are imported when a series column is present.
 - `bse_equity_csv`: BSE-style equity CSV rows with `SC_CODE`/`SCRIP_CODE`, `TRADING_DATE`/`DATE`, and `CLOSE`/`CLOSE_PRICE`; common equity groups are imported when a group column is present.
 - `yahoo_finance_csv`: Yahoo Finance historical CSV rows with `Date` and `Close`; set `MARKET_DATA_SYMBOL` for raw single-symbol downloads, or include a `Symbol`/`Ticker` column in multi-symbol files.
+- `alpha_vantage_csv`: Alpha Vantage daily CSV rows with `timestamp` and `close`; set `MARKET_DATA_SYMBOL` for raw single-symbol downloads, or include a `Symbol`/`Ticker` column in multi-symbol files.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 

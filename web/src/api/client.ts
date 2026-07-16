@@ -564,6 +564,7 @@ export type CreateInvestmentPriceInput = {
 export type ImportInvestmentPricesInput = {
   csv: string;
   source?: string;
+  symbol?: string;
 };
 
 export type ImportAMFINAVInput = {
@@ -1936,6 +1937,13 @@ export class ApiClient {
 
   async importBSEEquityPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
     return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/bse`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async importAlphaVantagePrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/alphavantage`, {
       method: "POST",
       body: JSON.stringify(input)
     });

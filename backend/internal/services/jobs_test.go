@@ -270,6 +270,42 @@ func TestJobServiceImportScheduledMarketDataSupportsBSEEquityCSV(t *testing.T) {
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsAlphaVantageCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Acme Alpha", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	feedPath := filepath.Join(t.TempDir(), "alpha-vantage.csv")
+	feed := "timestamp,open,high,low,close,volume\n" +
+		"2026-07-31,500.00,520.00,495.00,510.25,987654\n"
+	if err := os.WriteFile(feedPath, []byte(feed), 0o600); err != nil {
+		t.Fatalf("write feed: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		Path:           feedPath,
+		Format:         "alpha_vantage_csv",
+		Symbol:         "MSFT",
+		OrganizationID: org.ID,
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.OrganizationsProcessed != 1 || result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected import result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "MSFT").First(&price).Error; err != nil {
+		t.Fatalf("load Alpha Vantage price: %v", err)
+	}
+	if price.PriceMinor != 51025 || price.Source != "alpha_vantage_csv" {
+		t.Fatalf("unexpected Alpha Vantage price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
