@@ -1742,6 +1742,40 @@ void main() {
     );
   });
 
+  testWidgets('queues manual investment prices from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Queue investment price'));
+    await tester.enterText(find.bySemanticsLabel('Price symbol'), 'infy');
+    await tester.enterText(find.bySemanticsLabel('Price date'), '2026-07-31');
+    await tester.enterText(find.bySemanticsLabel('Price minor'), '172035');
+    await tester.enterText(
+      find.bySemanticsLabel('Price source'),
+      'mobile-test',
+    );
+    await tester.tap(find.text('Queue investment price'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'create_price');
+    expect(pending.last.payload['symbol'], 'INFY');
+    expect(pending.last.payload['price_date'], '2026-07-31');
+    expect(pending.last.payload['price_minor'], 172035);
+    expect(pending.last.payload['source'], 'mobile-test');
+    expect(
+      find.textContaining('Investment price queued for sync'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('loads broker holdings CSV files before queueing imports', (
     tester,
   ) async {

@@ -657,6 +657,24 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvestmentPrice({
+    required String symbol,
+    required DateTime priceDate,
+    required int priceMinor,
+    required String source,
+  }) async {
+    final operation = syncQueue.enqueueInvestmentPrice(
+      symbol: symbol,
+      priceDate: priceDate,
+      priceMinor: priceMinor,
+      source: source,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Investment price queued for sync: ${operation.id}';
+    });
+  }
+
   Future<PickedTextFile?> pickBrokerHoldingsCSV() {
     final picker = widget.textFilePicker ?? pickTextFile;
     return picker();
@@ -2291,6 +2309,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchLots: fetchInvestmentLots,
         onFetchRealizedGains: fetchRealizedGains,
         onFetchValuation: fetchInvestmentValuation,
+        onQueueInvestmentPrice: queueInvestmentPrice,
         onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
         onPickBrokerHoldingsCSV: pickBrokerHoldingsCSV,
       ),
@@ -3519,6 +3538,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onFetchLots,
     required this.onFetchRealizedGains,
     required this.onFetchValuation,
+    required this.onQueueInvestmentPrice,
     required this.onQueueBrokerHoldingsImport,
     required this.onPickBrokerHoldingsCSV,
     super.key,
@@ -3532,6 +3552,13 @@ class InvestmentsPage extends StatelessWidget {
   final Future<void> Function() onFetchLots;
   final Future<void> Function(DateTime from, DateTime to) onFetchRealizedGains;
   final Future<void> Function(DateTime asOf) onFetchValuation;
+  final Future<void> Function({
+    required String symbol,
+    required DateTime priceDate,
+    required int priceMinor,
+    required String source,
+  })
+  onQueueInvestmentPrice;
   final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
   final Future<PickedTextFile?> Function() onPickBrokerHoldingsCSV;
 
@@ -3553,6 +3580,7 @@ class InvestmentsPage extends StatelessWidget {
           actionLabel: isLoading ? 'Refreshing investments...' : 'Refresh lots',
           onPressed: isLoading ? null : () => onFetchLots(),
         ),
+        ManualInvestmentPriceCard(onQueuePrice: onQueueInvestmentPrice),
         BrokerHoldingsImportCard(
           onQueueImport: onQueueBrokerHoldingsImport,
           onPickCSV: onPickBrokerHoldingsCSV,
@@ -3704,11 +3732,189 @@ class InvestmentsPage extends StatelessWidget {
         const InfoList(
           items: [
             'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Broker holdings CSV imports queue offline and replay through the shared sync coordinator',
-            'Create/sell lot and price maintenance workflows are currently available in the web app/API',
+            'Manual market prices and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
+            'Create lot and sell lot workflows are currently available in the web app/API',
           ],
         ),
       ],
+    );
+  }
+}
+
+class ManualInvestmentPriceCard extends StatefulWidget {
+  const ManualInvestmentPriceCard({required this.onQueuePrice, super.key});
+
+  final Future<void> Function({
+    required String symbol,
+    required DateTime priceDate,
+    required int priceMinor,
+    required String source,
+  })
+  onQueuePrice;
+
+  @override
+  State<ManualInvestmentPriceCard> createState() =>
+      _ManualInvestmentPriceCardState();
+}
+
+class _ManualInvestmentPriceCardState extends State<ManualInvestmentPriceCard> {
+  late final TextEditingController symbolController;
+  late final TextEditingController priceDateController;
+  late final TextEditingController priceMinorController;
+  late final TextEditingController sourceController;
+  bool isQueueing = false;
+  String? validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    symbolController = TextEditingController(text: 'NIFTYBEES');
+    priceDateController = TextEditingController(
+      text: formatDateOnly(DateTime.now()),
+    );
+    priceMinorController = TextEditingController(text: '14000');
+    sourceController = TextEditingController(text: 'mobile-offline');
+  }
+
+  @override
+  void dispose() {
+    symbolController.dispose();
+    priceDateController.dispose();
+    priceMinorController.dispose();
+    sourceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> queuePrice() async {
+    if (isQueueing) {
+      return;
+    }
+    final symbol = symbolController.text.trim().toUpperCase();
+    final priceDate = parseDateOnly(priceDateController.text.trim());
+    final priceMinor = int.tryParse(priceMinorController.text.trim());
+    final source = sourceController.text.trim().isEmpty
+        ? 'mobile-offline'
+        : sourceController.text.trim();
+
+    if (symbol.isEmpty || priceDate == null || priceMinor == null) {
+      setState(() {
+        validationError =
+            'Enter a symbol, ISO date like 2026-07-31, and price in minor units.';
+      });
+      return;
+    }
+    if (priceMinor <= 0) {
+      setState(() {
+        validationError = 'Price minor must be greater than zero.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationError = null;
+    });
+    try {
+      await widget.onQueuePrice(
+        symbol: symbol,
+        priceDate: priceDate,
+        priceMinor: priceMinor,
+        source: source,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  DateTime? parseDateOnly(String value) {
+    final parts = value.split('-');
+    if (parts.length != 3) {
+      return null;
+    }
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) {
+      return null;
+    }
+    return DateTime.utc(year, month, day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Manual investment price',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Capture a single security price while offline. Values use minor currency units so INR 1720.35 is entered as 172035.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: symbolController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Price symbol',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceDateController,
+              decoration: const InputDecoration(
+                labelText: 'Price date',
+                hintText: '2026-07-31',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceMinorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Price minor',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: sourceController,
+              decoration: const InputDecoration(
+                labelText: 'Price source',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                validationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queuePrice,
+              icon: const Icon(Icons.price_change_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing investment price...'
+                    : 'Queue investment price',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
