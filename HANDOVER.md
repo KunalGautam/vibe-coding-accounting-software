@@ -37,7 +37,7 @@ Major backend modules are implemented and tested for:
 - Attachment metadata, local binary upload/download, organization JSON export, local backup snapshots.
 - Swagger UI and OpenAPI/Postman validation in CI.
 
-React web currently has broad admin/control surfaces, offline-oriented localStorage snapshots, manual draft queues, report CSV exports, report-row account drilldowns with an inline ledger movement panel, source-document module actions, focused-row highlighting, invoice/bill payment history tables, payroll preview/payslip flows, and typed API support.
+React web currently has broad admin/control surfaces, password reset request/confirm UX, offline-oriented localStorage snapshots, manual draft queues, report CSV exports, report-row account drilldowns with an inline ledger movement panel, source-document module actions, focused-row highlighting, invoice/bill payment history tables, payroll preview/payslip flows, and typed API support.
 
 Flutter currently has an offline-ready expense/invoice/investment/report shell with SQLite-backed pending sync operations, sync settings, account cache, customer/vendor party cache, tax catalog cache, invoice cache, investment cache, Trial Balance/P&L/Balance Sheet/Cash Flow/AR Aging/AP Aging/Tax Liability/Tax Summary/Budget vs Actual report cache, prior-period comparison for statements, aging, and tax reports, selected-vs-previous budget comparison, local CSV export generation and app-storage/Downloads/share-sheet support, attachment metadata cache, downloaded attachment binary cache, and queued-attachment upload manifests, plus typed API transport, plugin-backed file/gallery/camera attachment capture, attachment handling, and tests. The sync coordinator can now replay queued expense drafts, invoice drafts, draft expense/invoice edits, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate status transitions/conversions, purchase-order status transitions/conversions, structured/QIF/OFX bank statement imports, attachment metadata creation, binary attachment uploads, manual investment price captures, and average-cost investment sales with shared retry/error/conflict metadata. Queued local attachment uploads record operation IDs, local file paths, file names, sizes, timestamps, and optional content types.
 
@@ -121,7 +121,7 @@ Current API coverage: `151` OpenAPI route/method pairs, matched to Gin handlers 
 
 ## Highest-Value Remaining Work
 1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
-2. Security hardening polish: broader auth UX and account recovery flows.
+2. Security hardening polish: broader account-management UX and recovery polish.
 3. Email/account flows: richer onboarding and account-management polish.
 4. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.
 5. Export/reporting polish: core drilldown, source-document focus, and payment history panels are implemented; remaining work is deeper document detail pages and broader frontend polish.

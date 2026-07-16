@@ -25,7 +25,7 @@ The app stores API connection settings in local storage:
 ## Current Scope
 
 - Dashboard metrics and offline readiness panel for cached data, queued work, and one-click sync-all.
-- First-admin bootstrap, login, token refresh, organization create/list/select, and manual token override.
+- First-admin bootstrap, login, password reset request/confirm, token refresh, organization create/list/select, and manual token override.
 - Chart of accounts list/create.
 - Manual journal transaction posting plus account register loading with cached running-balance review.
 - Customer master-data create/list plus single-line draft invoice create/review/posting with cached last-known AR data.

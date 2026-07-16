@@ -616,6 +616,10 @@ export function App() {
 function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (config: ApiConfig) => void }) {
   const [draft, setDraft] = useState(config);
   const [loginForm, setLoginForm] = useState<LoginInput>({ email: "", password: "", mfa_code: "" });
+  const [passwordResetEmail, setPasswordResetEmail] = useState("");
+  const [passwordResetToken, setPasswordResetToken] = useState("");
+  const [passwordResetNewPassword, setPasswordResetNewPassword] = useState("");
+  const [passwordResetTokenExpiresAt, setPasswordResetTokenExpiresAt] = useState("");
   const [mfaSetup, setMfaSetup] = useState<MFASetupResponse | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
@@ -720,6 +724,49 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
       setDraft(next);
       onSave(next);
       setConnectionNotice(`Revoked ${result.revoked_count} session(s) and cleared local tokens.`);
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function requestPasswordReset(event: FormEvent) {
+    event.preventDefault();
+    setLoading("request-password-reset");
+    setConnectionError("");
+    try {
+      const result = await connectionApi.requestPasswordReset({ email: passwordResetEmail });
+      if (result.reset_token) {
+        setPasswordResetToken(result.reset_token);
+        setPasswordResetTokenExpiresAt(result.reset_token_expires_at ?? "");
+        setConnectionNotice("Password reset requested. A reset token was returned because token exposure is enabled for this environment.");
+      } else {
+        setPasswordResetTokenExpiresAt("");
+        setConnectionNotice(result.email_sent
+          ? "Password reset email sent. Use the emailed link or token to set a new password."
+          : "If that email exists, a reset flow was started. Check SMTP configuration if no email arrives.");
+      }
+    } catch (error) {
+      setConnectionError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function confirmPasswordReset(event: FormEvent) {
+    event.preventDefault();
+    setLoading("confirm-password-reset");
+    setConnectionError("");
+    try {
+      await connectionApi.confirmPasswordReset({
+        reset_token: passwordResetToken,
+        new_password: passwordResetNewPassword
+      });
+      setPasswordResetToken("");
+      setPasswordResetNewPassword("");
+      setPasswordResetTokenExpiresAt("");
+      setConnectionNotice("Password reset complete. Log in with the new password.");
     } catch (error) {
       setConnectionError(errorMessage(error));
     } finally {
@@ -905,6 +952,30 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
           {loading === "organizations" ? "Loading..." : "Load organizations"}
         </button>
       </form>
+
+      <section className="panel">
+        <p className="eyebrow">Account recovery</p>
+        <h3>Password reset</h3>
+        <p>Request a reset email, then paste the emailed token or link token here to set a new password. Development environments may return the token directly when explicitly configured.</p>
+        <form className="form-grid" onSubmit={requestPasswordReset}>
+          <input placeholder="Account email" value={passwordResetEmail} onChange={(event) => setPasswordResetEmail(event.target.value)} />
+          <button disabled={!passwordResetEmail || loading === "request-password-reset"}>
+            {loading === "request-password-reset" ? "Requesting..." : "Request reset"}
+          </button>
+        </form>
+        <form className="form-grid" onSubmit={confirmPasswordReset}>
+          <input placeholder="Reset token" value={passwordResetToken} onChange={(event) => setPasswordResetToken(event.target.value)} />
+          <input placeholder="New password, 12+ characters" type="password" value={passwordResetNewPassword} onChange={(event) => setPasswordResetNewPassword(event.target.value)} />
+          <button disabled={!passwordResetToken || passwordResetNewPassword.length < 12 || loading === "confirm-password-reset"}>
+            {loading === "confirm-password-reset" ? "Resetting..." : "Set new password"}
+          </button>
+        </form>
+        {passwordResetTokenExpiresAt && (
+          <div className="snapshot-card">
+            <strong>Returned reset token expires:</strong> {new Date(passwordResetTokenExpiresAt).toLocaleString()}
+          </div>
+        )}
+      </section>
 
       {organizations.length > 0 && (
         <label>
