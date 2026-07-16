@@ -150,6 +150,60 @@ void main() {
     expect(cached.fileName, 'receipt.txt');
   });
 
+  test(
+    'sqlite attachment binary cache returns null for missing downloads',
+    () async {
+      final database = await databaseFactoryFfi.openDatabase(
+        inMemoryDatabasePath,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (database, _) =>
+              createAttachmentBinaryCacheTables(database),
+        ),
+      );
+      addTearDown(database.close);
+      final repository = SqliteAttachmentBinaryCacheRepository(database);
+
+      final cached = await repository.loadDownloaded('missing-attachment');
+      expect(cached, isNull);
+    },
+  );
+
+  test('sqlite attachment binary cache persists downloaded bytes', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createAttachmentBinaryCacheTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteAttachmentBinaryCacheRepository(database);
+
+    await repository.saveDownloaded(
+      'attachment-1',
+      AttachmentDownload(
+        bytes: Uint8List.fromList('old receipt'.codeUnits),
+        contentType: 'text/plain',
+        fileName: 'old-receipt.txt',
+      ),
+    );
+    await repository.saveDownloaded(
+      'attachment-1',
+      AttachmentDownload(
+        bytes: Uint8List.fromList('hello receipt'.codeUnits),
+        contentType: 'text/plain',
+        fileName: 'receipt.txt',
+      ),
+    );
+
+    final cached = await repository.loadDownloaded('attachment-1');
+    expect(cached, isNotNull);
+    expect(String.fromCharCodes(cached!.bytes), 'hello receipt');
+    expect(cached.contentType, 'text/plain');
+    expect(cached.fileName, 'receipt.txt');
+  });
+
   test('memory attachment upload manifest upserts queued blobs', () async {
     final repository = MemoryAttachmentUploadManifestRepository();
 

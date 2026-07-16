@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../api/accounting_api_client.dart';
@@ -19,10 +19,13 @@ createDefaultAttachmentCacheRepository() async {
 
 Future<AttachmentBinaryCacheRepository>
 createDefaultAttachmentBinaryCacheRepository() async {
-  final directory = await getApplicationSupportDirectory();
-  return FileAttachmentBinaryCacheRepository(
-    Directory('${directory.path}/attachment-binaries'),
+  final database = await openOfflineDatabase(
+    fileName: 'offline-attachments.sqlite',
+    version: 1,
+    onCreate: (database, _) => createAttachmentBinaryCacheTables(database),
   );
+  await createAttachmentBinaryCacheTables(database);
+  return SqliteAttachmentBinaryCacheRepository(database);
 }
 
 Future<AttachmentUploadManifestRepository>
@@ -299,6 +302,39 @@ class FileAttachmentBinaryCacheRepository
   }
 }
 
+class SqliteAttachmentBinaryCacheRepository
+    implements AttachmentBinaryCacheRepository {
+  const SqliteAttachmentBinaryCacheRepository(this.database);
+
+  final Database database;
+
+  @override
+  Future<void> saveDownloaded(
+    String attachmentId,
+    AttachmentDownload download,
+  ) async {
+    await database.insert(
+      'cached_attachment_binaries',
+      _downloadToRow(attachmentId, download),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  @override
+  Future<AttachmentDownload?> loadDownloaded(String attachmentId) async {
+    final rows = await database.query(
+      'cached_attachment_binaries',
+      where: 'attachment_id = ?',
+      whereArgs: [attachmentId],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _downloadFromRow(rows.single);
+  }
+}
+
 class FileAttachmentUploadManifestRepository
     implements AttachmentUploadManifestRepository {
   const FileAttachmentUploadManifestRepository(this.file);
@@ -436,6 +472,24 @@ ON cached_attachments (file_name, id)
 ''');
 }
 
+Future<void> createAttachmentBinaryCacheTables(
+  DatabaseExecutor database,
+) async {
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_attachment_binaries (
+  attachment_id TEXT PRIMARY KEY,
+  bytes BLOB NOT NULL,
+  content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  file_name TEXT,
+  downloaded_at TEXT NOT NULL
+)
+''');
+  await database.execute('''
+CREATE INDEX IF NOT EXISTS idx_cached_attachment_binaries_downloaded_at
+ON cached_attachment_binaries (downloaded_at, attachment_id)
+''');
+}
+
 Map<String, Object?> _attachmentToRow(AttachmentSummary attachment) {
   return {
     'id': attachment.id,
@@ -455,6 +509,27 @@ AttachmentSummary _attachmentFromRow(Map<String, Object?> row) {
     storageDriver: row['storage_driver'] as String? ?? 'local',
     storageKey: row['storage_key']! as String,
     sizeBytes: row['size_bytes'] as int? ?? 0,
+  );
+}
+
+Map<String, Object?> _downloadToRow(
+  String attachmentId,
+  AttachmentDownload download,
+) {
+  return {
+    'attachment_id': attachmentId,
+    'bytes': download.bytes,
+    'content_type': download.contentType,
+    'file_name': download.fileName,
+    'downloaded_at': DateTime.now().toUtc().toIso8601String(),
+  };
+}
+
+AttachmentDownload _downloadFromRow(Map<String, Object?> row) {
+  return AttachmentDownload(
+    bytes: Uint8List.fromList((row['bytes']! as List<int>).toList()),
+    contentType: row['content_type'] as String? ?? 'application/octet-stream',
+    fileName: row['file_name'] as String?,
   );
 }
 
