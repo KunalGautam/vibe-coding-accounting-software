@@ -403,6 +403,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   List<VendorSummary> cachedVendors = const [];
   TrialBalanceReport? cachedTrialBalanceReport;
   ProfitAndLossReport? cachedProfitAndLossReport;
+  ProfitAndLossReport? priorProfitAndLossReport;
   BalanceSheetReport? cachedBalanceSheetReport;
   CashFlowReport? cachedCashFlowReport;
   ARAgingReport? cachedARAgingReport;
@@ -908,6 +909,53 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'P&L fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchProfitAndLossComparison(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.profitAndLossLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getProfitAndLoss(from: from, to: to);
+      final current = await loader(settings, from, to);
+      final previousFrom = DateTime.utc(from.year - 1, from.month, from.day);
+      final previousTo = DateTime.utc(to.year - 1, to.month, to.day);
+      final previous = await loader(settings, previousFrom, previousTo);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(profitAndLoss: current),
+      );
+      setState(() {
+        cachedProfitAndLossReport = current;
+        priorProfitAndLossReport = previous;
+        syncNotice =
+            'Fetched P&L comparison for ${formatDateOnly(current.fromDate)} to ${formatDateOnly(current.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'P&L comparison fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -1839,6 +1887,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       ReportsPage(
         trialBalance: cachedTrialBalanceReport,
         profitAndLoss: cachedProfitAndLossReport,
+        priorProfitAndLoss: priorProfitAndLossReport,
         balanceSheet: cachedBalanceSheetReport,
         cashFlow: cachedCashFlowReport,
         arAging: cachedARAgingReport,
@@ -1852,6 +1901,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         lastExportDirectory: lastReportExportDirectory,
         onFetchTrialBalance: fetchTrialBalance,
         onFetchProfitAndLoss: fetchProfitAndLoss,
+        onFetchProfitAndLossComparison: fetchProfitAndLossComparison,
         onFetchBalanceSheet: fetchBalanceSheet,
         onFetchCashFlow: fetchCashFlow,
         onFetchARAging: fetchARAging,
@@ -3212,6 +3262,7 @@ class ReportsPage extends StatelessWidget {
   const ReportsPage({
     required this.trialBalance,
     required this.profitAndLoss,
+    required this.priorProfitAndLoss,
     required this.balanceSheet,
     required this.cashFlow,
     required this.arAging,
@@ -3223,6 +3274,7 @@ class ReportsPage extends StatelessWidget {
     required this.isLoading,
     required this.onFetchTrialBalance,
     required this.onFetchProfitAndLoss,
+    required this.onFetchProfitAndLossComparison,
     required this.onFetchBalanceSheet,
     required this.onFetchCashFlow,
     required this.onFetchARAging,
@@ -3239,6 +3291,7 @@ class ReportsPage extends StatelessWidget {
 
   final TrialBalanceReport? trialBalance;
   final ProfitAndLossReport? profitAndLoss;
+  final ProfitAndLossReport? priorProfitAndLoss;
   final BalanceSheetReport? balanceSheet;
   final CashFlowReport? cashFlow;
   final ARAgingReport? arAging;
@@ -3252,6 +3305,8 @@ class ReportsPage extends StatelessWidget {
   final String? lastExportDirectory;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
   final Future<void> Function(DateTime from, DateTime to) onFetchProfitAndLoss;
+  final Future<void> Function(DateTime from, DateTime to)
+  onFetchProfitAndLossComparison;
   final Future<void> Function(DateTime asOf) onFetchBalanceSheet;
   final Future<void> Function(DateTime from, DateTime to) onFetchCashFlow;
   final Future<void> Function(DateTime asOf) onFetchARAging;
@@ -3342,6 +3397,21 @@ class ReportsPage extends StatelessWidget {
                 'Net income ${formatMinorAsInr(profitAndLoss!.netIncomeMinor)}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchProfitAndLossComparison(fiscalStart, asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch P&L comparison'),
+              ),
+              if (priorProfitAndLoss != null) ...[
+                const SizedBox(height: 8),
+                _ProfitAndLossComparison(
+                  current: profitAndLoss!,
+                  previous: priorProfitAndLoss!,
+                ),
+              ],
               const SizedBox(height: 8),
               const Text('Income'),
               _ReportRows(rows: profitAndLoss!.incomeRows),
@@ -3613,6 +3683,34 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
+class _ProfitAndLossComparison extends StatelessWidget {
+  const _ProfitAndLossComparison({
+    required this.current,
+    required this.previous,
+  });
+
+  final ProfitAndLossReport current;
+  final ProfitAndLossReport previous;
+
+  @override
+  Widget build(BuildContext context) {
+    final variance = current.netIncomeMinor - previous.netIncomeMinor;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Prior period ${formatDateOnly(previous.fromDate)} to ${formatDateOnly(previous.toDate)}',
+        ),
+        Text('Prior net income ${formatMinorAsInr(previous.netIncomeMinor)}'),
+        Text(
+          'Variance ${formatMinorAsInr(variance)} (${_formatPercentBasis(_percentBasis(variance, previous.netIncomeMinor))})',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
+    );
+  }
+}
+
 class _ReportExportCard extends StatelessWidget {
   const _ReportExportCard({
     required this.exports,
@@ -3695,6 +3793,21 @@ class _ReportExportCard extends StatelessWidget {
       ),
     );
   }
+}
+
+int? _percentBasis(int numerator, int denominator) {
+  if (denominator == 0) {
+    return null;
+  }
+  return ((numerator * 10000) / denominator.abs()).round();
+}
+
+String _formatPercentBasis(int? basis) {
+  if (basis == null) {
+    return 'n/a';
+  }
+  final sign = basis > 0 ? '+' : '';
+  return '$sign${(basis / 100).toStringAsFixed(2)}%';
 }
 
 BudgetSummary? _selectedBudget(List<BudgetSummary> budgets, String? budgetId) {

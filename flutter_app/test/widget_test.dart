@@ -1261,35 +1261,40 @@ void main() {
           totalCreditMinor: 125000,
           balanced: true,
         ),
-        profitAndLossLoader: (_, from, to) async => ProfitAndLossReport(
-          fromDate: from,
-          toDate: to,
-          incomeRows: const [
-            ReportRowSummary(
-              accountId: 'acct-sales',
-              accountCode: '4000',
-              accountName: 'Sales',
-              accountType: 'income',
-              debitMinor: 0,
-              creditMinor: 500000,
-              balanceMinor: -500000,
-            ),
-          ],
-          expenseRows: const [
-            ReportRowSummary(
-              accountId: 'acct-rent',
-              accountCode: '5000',
-              accountName: 'Rent',
-              accountType: 'expense',
-              debitMinor: 150000,
-              creditMinor: 0,
-              balanceMinor: 150000,
-            ),
-          ],
-          totalIncomeMinor: 500000,
-          totalExpenseMinor: 150000,
-          netIncomeMinor: 350000,
-        ),
+        profitAndLossLoader: (_, from, to) async {
+          final isPriorPeriod = from.year < 2026;
+          final incomeMinor = isPriorPeriod ? 400000 : 500000;
+          final expenseMinor = isPriorPeriod ? 150000 : 150000;
+          return ProfitAndLossReport(
+            fromDate: from,
+            toDate: to,
+            incomeRows: [
+              ReportRowSummary(
+                accountId: 'acct-sales',
+                accountCode: '4000',
+                accountName: 'Sales',
+                accountType: 'income',
+                debitMinor: 0,
+                creditMinor: incomeMinor,
+                balanceMinor: -incomeMinor,
+              ),
+            ],
+            expenseRows: [
+              ReportRowSummary(
+                accountId: 'acct-rent',
+                accountCode: '5000',
+                accountName: 'Rent',
+                accountType: 'expense',
+                debitMinor: expenseMinor,
+                creditMinor: 0,
+                balanceMinor: expenseMinor,
+              ),
+            ],
+            totalIncomeMinor: incomeMinor,
+            totalExpenseMinor: expenseMinor,
+            netIncomeMinor: incomeMinor - expenseMinor,
+          );
+        },
         balanceSheetLoader: (_, asOf) async => BalanceSheetReport(
           asOfDate: asOf,
           assetRows: const [
@@ -1468,6 +1473,11 @@ void main() {
     await tester.ensureVisible(find.text('Fetch P&L'));
     await tester.tap(find.text('Fetch P&L'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch P&L comparison'));
+    await tester.tap(find.text('Fetch P&L comparison'));
+    await tester.pumpAndSettle();
+    expect(find.text('Prior net income INR 2500.00'), findsOneWidget);
+    expect(find.text('Variance INR 1000.00 (+40.00%)'), findsOneWidget);
     await tester.ensureVisible(find.text('Fetch balance sheet'));
     await tester.tap(find.text('Fetch balance sheet'));
     await tester.pumpAndSettle();
