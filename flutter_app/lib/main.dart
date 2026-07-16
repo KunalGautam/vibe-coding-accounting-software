@@ -2420,9 +2420,13 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       ),
       InvoicesPage(
         invoices: cachedInvoices,
+        attachments: discoveredAttachments,
+        cachedBinaryAttachmentIds: cachedAttachmentBinaryIds,
         isLoading: isLoadingInvoices,
         notice: syncNotice,
         onFetchInvoices: fetchInvoices,
+        onDownloadAttachment: downloadAttachment,
+        onInspectCachedAttachment: inspectCachedAttachment,
       ),
       InvestmentsPage(
         lots: cachedInvestmentLots,
@@ -3521,16 +3525,26 @@ class TaxPreviewPanel extends StatelessWidget {
 class InvoicesPage extends StatelessWidget {
   const InvoicesPage({
     required this.invoices,
+    required this.attachments,
+    required this.cachedBinaryAttachmentIds,
     required this.isLoading,
     required this.notice,
     required this.onFetchInvoices,
+    required this.onDownloadAttachment,
+    required this.onInspectCachedAttachment,
     super.key,
   });
 
   final List<InvoiceSummary> invoices;
+  final List<AttachmentSummary> attachments;
+  final Set<String> cachedBinaryAttachmentIds;
   final bool isLoading;
   final String? notice;
   final Future<void> Function() onFetchInvoices;
+  final Future<void> Function(AttachmentSummary attachment)
+  onDownloadAttachment;
+  final Future<void> Function(AttachmentSummary attachment)
+  onInspectCachedAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -3545,13 +3559,19 @@ class InvoicesPage extends StatelessWidget {
           actionLabel: isLoading ? 'Refreshing invoices...' : 'Refresh cache',
           onPressed: isLoading ? null : () => onFetchInvoices(),
         ),
-        InvoiceCachePanel(invoices: invoices),
+        InvoiceCachePanel(
+          invoices: invoices,
+          attachments: attachments,
+          cachedBinaryAttachmentIds: cachedBinaryAttachmentIds,
+          onDownloadAttachment: onDownloadAttachment,
+          onInspectCachedAttachment: onInspectCachedAttachment,
+        ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
             'Target API: GET /invoices',
             'Cached locally for read-only offline review',
-            'PDF generation and download/viewing are still pending',
+            'PDF attachment bytes can be downloaded and inspected from the invoice row when attachment metadata is present',
           ],
         ),
       ],
@@ -3560,9 +3580,39 @@ class InvoicesPage extends StatelessWidget {
 }
 
 class InvoiceCachePanel extends StatelessWidget {
-  const InvoiceCachePanel({required this.invoices, super.key});
+  const InvoiceCachePanel({
+    required this.invoices,
+    required this.attachments,
+    required this.cachedBinaryAttachmentIds,
+    required this.onDownloadAttachment,
+    required this.onInspectCachedAttachment,
+    super.key,
+  });
 
   final List<InvoiceSummary> invoices;
+  final List<AttachmentSummary> attachments;
+  final Set<String> cachedBinaryAttachmentIds;
+  final Future<void> Function(AttachmentSummary attachment)
+  onDownloadAttachment;
+  final Future<void> Function(AttachmentSummary attachment)
+  onInspectCachedAttachment;
+
+  AttachmentSummary _invoicePdfAttachment(InvoiceSummary invoice) {
+    final pdfAttachmentId = invoice.pdfAttachmentId;
+    for (final attachment in attachments) {
+      if (attachment.id == pdfAttachmentId) {
+        return attachment;
+      }
+    }
+    return AttachmentSummary(
+      id: pdfAttachmentId ?? '',
+      fileName: '${invoice.invoiceNumber}.pdf',
+      contentType: 'application/pdf',
+      storageDriver: 'local',
+      storageKey: 'invoice-pdf/${invoice.id}',
+      sizeBytes: 0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3609,10 +3659,42 @@ class InvoiceCachePanel extends StatelessWidget {
                           Text(
                             'Tax: ${formatMinorAsInr(invoice.taxTotalMinor)}',
                           ),
-                          if (invoice.pdfAttachmentId != null)
+                          if (invoice.pdfAttachmentId != null) ...[
+                            const SizedBox(height: 8),
                             SelectableText(
                               'PDF attachment: ${invoice.pdfAttachmentId}',
                             ),
+                            Text(
+                              cachedBinaryAttachmentIds.contains(
+                                    invoice.pdfAttachmentId,
+                                  )
+                                  ? 'Invoice PDF: available offline'
+                                  : 'Invoice PDF: not downloaded',
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () => onDownloadAttachment(
+                                    _invoicePdfAttachment(invoice),
+                                  ),
+                                  icon: const Icon(Icons.picture_as_pdf),
+                                  label: const Text('Download PDF'),
+                                ),
+                                if (cachedBinaryAttachmentIds.contains(
+                                  invoice.pdfAttachmentId,
+                                ))
+                                  TextButton.icon(
+                                    onPressed: () => onInspectCachedAttachment(
+                                      _invoicePdfAttachment(invoice),
+                                    ),
+                                    icon: const Icon(Icons.visibility),
+                                    label: const Text('Inspect PDF'),
+                                  ),
+                              ],
+                            ),
+                          ],
                           if (invoice.lines.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(

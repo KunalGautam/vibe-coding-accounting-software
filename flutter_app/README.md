@@ -55,6 +55,7 @@ flutter test
 - Expense capture entry point for receipt and reimbursable workflows.
 - Invoice cache refresh for offline AR snapshots with line-level GST/VAT tax context visible while offline.
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
+- Invoice PDF attachment download and cached-byte inspection directly from cached invoice rows.
 - Reports page with Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual API refresh, prior-period comparison for statements/aging/tax reports, selected-vs-previous budget comparison, plus SQLite-backed offline report snapshot review and local app-storage/Downloads/share-sheet CSV exports.
 - Investment cache refresh for offline lots, realized gains, market prices, and valuation snapshots.
 - Typed investment transport for lot creation, dividend capture, corporate actions, average-cost pooled sales, price maintenance, broker holdings price imports, realized gains, and valuation reports.
@@ -68,4 +69,4 @@ flutter test
 - Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.
 - Sync settings placeholder for API base URL and organization selection.
 
-The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and invoice PDF generation/detail views are still pending.
+The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and richer invoice detail/edit views are still pending.

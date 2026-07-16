@@ -1157,6 +1157,7 @@ void main() {
     expect(find.text('Subtotal: INR 1000.00'), findsOneWidget);
     expect(find.text('Tax: INR 180.00'), findsOneWidget);
     expect(find.text('PDF attachment: pdf-1'), findsOneWidget);
+    expect(find.text('Invoice PDF: not downloaded'), findsOneWidget);
     expect(find.text('Line items'), findsOneWidget);
     expect(find.text('Implementation'), findsOneWidget);
     expect(find.text('Line subtotal: INR 1000.00'), findsOneWidget);
@@ -1219,8 +1220,138 @@ void main() {
     expect(find.text('Subtotal: INR 2000.00'), findsOneWidget);
     expect(find.text('Tax: INR 360.00'), findsOneWidget);
     expect(find.text('PDF attachment: pdf-2'), findsOneWidget);
+    expect(find.text('Invoice PDF: not downloaded'), findsOneWidget);
     expect(find.text('Annual support'), findsOneWidget);
     expect(find.text('Tax config: gst-rate-18'), findsOneWidget);
+  });
+
+  testWidgets('downloads invoice PDF attachments from invoice rows', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final settingsRepository = MemorySyncSettingsRepository(
+      const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
+    );
+    final invoiceCacheRepository = MemoryInvoiceCacheRepository([
+      const InvoiceSummary(
+        id: 'inv-pdf',
+        invoiceNumber: 'INV-PDF',
+        status: 'sent',
+        subtotalMinor: 100000,
+        taxTotalMinor: 18000,
+        totalMinor: 118000,
+        currency: 'INR',
+        pdfAttachmentId: 'pdf-invoice',
+        lines: [],
+      ),
+    ]);
+    final attachmentCacheRepository = MemoryAttachmentCacheRepository([
+      const AttachmentSummary(
+        id: 'pdf-invoice',
+        fileName: 'INV-PDF.pdf',
+        contentType: 'application/pdf',
+        storageDriver: 'local',
+        storageKey: 'org-1/pdf-invoice/INV-PDF.pdf',
+        sizeBytes: 2048,
+      ),
+    ]);
+    final attachmentBinaryCacheRepository =
+        MemoryAttachmentBinaryCacheRepository();
+
+    await tester.pumpWidget(
+      AccountingApp(
+        settingsRepository: settingsRepository,
+        invoiceCacheRepository: invoiceCacheRepository,
+        attachmentCacheRepository: attachmentCacheRepository,
+        attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
+        attachmentDownloader: (_, attachment) async {
+          expect(attachment.id, 'pdf-invoice');
+          expect(attachment.fileName, 'INV-PDF.pdf');
+          return AttachmentDownload(
+            bytes: Uint8List.fromList('invoice pdf bytes'.codeUnits),
+            contentType: 'application/pdf',
+            fileName: 'INV-PDF.pdf',
+          );
+        },
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Invoices'));
+    await tester.pump();
+    expect(find.text('Invoice PDF: not downloaded'), findsOneWidget);
+
+    await tester.tap(find.text('Download PDF'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Downloaded INV-PDF.pdf (17 bytes).'), findsOneWidget);
+    expect(find.text('Invoice PDF: available offline'), findsOneWidget);
+    final cached = await attachmentBinaryCacheRepository.loadDownloaded(
+      'pdf-invoice',
+    );
+    expect(cached?.bytes.length, 17);
+  });
+
+  testWidgets('inspects cached invoice PDF attachments offline', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final invoiceCacheRepository = MemoryInvoiceCacheRepository([
+      const InvoiceSummary(
+        id: 'inv-cached-pdf',
+        invoiceNumber: 'INV-CACHED',
+        status: 'paid',
+        subtotalMinor: 100000,
+        taxTotalMinor: 18000,
+        totalMinor: 118000,
+        currency: 'INR',
+        pdfAttachmentId: 'pdf-cached',
+        lines: [],
+      ),
+    ]);
+    final attachmentCacheRepository = MemoryAttachmentCacheRepository([
+      const AttachmentSummary(
+        id: 'pdf-cached',
+        fileName: 'INV-CACHED.pdf',
+        contentType: 'application/pdf',
+        storageDriver: 'local',
+        storageKey: 'org-1/pdf-cached/INV-CACHED.pdf',
+        sizeBytes: 1024,
+      ),
+    ]);
+    final attachmentBinaryCacheRepository =
+        MemoryAttachmentBinaryCacheRepository();
+    await attachmentBinaryCacheRepository.saveDownloaded(
+      'pdf-cached',
+      AttachmentDownload(
+        bytes: Uint8List.fromList('cached invoice pdf'.codeUnits),
+        contentType: 'application/pdf',
+        fileName: 'INV-CACHED.pdf',
+      ),
+    );
+
+    await tester.pumpWidget(
+      AccountingApp(
+        invoiceCacheRepository: invoiceCacheRepository,
+        attachmentCacheRepository: attachmentCacheRepository,
+        attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Invoices'));
+    await tester.pump();
+
+    expect(find.text('Invoice PDF: available offline'), findsOneWidget);
+    expect(find.text('Inspect PDF'), findsOneWidget);
+
+    await tester.tap(find.text('Inspect PDF'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Cached INV-CACHED.pdf: application/pdf, 18 bytes.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('fetches and caches core financial reports', (tester) async {
