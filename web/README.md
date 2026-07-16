@@ -27,7 +27,7 @@ The app stores API connection settings in local storage:
 
 - Dashboard metrics and offline readiness panel for cached data, queued work, and one-click sync-all.
 - First-admin bootstrap, login, current-user profile/name updates, self-service password change with session revocation, password reset request/confirm with reset-link token detection and password guidance, token refresh/session revocation, organization create/list/select, MFA recovery-code copy/download, organization-user onboarding with role guidance, temporary-password copy/download, role edits, and activate/deactivate controls, and manual token override.
-- Node built-in tests cover account-security helpers used by the account settings and onboarding UI.
+- Node built-in tests cover account-security helpers and bank import/reconciliation CSV parsing, summary, and match-suggestion helpers.
 - Chart of accounts list/create.
 - Manual journal transaction posting plus account register loading with cached running-balance review.
 - Customer master-data create/list plus single-line draft invoice/estimate create/review/posting and cached invoice/estimate detail review with last-known AR data.
@@ -36,7 +36,7 @@ The app stores API connection settings in local storage:
 - Documents page for attachment metadata creation, local file upload, download links, and cached attachment catalog review.
 - Budgets page for account-period budget creation, saved budget review, and shared report-runner budget cache.
 - Investments page supports generic CSV, AMFI NAV, NSE equity CSV, BSE equity CSV, and Alpha Vantage CSV price imports.
-- Bank reconciliation page for structured statement-line import, QIF/OFX paste import, cached line review, and explicit ledger split matching.
+- Bank reconciliation page for structured statement-line import, browser CSV mapping, QIF/OFX paste import, cached line review, conservative match suggestions, and explicit ledger split matching.
 - Admin operations page for exchange-rate maintenance, fiscal year close, organization users with temporary-password generation/invite delivery status, and audit log review.
 - Payroll employee master-data create/list plus single-employee run create/review/posting with cached last-known payroll data.
 - Core financial statement runners for trial balance, profit and loss, balance sheet, cash flow, and AR/AP aging.
