@@ -7630,11 +7630,53 @@ function AdminPage({
   const canCloseYear = Boolean(closeForm.fiscal_year_start && closeForm.fiscal_year_end && closeForm.retained_earnings_account_id);
   const canPostRevaluation = Boolean(revaluationForm.as_of_date && revaluationForm.gain_loss_account_id && revaluationPreview && revaluationPreview.rows.length > 0);
   const canCreateUser = Boolean(userForm.name.trim() && userForm.email.trim() && userForm.password.length >= 12 && userForm.role);
+  const activeOrganizationUsers = organizationUsers.filter((user) => user.is_active).length;
+  const inviteEmailsSent = organizationUsers.filter((user) => user.invite_email_sent).length;
+  const inviteEmailsFailed = organizationUsers.filter((user) => user.invite_email_error).length;
+  const userPasswordChecks = [
+    { label: "At least 12 characters", ok: userForm.password.length >= 12 },
+    { label: "Generated or manually entered", ok: Boolean(userForm.password) },
+    { label: "Ready to share securely", ok: Boolean(userForm.password && userForm.email.trim()) }
+  ];
 
   function generateUserTemporaryPassword() {
     const password = generateTemporaryPassword();
     setUserForm({ ...userForm, password });
     setAdminNotice("Generated a temporary password locally. Share it securely, or ask the user to use password reset after invitation.");
+  }
+
+  async function copyUserTemporaryPassword() {
+    if (!userForm.password) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(userForm.password);
+      setAdminNotice("Temporary password copied to the clipboard. Clear it after sharing through a secure channel.");
+    } catch {
+      setAdminError("Clipboard copy is unavailable in this browser. Download the temporary password instead.");
+    }
+  }
+
+  function downloadUserTemporaryPassword() {
+    if (!userForm.password) {
+      return;
+    }
+    const filenamePart = safeFilenamePart(userForm.email || userForm.name || "new-user");
+    const blob = new Blob([
+      [
+        "AbhashTech Accounting Temporary Password",
+        `Generated: ${new Date().toISOString()}`,
+        `User: ${userForm.name || "-"}`,
+        `Email: ${userForm.email || "-"}`,
+        `Role: ${roleLabel(userForm.role)}`,
+        "",
+        userForm.password,
+        "",
+        "Share this through a secure channel. Ask the user to reset their password after first login."
+      ].join("\n")
+    ], { type: "text/plain;charset=utf-8" });
+    downloadBlob(`temporary-password-${filenamePart}.txt`, blob);
+    setAdminNotice("Temporary password downloaded. Remove the file from shared devices after onboarding.");
   }
 
   async function loadAdminData() {
@@ -7875,6 +7917,12 @@ function AdminPage({
         <div className="full-span">
           <p className="eyebrow">User onboarding</p>
           <p>Invitation email delivery depends on SMTP settings. A temporary password is still required; users can also recover access through the password reset flow.</p>
+          <div className="security-checklist">
+            <span className="check-good">Users · {organizationUsers.length}</span>
+            <span className="check-good">Active · {activeOrganizationUsers}</span>
+            <span className={inviteEmailsFailed > 0 ? "check-warn" : "check-good"}>Invites sent · {inviteEmailsSent}</span>
+            <span className={inviteEmailsFailed > 0 ? "check-warn" : "check-good"}>Invite failures · {inviteEmailsFailed}</span>
+          </div>
         </div>
         <input placeholder="Name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} />
         <input placeholder="Email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} />
@@ -7886,12 +7934,31 @@ function AdminPage({
           </select>
         </label>
         <button className="secondary" type="button" onClick={generateUserTemporaryPassword}>Generate temporary password</button>
+        <button className="secondary" type="button" disabled={!userForm.password} onClick={() => void copyUserTemporaryPassword()}>Copy password</button>
+        <button className="secondary" type="button" disabled={!userForm.password} onClick={downloadUserTemporaryPassword}>Download password</button>
         <button disabled={!canCreateUser || loading === "create-user"}>{loading === "create-user" ? "Creating..." : "Create user"}</button>
+        <div className="full-span">
+          <div className="security-checklist">
+            {userPasswordChecks.map((check) => (
+              <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
+                {check.ok ? "OK" : "Need"} · {check.label}
+              </span>
+            ))}
+          </div>
+          <p><strong>{roleLabel(userForm.role)}:</strong> {roleDescription(userForm.role)}</p>
+        </div>
       </form>
 
       <DataTable
-        headers={["Name", "Email", "Role", "Active", "Invite email"]}
-        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No", user.invite_email_sent ? "Sent" : user.invite_email_error ? `Failed: ${user.invite_email_error}` : "-"])}
+        headers={["Name", "Email", "Role", "Access", "Invite email", "Onboarding note"]}
+        rows={organizationUsers.map((user) => [
+          user.name,
+          user.email,
+          roleLabel(user.role),
+          user.is_active ? "Active" : "Inactive",
+          user.invite_email_sent ? "Sent" : user.invite_email_error ? `Failed: ${user.invite_email_error}` : "Not sent",
+          user.invite_email_error ? "Check SMTP settings and share password-reset fallback." : roleDescription(user.role)
+        ])}
       />
 
       <section className="panel queue-panel">
@@ -8594,6 +8661,24 @@ function roleLabel(role: Role) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function roleDescription(role: Role) {
+  switch (role) {
+    case "admin":
+      return "Full organization administration, users, settings, and all accounting workflows.";
+    case "accountant":
+      return "Financial operations, reports, tax, reconciliation, and period-end work without user administration.";
+    case "bookkeeper":
+      return "Daily accounts, ledger, invoices, expenses, bills, and reconciliation entry workflows.";
+    case "payroll_manager":
+      return "Payroll employee records, payroll runs, payslips, and payroll reports.";
+    case "employee_self_service":
+      return "Employee-facing self-service workflows when enabled.";
+    case "viewer":
+    default:
+      return "Read-only review of organization accounting data.";
+  }
 }
 
 function toExchangeRateInput(form: CreateExchangeRateInput): CreateExchangeRateInput {
