@@ -33,7 +33,7 @@ Major backend modules are implemented and tested for:
 - Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, account drilldown with source-document references, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
 - Bank imports: structured lines, browser CSV mapper, QIF, OFX, duplicate candidate detection, conservative matching-rule suggestions, reconciliation summaries, matching, reconciliation.
 - Budgeting, fiscal close, exchange rates, unrealized FX revaluation.
-- Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
+- Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
 - Attachment metadata, local binary upload/download, organization JSON export, local backup snapshots.
 - Swagger UI and OpenAPI/Postman validation in CI.
 
@@ -95,7 +95,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `148` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `149` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.
@@ -119,7 +119,7 @@ Current API coverage: `148` OpenAPI route/method pairs, matched to Gin handlers 
 - Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are in `ops/` and wired through the optional Compose `monitoring` profile.
 
 ## Highest-Value Remaining Work
-1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
+1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, and Yahoo Finance CSV.
 2. Production readiness: deeper operational monitoring runbooks and managed-cloud deployment notes.
 3. Security hardening polish: broader auth UX and account recovery flows.
 4. Email/account flows: richer onboarding and account-management polish.

@@ -676,6 +676,70 @@ func (s InvestmentService) ImportYahooFinanceCSV(ctx context.Context, input Impo
 	return result, nil
 }
 
+func (s InvestmentService) ImportBSEEquityCSV(ctx context.Context, input ImportInvestmentPricesInput) (InvestmentPriceImportResult, error) {
+	if strings.TrimSpace(input.CSV) == "" {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+	source := strings.TrimSpace(input.Source)
+	if source == "" {
+		source = "bse_equity_csv"
+	}
+
+	reader := csv.NewReader(strings.NewReader(input.CSV))
+	reader.TrimLeadingSpace = true
+	reader.FieldsPerRecord = -1
+	header, err := reader.Read()
+	if err != nil {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+	columns := nseEquityColumnMap(header)
+	symbolIndex, okSymbol := firstColumn(columns, "SC_CODE", "SCRIP_CODE", "SECURITY_CODE", "CODE", "SYMBOL", "TICKER")
+	dateIndex, okDate := firstColumn(columns, "TRADING_DATE", "TRADE_DATE", "TRADDT", "DATE", "PRICE_DATE")
+	priceIndex, okPrice := firstColumn(columns, "CLOSE", "CLOSE_PRICE", "CLOSEPRICE", "CLS_PR", "CLSPRIC")
+	seriesIndex, hasSeries := firstColumn(columns, "SERIES", "SC_GROUP", "GROUP")
+	if !okSymbol || !okDate || !okPrice {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+
+	result := InvestmentPriceImportResult{Errors: []string{}, Prices: []domain.InvestmentPrice{}}
+	rowNumber := 1
+	for {
+		record, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		rowNumber++
+		if err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		if isBlankCSVRecord(record) {
+			continue
+		}
+		if hasSeries && shouldSkipBSESeries(csvValue(record, seriesIndex)) {
+			continue
+		}
+		price, err := parseBSEEquityPriceRecord(input.OrganizationID, record, symbolIndex, dateIndex, priceIndex, source)
+		if err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		if err := s.upsertPrice(ctx, price); err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		result.Imported++
+		result.Prices = append(result.Prices, price)
+	}
+	if result.Imported == 0 && result.Skipped == 0 {
+		return result, ErrInvestmentPriceImportInvalid
+	}
+	return result, nil
+}
+
 func (s InvestmentService) ListLots(ctx context.Context, organizationID string) ([]domain.InvestmentLot, error) {
 	var lots []domain.InvestmentLot
 	err := s.db.WithContext(ctx).
@@ -1334,6 +1398,42 @@ func parseYahooFinancePriceRecord(organizationID string, record []string, symbol
 		Currency:       "INR",
 		Source:         source,
 	}, nil
+}
+
+func parseBSEEquityPriceRecord(organizationID string, record []string, symbolIndex int, dateIndex int, priceIndex int, source string) (domain.InvestmentPrice, error) {
+	symbol := strings.ToUpper(strings.TrimSpace(csvValue(record, symbolIndex)))
+	if symbol == "" {
+		return domain.InvestmentPrice{}, errors.New("missing symbol")
+	}
+	priceDate, err := parseNSEMarketDate(csvValue(record, dateIndex))
+	if err != nil {
+		return domain.InvestmentPrice{}, err
+	}
+	priceMinor, err := parseDecimalMinor(csvValue(record, priceIndex))
+	if err != nil || priceMinor <= 0 {
+		return domain.InvestmentPrice{}, errors.New("invalid close price")
+	}
+	return domain.InvestmentPrice{
+		OrganizationID: organizationID,
+		Symbol:         symbol,
+		PriceDate:      priceDate,
+		PriceMinor:     priceMinor,
+		Currency:       "INR",
+		Source:         source,
+	}, nil
+}
+
+func shouldSkipBSESeries(value string) bool {
+	series := strings.ToUpper(strings.TrimSpace(value))
+	if series == "" {
+		return false
+	}
+	switch series {
+	case "A", "B", "E", "F", "IF", "M", "MS", "MT", "P", "R", "T", "X", "XT", "Z":
+		return false
+	default:
+		return true
+	}
 }
 
 func nseEquityColumnMap(header []string) map[string]int {

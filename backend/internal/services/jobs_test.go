@@ -233,6 +233,43 @@ func TestJobServiceImportScheduledMarketDataSupportsYahooFinanceCSV(t *testing.T
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsBSEEquityCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+
+	org := domain.Organization{Name: "Acme BSE", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	feedPath := filepath.Join(t.TempDir(), "bse.csv")
+	feed := "SC_CODE,SC_GROUP,TRADING_DATE,CLOSE\n" +
+		"500325,A,31-Jul-2026,1410.55\n" +
+		"500325,Q,31-Jul-2026,1399.00\n"
+	if err := os.WriteFile(feedPath, []byte(feed), 0o600); err != nil {
+		t.Fatalf("write feed: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		Path:           feedPath,
+		Format:         "bse_equity_csv",
+		Source:         "bse_bhavcopy",
+		OrganizationID: org.ID,
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.OrganizationsProcessed != 1 || result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected import result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "500325").First(&price).Error; err != nil {
+		t.Fatalf("load BSE price: %v", err)
+	}
+	if price.PriceMinor != 141055 || price.Source != "bse_bhavcopy" {
+		t.Fatalf("unexpected BSE price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

@@ -2507,6 +2507,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/bse:
+    post:
+      tags: [Investments]
+      summary: Import BSE equity price CSV
+      description: Parses BSE-style equity CSV rows with scrip code/symbol, trade date, and close price columns. Supported column aliases include `SC_CODE`, `SCRIP_CODE`, `TRADING_DATE`, `DATE`, `CLOSE`, and `CLOSE_PRICE`.
+      operationId: importBSEEquityPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported BSE equity prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/prices/import/yahoo:
     post:
       tags: [Investments]

@@ -584,6 +584,23 @@
           }
         },
         {
+          "name": "Import BSE Equity Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/bse",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"bse_bhavcopy\",\n  \"csv\": \"SC_CODE,SC_GROUP,TRADING_DATE,CLOSE\\n500325,A,31-Jul-2026,1410.55\"\n}"
+            }
+          }
+        },
+        {
           "name": "List Investment Dividends",
           "request": {
             "method": "GET",

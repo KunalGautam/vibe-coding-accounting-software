@@ -264,6 +264,27 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Yahoo price: %+v", yahooPrice)
 	}
 
+	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		Source:         "bse_bhavcopy",
+		CSV: "SC_CODE,SC_GROUP,TRADING_DATE,CLOSE\n" +
+			"500325,A,31-Jul-2026,1410.55\n" +
+			"500325,Q,31-Jul-2026,1399.00\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportBSEEquityCSV() error = %v", err)
+	}
+	if bseResult.Imported != 1 || bseResult.Skipped != 0 {
+		t.Fatalf("unexpected BSE import result: %+v", bseResult)
+	}
+	var bsePrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "500325", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&bsePrice).Error; err != nil {
+		t.Fatalf("load BSE price: %v", err)
+	}
+	if bsePrice.PriceMinor != 141055 || bsePrice.Source != "bse_bhavcopy" {
+		t.Fatalf("unexpected BSE price: %+v", bsePrice)
+	}
+
 	taxLots, err := service.TaxLotReport(ctx, org.ID, time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("TaxLotReport() error = %v", err)

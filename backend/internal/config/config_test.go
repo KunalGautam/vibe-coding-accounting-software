@@ -144,6 +144,11 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for NSE equity CSV", err)
 	}
 
+	cfg.MarketDataImportFormat = "bse_equity_csv"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil for BSE equity CSV", err)
+	}
+
 	cfg.MarketDataImportFormat = "yahoo_finance_csv"
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for Yahoo Finance CSV", err)
