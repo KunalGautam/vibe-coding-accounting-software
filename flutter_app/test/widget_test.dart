@@ -1330,27 +1330,34 @@ void main() {
             balanced: true,
           );
         },
-        cashFlowLoader: (_, from, to) async => CashFlowReport(
-          fromDate: from,
-          toDate: to,
-          rows: const [
-            CashFlowRow(
-              accountId: 'acct-bank',
-              accountCode: '1010',
-              accountName: 'Bank',
-              sourceModule: 'invoice',
-              inflowMinor: 500000,
-              outflowMinor: 150000,
-              netCashFlowMinor: 350000,
-            ),
-          ],
-          totalInflowsMinor: 500000,
-          totalOutflowsMinor: 150000,
-          netCashFlowMinor: 350000,
-          openingCashMinor: 250000,
-          closingCashMinor: 600000,
-          generatedFromSubtypes: const ['bank', 'cash'],
-        ),
+        cashFlowLoader: (_, from, to) async {
+          final isPriorPeriod = from.year < 2026;
+          final inflowMinor = isPriorPeriod ? 450000 : 500000;
+          final outflowMinor = isPriorPeriod ? 150000 : 150000;
+          final netMinor = inflowMinor - outflowMinor;
+          final openingMinor = isPriorPeriod ? 200000 : 250000;
+          return CashFlowReport(
+            fromDate: from,
+            toDate: to,
+            rows: [
+              CashFlowRow(
+                accountId: 'acct-bank',
+                accountCode: '1010',
+                accountName: 'Bank',
+                sourceModule: 'invoice',
+                inflowMinor: inflowMinor,
+                outflowMinor: outflowMinor,
+                netCashFlowMinor: netMinor,
+              ),
+            ],
+            totalInflowsMinor: inflowMinor,
+            totalOutflowsMinor: outflowMinor,
+            netCashFlowMinor: netMinor,
+            openingCashMinor: openingMinor,
+            closingCashMinor: openingMinor + netMinor,
+            generatedFromSubtypes: const ['bank', 'cash'],
+          );
+        },
         arAgingLoader: (_, asOf) async => ARAgingReport(
           asOfDate: asOf,
           rows: [
@@ -1500,6 +1507,17 @@ void main() {
     await tester.ensureVisible(find.text('Fetch cash flow'));
     await tester.tap(find.text('Fetch cash flow'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch cash flow comparison'));
+    await tester.tap(find.text('Fetch cash flow comparison'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Inflows prior INR 4500.00 · Var INR 500.00 (+11.11%)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Net cash flow prior INR 3000.00 · Var INR 500.00 (+16.67%)'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Fetch AR aging'));
     await tester.tap(find.text('Fetch AR aging'));
     await tester.pumpAndSettle();
