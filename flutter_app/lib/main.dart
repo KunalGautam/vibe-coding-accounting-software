@@ -422,9 +422,12 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   APAgingReport? cachedAPAgingReport;
   APAgingReport? priorAPAgingReport;
   TaxLiabilityReport? cachedTaxLiabilityReport;
+  TaxLiabilityReport? priorTaxLiabilityReport;
   TaxSummaryReport? cachedTaxSummaryReport;
+  TaxSummaryReport? priorTaxSummaryReport;
   List<BudgetSummary> cachedBudgets = const [];
   BudgetVsActualReport? cachedBudgetVsActualReport;
+  BudgetVsActualReport? priorBudgetVsActualReport;
   String? lastReportExportDirectory;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
@@ -1428,6 +1431,104 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> fetchTaxLiabilityComparison(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.taxLiabilityReportLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getTaxLiability(from: from, to: to);
+      final current = await loader(settings, from, to);
+      final previous = await loader(
+        settings,
+        DateTime.utc(from.year - 1, from.month, from.day),
+        DateTime.utc(to.year - 1, to.month, to.day),
+      );
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(taxLiability: current),
+      );
+      setState(() {
+        cachedTaxLiabilityReport = current;
+        priorTaxLiabilityReport = previous;
+        syncNotice =
+            'Fetched tax liability comparison from ${formatDateOnly(current.fromDate)} to ${formatDateOnly(current.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Tax liability comparison fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchTaxSummaryComparison(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.taxSummaryReportLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getTaxSummary(from: from, to: to);
+      final current = await loader(settings, from, to);
+      final previous = await loader(
+        settings,
+        DateTime.utc(from.year - 1, from.month, from.day),
+        DateTime.utc(to.year - 1, to.month, to.day),
+      );
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(taxSummary: current),
+      );
+      setState(() {
+        cachedTaxSummaryReport = current;
+        priorTaxSummaryReport = previous;
+        syncNotice =
+            'Fetched tax summary comparison from ${formatDateOnly(current.fromDate)} to ${formatDateOnly(current.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Tax summary comparison fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchBudgets() async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1501,6 +1602,53 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'Budget vs actual fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchBudgetVsActualComparison(
+    String budgetId,
+    String previousBudgetId,
+  ) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.budgetVsActualLoader ??
+          (settings, budgetId) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getBudgetVsActual(budgetId: budgetId);
+      final current = await loader(settings, budgetId);
+      final previous = await loader(settings, previousBudgetId);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(budgetVsActual: current),
+      );
+      setState(() {
+        cachedBudgetVsActualReport = current;
+        priorBudgetVsActualReport = previous;
+        syncNotice = 'Fetched budget comparison.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Budget comparison fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -2137,9 +2285,12 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         apAging: cachedAPAgingReport,
         priorAPAging: priorAPAgingReport,
         taxLiability: cachedTaxLiabilityReport,
+        priorTaxLiability: priorTaxLiabilityReport,
         taxSummary: cachedTaxSummaryReport,
+        priorTaxSummary: priorTaxSummaryReport,
         budgets: cachedBudgets,
         budgetVsActual: cachedBudgetVsActualReport,
+        priorBudgetVsActual: priorBudgetVsActualReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
         lastExportDirectory: lastReportExportDirectory,
@@ -2155,9 +2306,12 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchAPAging: fetchAPAging,
         onFetchAPAgingComparison: fetchAPAgingComparison,
         onFetchTaxLiability: fetchTaxLiabilityReport,
+        onFetchTaxLiabilityComparison: fetchTaxLiabilityComparison,
         onFetchTaxSummary: fetchTaxSummaryReport,
+        onFetchTaxSummaryComparison: fetchTaxSummaryComparison,
         onFetchBudgets: fetchBudgets,
         onFetchBudgetVsActual: fetchBudgetVsActual,
+        onFetchBudgetVsActualComparison: fetchBudgetVsActualComparison,
         onSaveCsvExports: saveReportCsvExports,
         onShareCsvExports: shareReportCsvExports,
       ),
@@ -3521,9 +3675,12 @@ class ReportsPage extends StatelessWidget {
     required this.apAging,
     required this.priorAPAging,
     required this.taxLiability,
+    required this.priorTaxLiability,
     required this.taxSummary,
+    required this.priorTaxSummary,
     required this.budgets,
     required this.budgetVsActual,
+    required this.priorBudgetVsActual,
     required this.isLoading,
     required this.onFetchTrialBalance,
     required this.onFetchProfitAndLoss,
@@ -3537,9 +3694,12 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchAPAging,
     required this.onFetchAPAgingComparison,
     required this.onFetchTaxLiability,
+    required this.onFetchTaxLiabilityComparison,
     required this.onFetchTaxSummary,
+    required this.onFetchTaxSummaryComparison,
     required this.onFetchBudgets,
     required this.onFetchBudgetVsActual,
+    required this.onFetchBudgetVsActualComparison,
     required this.onSaveCsvExports,
     required this.onShareCsvExports,
     this.notice,
@@ -3559,9 +3719,12 @@ class ReportsPage extends StatelessWidget {
   final APAgingReport? apAging;
   final APAgingReport? priorAPAging;
   final TaxLiabilityReport? taxLiability;
+  final TaxLiabilityReport? priorTaxLiability;
   final TaxSummaryReport? taxSummary;
+  final TaxSummaryReport? priorTaxSummary;
   final List<BudgetSummary> budgets;
   final BudgetVsActualReport? budgetVsActual;
+  final BudgetVsActualReport? priorBudgetVsActual;
   final bool isLoading;
   final String? notice;
   final String? lastExportDirectory;
@@ -3579,9 +3742,15 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime asOf) onFetchAPAging;
   final Future<void> Function(DateTime asOf) onFetchAPAgingComparison;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxLiability;
+  final Future<void> Function(DateTime from, DateTime to)
+  onFetchTaxLiabilityComparison;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
+  final Future<void> Function(DateTime from, DateTime to)
+  onFetchTaxSummaryComparison;
   final Future<void> Function() onFetchBudgets;
   final Future<void> Function(String budgetId) onFetchBudgetVsActual;
+  final Future<void> Function(String budgetId, String previousBudgetId)
+  onFetchBudgetVsActualComparison;
   final Future<void> Function(List<ReportCsvExport> exports, {bool toDownloads})
   onSaveCsvExports;
   final Future<void> Function(List<ReportCsvExport> exports) onShareCsvExports;
@@ -3593,6 +3762,7 @@ class ReportsPage extends StatelessWidget {
         ? DateTime.utc(asOf.year, 4)
         : DateTime.utc(asOf.year - 1, 4);
     final selectedBudget = _selectedBudget(budgets, budgetVsActual?.budgetId);
+    final comparisonBudget = _comparisonBudget(budgets, selectedBudget);
     final exports = buildReportCsvExports(
       ReportCacheSnapshot(
         trialBalance: trialBalance,
@@ -3884,6 +4054,21 @@ class ReportsPage extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchTaxLiabilityComparison(fiscalStart, asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch tax liability comparison'),
+              ),
+              if (priorTaxLiability != null) ...[
+                const SizedBox(height: 8),
+                _TaxLiabilityComparison(
+                  current: taxLiability!,
+                  previous: priorTaxLiability!,
+                ),
+              ],
+              const SizedBox(height: 8),
               _TaxReportRows(rows: taxLiability!.rows),
             ],
           ],
@@ -3903,6 +4088,21 @@ class ReportsPage extends StatelessWidget {
               Text(
                 '${formatDateOnly(taxSummary!.fromDate)} to ${formatDateOnly(taxSummary!.toDate)}',
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchTaxSummaryComparison(fiscalStart, asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch tax summary comparison'),
+              ),
+              if (priorTaxSummary != null) ...[
+                const SizedBox(height: 8),
+                _TaxSummaryComparison(
+                  current: taxSummary!,
+                  previous: priorTaxSummary!,
+                ),
+              ],
               const SizedBox(height: 8),
               _TaxReportRows(rows: taxSummary!.rows),
             ],
@@ -3934,6 +4134,19 @@ class ReportsPage extends StatelessWidget {
                 icon: const Icon(Icons.compare_arrows_outlined),
                 label: const Text('Fetch budget vs actual'),
               ),
+              if (comparisonBudget != null) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: isLoading
+                      ? null
+                      : () => onFetchBudgetVsActualComparison(
+                          selectedBudget.id,
+                          comparisonBudget.id,
+                        ),
+                  icon: const Icon(Icons.compare_outlined),
+                  label: Text('Compare with ${comparisonBudget.name}'),
+                ),
+              ],
               if (budgetVsActual != null) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -3943,6 +4156,14 @@ class ReportsPage extends StatelessWidget {
                   'Variance ${formatMinorAsInr(budgetVsActual!.totalVarianceMinor)}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
+                if (priorBudgetVsActual != null) ...[
+                  const SizedBox(height: 8),
+                  _BudgetVsActualComparison(
+                    current: budgetVsActual!,
+                    previous: priorBudgetVsActual!,
+                    previousName: comparisonBudget?.name ?? 'previous budget',
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _BudgetVsActualRows(rows: budgetVsActual!.rows),
               ],
@@ -3963,7 +4184,7 @@ class ReportsPage extends StatelessWidget {
             'Target APIs: financial statements, aging, tax liability, and tax summary reports',
             'Latest financial report snapshots are cached locally for offline review',
             'CSV export files can be saved locally from cached reports',
-            'Comparative periods remain the next reporting parity target',
+            'Comparisons are available for statements, aging, tax, and budget-vs-actual snapshots',
           ],
         ),
       ],
@@ -4279,6 +4500,30 @@ BudgetSummary? _selectedBudget(List<BudgetSummary> budgets, String? budgetId) {
   return budgets.first;
 }
 
+BudgetSummary? _comparisonBudget(
+  List<BudgetSummary> budgets,
+  BudgetSummary? selected,
+) {
+  if (selected == null) {
+    return null;
+  }
+  final earlier =
+      budgets
+          .where((budget) => budget.id != selected.id)
+          .where((budget) => !budget.endDate.isAfter(selected.startDate))
+          .toList()
+        ..sort((left, right) => right.endDate.compareTo(left.endDate));
+  if (earlier.isNotEmpty) {
+    return earlier.first;
+  }
+  for (final budget in budgets) {
+    if (budget.id != selected.id) {
+      return budget;
+    }
+  }
+  return null;
+}
+
 class _ReportRows extends StatelessWidget {
   const _ReportRows({required this.rows});
 
@@ -4380,6 +4625,160 @@ class _AgingComparisonLine extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TaxLiabilityComparison extends StatelessWidget {
+  const _TaxLiabilityComparison({
+    required this.current,
+    required this.previous,
+  });
+
+  final TaxLiabilityReport current;
+  final TaxLiabilityReport previous;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Prior tax liability ${formatDateOnly(previous.fromDate)} to ${formatDateOnly(previous.toDate)}',
+        ),
+        _AmountComparisonLine(
+          label: 'Output tax',
+          currentMinor: current.outputTaxMinor,
+          previousMinor: previous.outputTaxMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Input tax',
+          currentMinor: current.inputTaxMinor,
+          previousMinor: previous.inputTaxMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Net payable',
+          currentMinor: current.netPayableMinor,
+          previousMinor: previous.netPayableMinor,
+        ),
+      ],
+    );
+  }
+}
+
+class _TaxSummaryComparison extends StatelessWidget {
+  const _TaxSummaryComparison({required this.current, required this.previous});
+
+  final TaxSummaryReport current;
+  final TaxSummaryReport previous;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentTotals = _taxReportTotals(current.rows);
+    final previousTotals = _taxReportTotals(previous.rows);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Prior tax summary ${formatDateOnly(previous.fromDate)} to ${formatDateOnly(previous.toDate)}',
+        ),
+        _AmountComparisonLine(
+          label: 'Output tax',
+          currentMinor: currentTotals.outputTaxMinor,
+          previousMinor: previousTotals.outputTaxMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Input tax',
+          currentMinor: currentTotals.inputTaxMinor,
+          previousMinor: previousTotals.inputTaxMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Net payable',
+          currentMinor: currentTotals.netPayableMinor,
+          previousMinor: previousTotals.netPayableMinor,
+        ),
+      ],
+    );
+  }
+}
+
+class _BudgetVsActualComparison extends StatelessWidget {
+  const _BudgetVsActualComparison({
+    required this.current,
+    required this.previous,
+    required this.previousName,
+  });
+
+  final BudgetVsActualReport current;
+  final BudgetVsActualReport previous;
+  final String previousName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Prior budget: $previousName'),
+        _AmountComparisonLine(
+          label: 'Budget',
+          currentMinor: current.totalBudgetMinor,
+          previousMinor: previous.totalBudgetMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Actual',
+          currentMinor: current.totalActualMinor,
+          previousMinor: previous.totalActualMinor,
+        ),
+        _AmountComparisonLine(
+          label: 'Variance',
+          currentMinor: current.totalVarianceMinor,
+          previousMinor: previous.totalVarianceMinor,
+        ),
+      ],
+    );
+  }
+}
+
+class _AmountComparisonLine extends StatelessWidget {
+  const _AmountComparisonLine({
+    required this.label,
+    required this.currentMinor,
+    required this.previousMinor,
+  });
+
+  final String label;
+  final int currentMinor;
+  final int previousMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final variance = currentMinor - previousMinor;
+    final percent = _formatPercentBasis(_percentBasis(variance, previousMinor));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        '$label prior ${formatMinorAsInr(previousMinor)} · Var ${formatMinorAsInr(variance)} ($percent)',
+      ),
+    );
+  }
+}
+
+class _TaxReportTotals {
+  const _TaxReportTotals({
+    required this.outputTaxMinor,
+    required this.inputTaxMinor,
+    required this.netPayableMinor,
+  });
+
+  final int outputTaxMinor;
+  final int inputTaxMinor;
+  final int netPayableMinor;
+}
+
+_TaxReportTotals _taxReportTotals(List<TaxReportRowSummary> rows) {
+  return _TaxReportTotals(
+    outputTaxMinor: rows.fold(0, (total, row) => total + row.outputTaxMinor),
+    inputTaxMinor: rows.fold(0, (total, row) => total + row.inputTaxMinor),
+    netPayableMinor: rows.fold(0, (total, row) => total + row.netPayableMinor),
+  );
 }
 
 class _BudgetVsActualRows extends StatelessWidget {

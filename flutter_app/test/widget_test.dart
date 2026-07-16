@@ -1417,37 +1417,45 @@ void main() {
             totalOutstandingMinor: outstandingMinor,
           );
         },
-        taxLiabilityReportLoader: (_, from, to) async => TaxLiabilityReport(
-          fromDate: from,
-          toDate: to,
-          outputTaxMinor: 90000,
-          inputTaxMinor: 27000,
-          netPayableMinor: 63000,
-          rows: const [
-            TaxReportRowSummary(
-              taxRateId: 'gst-18',
-              taxGroupId: '',
-              name: 'GST 18%',
-              outputTaxMinor: 90000,
-              inputTaxMinor: 27000,
-              netPayableMinor: 63000,
-            ),
-          ],
-        ),
-        taxSummaryReportLoader: (_, from, to) async => TaxSummaryReport(
-          fromDate: from,
-          toDate: to,
-          rows: const [
-            TaxReportRowSummary(
-              taxRateId: 'gst-18',
-              taxGroupId: 'gst-group-18',
-              name: 'GST 18%',
-              outputTaxMinor: 90000,
-              inputTaxMinor: 27000,
-              netPayableMinor: 63000,
-            ),
-          ],
-        ),
+        taxLiabilityReportLoader: (_, from, to) async {
+          final outputTaxMinor = from.year < 2026 ? 70000 : 90000;
+          final inputTaxMinor = from.year < 2026 ? 20000 : 27000;
+          return TaxLiabilityReport(
+            fromDate: from,
+            toDate: to,
+            outputTaxMinor: outputTaxMinor,
+            inputTaxMinor: inputTaxMinor,
+            netPayableMinor: outputTaxMinor - inputTaxMinor,
+            rows: [
+              TaxReportRowSummary(
+                taxRateId: 'gst-18',
+                taxGroupId: '',
+                name: 'GST 18%',
+                outputTaxMinor: outputTaxMinor,
+                inputTaxMinor: inputTaxMinor,
+                netPayableMinor: outputTaxMinor - inputTaxMinor,
+              ),
+            ],
+          );
+        },
+        taxSummaryReportLoader: (_, from, to) async {
+          final outputTaxMinor = from.year < 2026 ? 70000 : 90000;
+          final inputTaxMinor = from.year < 2026 ? 20000 : 27000;
+          return TaxSummaryReport(
+            fromDate: from,
+            toDate: to,
+            rows: [
+              TaxReportRowSummary(
+                taxRateId: 'gst-18',
+                taxGroupId: 'gst-group-18',
+                name: 'GST 18%',
+                outputTaxMinor: outputTaxMinor,
+                inputTaxMinor: inputTaxMinor,
+                netPayableMinor: outputTaxMinor - inputTaxMinor,
+              ),
+            ],
+          );
+        },
         budgetLoader: (_) async => [
           BudgetSummary(
             id: 'budget-1',
@@ -1466,23 +1474,43 @@ void main() {
               ),
             ],
           ),
+          BudgetSummary(
+            id: 'budget-previous',
+            organizationId: 'org-1',
+            name: 'FY 2025 Operating Budget',
+            startDate: DateTime.utc(2025, 4),
+            endDate: DateTime.utc(2026, 3, 31),
+            status: 'closed',
+            lines: [
+              BudgetLineSummary(
+                id: 'budget-line-previous',
+                accountId: 'acct-rent',
+                periodStart: DateTime.utc(2025, 4),
+                periodEnd: DateTime.utc(2025, 4, 30),
+                amountMinor: 120000,
+              ),
+            ],
+          ),
         ],
-        budgetVsActualLoader: (_, budgetId) async => BudgetVsActualReport(
-          budgetId: budgetId,
-          rows: [
-            BudgetVsActualReportRow(
-              accountId: 'acct-rent',
-              accountCode: '5000',
-              accountName: 'Rent',
-              periodStart: DateTime.utc(2026, 4),
-              periodEnd: DateTime.utc(2026, 4, 30),
-              budgetMinor: 150000,
-              actualMinor: 125000,
-              varianceMinor: 25000,
-              variancePercentBasis: 1667,
-            ),
-          ],
-        ),
+        budgetVsActualLoader: (_, budgetId) async {
+          final isPrevious = budgetId == 'budget-previous';
+          return BudgetVsActualReport(
+            budgetId: budgetId,
+            rows: [
+              BudgetVsActualReportRow(
+                accountId: 'acct-rent',
+                accountCode: '5000',
+                accountName: 'Rent',
+                periodStart: DateTime.utc(isPrevious ? 2025 : 2026, 4),
+                periodEnd: DateTime.utc(isPrevious ? 2025 : 2026, 4, 30),
+                budgetMinor: isPrevious ? 120000 : 150000,
+                actualMinor: isPrevious ? 100000 : 125000,
+                varianceMinor: isPrevious ? 20000 : 25000,
+                variancePercentBasis: isPrevious ? 1667 : 1667,
+              ),
+            ],
+          );
+        },
       ),
     );
     await tester.pump();
@@ -1550,15 +1578,35 @@ void main() {
     await tester.ensureVisible(find.text('Fetch tax liability'));
     await tester.tap(find.text('Fetch tax liability'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch tax liability comparison'));
+    await tester.tap(find.text('Fetch tax liability comparison'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Net payable prior INR 500.00 · Var INR 130.00 (+26.00%)'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Fetch tax summary'));
     await tester.tap(find.text('Fetch tax summary'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch tax summary comparison'));
+    await tester.tap(find.text('Fetch tax summary comparison'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Prior tax summary'), findsOneWidget);
     await tester.ensureVisible(find.text('Fetch budgets'));
     await tester.tap(find.text('Fetch budgets'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Fetch budget vs actual'));
     await tester.tap(find.text('Fetch budget vs actual'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.text('Compare with FY 2025 Operating Budget'),
+    );
+    await tester.tap(find.text('Compare with FY 2025 Operating Budget'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Actual prior INR 1000.00 · Var INR 250.00 (+25.00%)'),
+      findsOneWidget,
+    );
 
     final cached = await reportCacheRepository.loadCached();
     expect(cached.trialBalance?.balanced, true);
@@ -1570,7 +1618,11 @@ void main() {
     expect(cached.apAging?.totalOutstandingMinor, 59000);
     expect(cached.taxLiability?.netPayableMinor, 63000);
     expect(cached.taxSummary?.rows.single.taxGroupId, 'gst-group-18');
-    expect(cached.budgets.single.name, 'FY 2026 Operating Budget');
+    expect(cached.budgets, hasLength(2));
+    expect(
+      cached.budgets.firstWhere((budget) => budget.id == 'budget-1').name,
+      'FY 2026 Operating Budget',
+    );
     expect(cached.budgetVsActual?.totalVarianceMinor, 25000);
     expect(find.text('Net payable INR 630.00'), findsOneWidget);
     expect(
