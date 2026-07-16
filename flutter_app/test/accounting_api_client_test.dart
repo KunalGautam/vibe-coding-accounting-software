@@ -691,6 +691,26 @@ void main() {
             );
           }
 
+          if (request.url.path.endsWith('/investments/dividends')) {
+            expect(request.method, 'POST');
+            final body = jsonDecode(request.body) as Map<String, Object?>;
+            expect(body['account_id'], 'brokerage-1');
+            expect(body['symbol'], 'LIQUIDFUND');
+            expect(body['dividend_date'], '2026-07-31');
+            expect(body['amount_minor'], 12500);
+            expect(body['cash_account_id'], 'bank-1');
+            expect(body['income_account_id'], 'dividend-income-1');
+            return http.Response(
+              jsonEncode({
+                'id': 'dividend-1',
+                ...body,
+                'dividend_date': '2026-07-31T00:00:00Z',
+                'journal_transaction_id': 'journal-dividend-1',
+              }),
+              201,
+            );
+          }
+
           expect(
             request.url.path.endsWith('/investments/average-cost-sales'),
             isTrue,
@@ -735,6 +755,16 @@ void main() {
       final valuation = await client.getInvestmentValuation(
         asOf: DateTime.utc(2026, 7, 31),
       );
+      final dividend = await client.createInvestmentDividend(
+        CreateInvestmentDividendRequest(
+          accountId: 'brokerage-1',
+          symbol: 'LIQUIDFUND',
+          dividendDate: DateTime.utc(2026, 7, 31),
+          amountMinor: 12500,
+          cashAccountId: 'bank-1',
+          incomeAccountId: 'dividend-income-1',
+        ),
+      );
       final sale = await client.sellAverageCost(
         SellAverageCostRequest(
           accountId: 'brokerage-1',
@@ -749,6 +779,8 @@ void main() {
       expect(createdPrice.id, 'price-2');
       expect(valuation.totalUnrealizedGainLossMinor, 150000);
       expect(valuation.rows.single.marketValueMinor, 2400000);
+      expect(dividend.journalTransactionId, 'journal-dividend-1');
+      expect(dividend.amountMinor, 12500);
       expect(sale.journalTransactionId, 'journal-1');
       expect(sale.dispositions.single.realizedGainLossMinor, 150000);
     },

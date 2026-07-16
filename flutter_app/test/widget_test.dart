@@ -21,7 +21,7 @@ import 'package:accounting_app/tax/tax_catalog_cache_repository.dart';
 
 void main() {
   void useTallTestViewport(WidgetTester tester) {
-    tester.view.physicalSize = const Size(1000, 2200);
+    tester.view.physicalSize = const Size(1000, 5200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -1706,11 +1706,7 @@ void main() {
 
     await tester.tap(find.text('Investments'));
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.text('Fetch valuation'),
-      400,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(find.text('Fetch valuation'));
     await tester.tap(find.text('Fetch valuation'));
     await tester.pumpAndSettle();
 
@@ -1764,11 +1760,7 @@ void main() {
       find.bySemanticsLabel('Price source'),
       'mobile-test',
     );
-    await tester.scrollUntilVisible(
-      find.text('Queue investment price'),
-      -200,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.ensureVisible(find.text('Queue investment price'));
     await tester.tap(find.text('Queue investment price'));
     await tester.pumpAndSettle();
 
@@ -1781,6 +1773,62 @@ void main() {
     expect(pending.last.payload['source'], 'mobile-test');
     expect(
       find.textContaining('Investment price queued for sync'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('queues investment dividends from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Queue investment dividend'));
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend account ID'),
+      'acct-invest',
+    );
+    await tester.enterText(find.bySemanticsLabel('Dividend symbol'), 'infy');
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend date'),
+      '2026-07-31',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend amount minor'),
+      '12500',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend cash account ID optional'),
+      'acct-bank',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend income account ID optional'),
+      'acct-dividend-income',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Dividend notes optional'),
+      'Quarterly dividend from Flutter',
+    );
+    await tester.ensureVisible(find.text('Queue investment dividend'));
+    await tester.tap(find.text('Queue investment dividend'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'create_dividend');
+    expect(pending.last.payload['account_id'], 'acct-invest');
+    expect(pending.last.payload['symbol'], 'INFY');
+    expect(pending.last.payload['dividend_date'], '2026-07-31');
+    expect(pending.last.payload['amount_minor'], 12500);
+    expect(pending.last.payload['cash_account_id'], 'acct-bank');
+    expect(pending.last.payload['income_account_id'], 'acct-dividend-income');
+    expect(pending.last.payload['notes'], 'Quarterly dividend from Flutter');
+    expect(
+      find.textContaining('Investment dividend queued for sync'),
       findsOneWidget,
     );
   });
@@ -1822,11 +1870,7 @@ void main() {
         find.bySemanticsLabel('Sale notes optional'),
         'Partial sale from Flutter',
       );
-      await tester.scrollUntilVisible(
-        find.text('Queue average-cost sale'),
-        -200,
-        scrollable: find.byType(Scrollable).last,
-      );
+      await tester.ensureVisible(find.text('Queue average-cost sale'));
       await tester.tap(find.text('Queue average-cost sale'));
       await tester.pumpAndSettle();
 

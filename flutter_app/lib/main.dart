@@ -701,6 +701,30 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvestmentDividend({
+    required String accountId,
+    required String symbol,
+    required DateTime dividendDate,
+    required int amountMinor,
+    required String cashAccountId,
+    required String incomeAccountId,
+    required String notes,
+  }) async {
+    final operation = syncQueue.enqueueInvestmentDividend(
+      accountId: accountId,
+      symbol: symbol,
+      dividendDate: dividendDate,
+      amountMinor: amountMinor,
+      cashAccountId: cashAccountId,
+      incomeAccountId: incomeAccountId,
+      notes: notes,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Investment dividend queued for sync: ${operation.id}';
+    });
+  }
+
   Future<PickedTextFile?> pickBrokerHoldingsCSV() {
     final picker = widget.textFilePicker ?? pickTextFile;
     return picker();
@@ -2337,6 +2361,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchValuation: fetchInvestmentValuation,
         onQueueInvestmentPrice: queueInvestmentPrice,
         onQueueAverageCostSale: queueAverageCostSale,
+        onQueueInvestmentDividend: queueInvestmentDividend,
         onQueueBrokerHoldingsImport: queueBrokerHoldingsImport,
         onPickBrokerHoldingsCSV: pickBrokerHoldingsCSV,
       ),
@@ -3581,6 +3606,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onFetchValuation,
     required this.onQueueInvestmentPrice,
     required this.onQueueAverageCostSale,
+    required this.onQueueInvestmentDividend,
     required this.onQueueBrokerHoldingsImport,
     required this.onPickBrokerHoldingsCSV,
     super.key,
@@ -3612,6 +3638,16 @@ class InvestmentsPage extends StatelessWidget {
     required String notes,
   })
   onQueueAverageCostSale;
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required DateTime dividendDate,
+    required int amountMinor,
+    required String cashAccountId,
+    required String incomeAccountId,
+    required String notes,
+  })
+  onQueueInvestmentDividend;
   final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
   final Future<PickedTextFile?> Function() onPickBrokerHoldingsCSV;
 
@@ -3634,6 +3670,7 @@ class InvestmentsPage extends StatelessWidget {
           onPressed: isLoading ? null : () => onFetchLots(),
         ),
         ManualInvestmentPriceCard(onQueuePrice: onQueueInvestmentPrice),
+        InvestmentDividendCard(onQueueDividend: onQueueInvestmentDividend),
         AverageCostSaleCard(onQueueSale: onQueueAverageCostSale),
         BrokerHoldingsImportCard(
           onQueueImport: onQueueBrokerHoldingsImport,
@@ -3786,7 +3823,7 @@ class InvestmentsPage extends StatelessWidget {
         const InfoList(
           items: [
             'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Manual market prices, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
+            'Manual market prices, dividends, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
             'Create lot and specific-lot sale workflows are currently available in the web app/API',
           ],
         ),
@@ -3950,6 +3987,211 @@ class _ManualInvestmentPriceCardState extends State<ManualInvestmentPriceCard> {
                 isQueueing
                     ? 'Queueing investment price...'
                     : 'Queue investment price',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InvestmentDividendCard extends StatefulWidget {
+  const InvestmentDividendCard({required this.onQueueDividend, super.key});
+
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required DateTime dividendDate,
+    required int amountMinor,
+    required String cashAccountId,
+    required String incomeAccountId,
+    required String notes,
+  })
+  onQueueDividend;
+
+  @override
+  State<InvestmentDividendCard> createState() => _InvestmentDividendCardState();
+}
+
+class _InvestmentDividendCardState extends State<InvestmentDividendCard> {
+  late final TextEditingController accountIdController;
+  late final TextEditingController symbolController;
+  late final TextEditingController dividendDateController;
+  late final TextEditingController amountMinorController;
+  late final TextEditingController cashAccountIdController;
+  late final TextEditingController incomeAccountIdController;
+  late final TextEditingController notesController;
+  bool isQueueing = false;
+  String? validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    accountIdController = TextEditingController(text: 'brokerage-account-id');
+    symbolController = TextEditingController(text: 'NIFTYBEES');
+    dividendDateController = TextEditingController(
+      text: formatDateOnly(DateTime.now()),
+    );
+    amountMinorController = TextEditingController(text: '2500');
+    cashAccountIdController = TextEditingController();
+    incomeAccountIdController = TextEditingController();
+    notesController = TextEditingController(text: 'Offline dividend capture');
+  }
+
+  @override
+  void dispose() {
+    accountIdController.dispose();
+    symbolController.dispose();
+    dividendDateController.dispose();
+    amountMinorController.dispose();
+    cashAccountIdController.dispose();
+    incomeAccountIdController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> queueDividend() async {
+    if (isQueueing) {
+      return;
+    }
+    final accountId = accountIdController.text.trim();
+    final symbol = symbolController.text.trim().toUpperCase();
+    final dividendDate = parseIsoDateOnlyUtc(
+      dividendDateController.text.trim(),
+    );
+    final amountMinor = int.tryParse(amountMinorController.text.trim());
+
+    if (accountId.isEmpty ||
+        symbol.isEmpty ||
+        dividendDate == null ||
+        amountMinor == null) {
+      setState(() {
+        validationError =
+            'Enter account ID, symbol, ISO date, and dividend amount in minor units.';
+      });
+      return;
+    }
+    if (amountMinor <= 0) {
+      setState(() {
+        validationError = 'Dividend amount minor must be greater than zero.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationError = null;
+    });
+    try {
+      await widget.onQueueDividend(
+        accountId: accountId,
+        symbol: symbol,
+        dividendDate: dividendDate,
+        amountMinor: amountMinor,
+        cashAccountId: cashAccountIdController.text.trim(),
+        incomeAccountId: incomeAccountIdController.text.trim(),
+        notes: notesController.text.trim(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Investment dividend',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Capture dividend income while offline. Optional cash and income account IDs let the API post the GL entry when synced.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: accountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Dividend account ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: symbolController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Dividend symbol',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: dividendDateController,
+              decoration: const InputDecoration(
+                labelText: 'Dividend date',
+                hintText: '2026-07-31',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountMinorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Dividend amount minor',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: cashAccountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Dividend cash account ID optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: incomeAccountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Dividend income account ID optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Dividend notes optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                validationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueDividend,
+              icon: const Icon(Icons.payments_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing investment dividend...'
+                    : 'Queue investment dividend',
               ),
             ),
           ],

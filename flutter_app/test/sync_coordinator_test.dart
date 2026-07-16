@@ -1100,6 +1100,66 @@ void main() {
     expect(queue.pendingCount, 0);
   });
 
+  test('syncs queued investment dividends', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'investment-dividend-local-1',
+        module: 'investments',
+        action: 'create_dividend',
+        createdAt: DateTime.utc(2026, 7, 31),
+        payload: const {
+          'account_id': 'acct-invest',
+          'symbol': 'INFY',
+          'currency': 'INR',
+          'dividend_date': '2026-07-31',
+          'amount_minor': 12500,
+          'cash_account_id': 'acct-bank',
+          'income_account_id': 'acct-dividend-income',
+          'notes': 'Quarterly dividend',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/dividends',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-invest');
+        expect(body['symbol'], 'INFY');
+        expect(body['dividend_date'], '2026-07-31');
+        expect(body['amount_minor'], 12500);
+        expect(body['cash_account_id'], 'acct-bank');
+        expect(body['income_account_id'], 'acct-dividend-income');
+        return http.Response(
+          jsonEncode({
+            'id': 'dividend-1',
+            ...body,
+            'dividend_date': '2026-07-31T00:00:00Z',
+            'journal_transaction_id': 'journal-dividend-1',
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(
+      result.failed,
+      isEmpty,
+      reason: result.failed.map((failure) => failure.error).join('\n'),
+    );
+    expect(result.skipped, 0);
+    expect(result.synced, 1);
+    expect(queue.pendingCount, 0);
+  });
+
   test('syncs queued broker holdings price imports', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(

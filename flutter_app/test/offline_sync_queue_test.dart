@@ -379,6 +379,31 @@ void main() {
     expect(operation.payload['notes'], 'Partial sale from mobile');
   });
 
+  test('queues investment dividends for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvestmentDividend(
+      accountId: 'acct-invest',
+      symbol: 'INFY',
+      dividendDate: DateTime.utc(2026, 7, 31),
+      amountMinor: 12500,
+      cashAccountId: 'acct-bank',
+      incomeAccountId: 'acct-dividend-income',
+      notes: 'Quarterly dividend',
+      createdAt: DateTime.utc(2026, 7, 31, 10),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'create_dividend');
+    expect(operation.payload['account_id'], 'acct-invest');
+    expect(operation.payload['symbol'], 'INFY');
+    expect(operation.payload['dividend_date'], '2026-07-31');
+    expect(operation.payload['amount_minor'], 12500);
+    expect(operation.payload['cash_account_id'], 'acct-bank');
+    expect(operation.payload['income_account_id'], 'acct-dividend-income');
+    expect(operation.payload['notes'], 'Quarterly dividend');
+  });
+
   test('queues structured bank statement imports for later replay', () {
     final queue = OfflineSyncQueue();
 

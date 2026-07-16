@@ -354,6 +354,30 @@ class AccountingApiClient {
     );
   }
 
+  Future<List<InvestmentDividendSummary>> listInvestmentDividends() async {
+    final response = await _send('GET', '/investments/dividends');
+    return _decodeList(response, InvestmentDividendSummary.fromJson);
+  }
+
+  Future<InvestmentDividendSummary> createInvestmentDividend(
+    CreateInvestmentDividendRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/dividends',
+      body: request.toJson(),
+    );
+    return InvestmentDividendSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentDividendSummary> syncInvestmentDividend(
+    SyncOperation operation,
+  ) {
+    return createInvestmentDividend(
+      CreateInvestmentDividendRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<InvestmentPriceImportResult> importBrokerHoldingsPrices(
     ImportInvestmentPricesRequest request,
   ) async {
@@ -1200,6 +1224,114 @@ class InvestmentDispositionSummary {
       'realized_gain_loss_minor': realizedGainLossMinor,
       'currency': currency,
       'notes': notes,
+    };
+  }
+}
+
+class InvestmentDividendSummary {
+  const InvestmentDividendSummary({
+    required this.id,
+    required this.accountId,
+    required this.symbol,
+    required this.dividendDate,
+    required this.amountMinor,
+    required this.currency,
+    this.cashAccountId,
+    this.incomeAccountId,
+    this.journalTransactionId,
+    this.notes = '',
+  });
+
+  final String id;
+  final String accountId;
+  final String symbol;
+  final DateTime dividendDate;
+  final int amountMinor;
+  final String currency;
+  final String? cashAccountId;
+  final String? incomeAccountId;
+  final String? journalTransactionId;
+  final String notes;
+
+  factory InvestmentDividendSummary.fromJson(Map<String, Object?> json) {
+    return InvestmentDividendSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      symbol: json['symbol']! as String,
+      dividendDate: DateTime.parse(json['dividend_date']! as String),
+      amountMinor: json['amount_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+      cashAccountId: json['cash_account_id'] as String?,
+      incomeAccountId: json['income_account_id'] as String?,
+      journalTransactionId: json['journal_transaction_id'] as String?,
+      notes: json['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'account_id': accountId,
+      'symbol': symbol,
+      'dividend_date': _dateOnly(dividendDate),
+      'amount_minor': amountMinor,
+      'currency': currency,
+      if (cashAccountId != null) 'cash_account_id': cashAccountId,
+      if (incomeAccountId != null) 'income_account_id': incomeAccountId,
+      if (journalTransactionId != null)
+        'journal_transaction_id': journalTransactionId,
+      'notes': notes,
+    };
+  }
+}
+
+class CreateInvestmentDividendRequest {
+  const CreateInvestmentDividendRequest({
+    required this.accountId,
+    required this.symbol,
+    required this.dividendDate,
+    required this.amountMinor,
+    this.currency = 'INR',
+    this.cashAccountId,
+    this.incomeAccountId,
+    this.notes = '',
+  });
+
+  final String accountId;
+  final String symbol;
+  final DateTime dividendDate;
+  final int amountMinor;
+  final String currency;
+  final String? cashAccountId;
+  final String? incomeAccountId;
+  final String notes;
+
+  factory CreateInvestmentDividendRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return CreateInvestmentDividendRequest(
+      accountId: payload['account_id']! as String,
+      symbol: payload['symbol']! as String,
+      dividendDate: _parseDateOnlyUtc(payload['dividend_date']! as String),
+      amountMinor: payload['amount_minor']! as int,
+      currency: payload['currency'] as String? ?? 'INR',
+      cashAccountId: payload['cash_account_id'] as String?,
+      incomeAccountId: payload['income_account_id'] as String?,
+      notes: payload['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'symbol': symbol,
+      'dividend_date': _dateOnly(dividendDate),
+      'amount_minor': amountMinor,
+      'currency': currency,
+      if (cashAccountId != null) 'cash_account_id': cashAccountId,
+      if (incomeAccountId != null) 'income_account_id': incomeAccountId,
+      if (notes.isNotEmpty) 'notes': notes,
     };
   }
 }

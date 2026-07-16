@@ -387,6 +387,38 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvestmentDividend({
+    required String accountId,
+    required String symbol,
+    required DateTime dividendDate,
+    required int amountMinor,
+    String currency = 'INR',
+    String? cashAccountId,
+    String? incomeAccountId,
+    String notes = '',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'investment-dividend-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'create_dividend',
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'symbol': symbol,
+        'dividend_date': dateOnlyString(dividendDate),
+        'amount_minor': amountMinor,
+        'currency': currency,
+        'cash_account_id': ?normalizedOptional(cashAccountId),
+        'income_account_id': ?normalizedOptional(incomeAccountId),
+        'notes': ?normalizedOptional(notes),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueStructuredBankStatementImport({
     required String accountId,
     required List<Map<String, Object?>> lines,
