@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -5543,6 +5543,7 @@ function ExpensesPage({
   const [vendorPayments, setVendorPayments] = useState<VendorPayment[]>([]);
   const [vendorPaymentsBillId, setVendorPaymentsBillId] = useState("");
   const [resolvedVendorPaymentId, setResolvedVendorPaymentId] = useState("");
+  const [selectedBillId, setSelectedBillId] = useState("");
   const [vendorForm, setVendorForm] = useState({
     display_name: "",
     email: "",
@@ -5940,6 +5941,26 @@ function ExpensesPage({
     return bills.find((bill) => bill.id === billId)?.bill_number ?? billId ?? "";
   }
 
+  function accountName(accountId?: string | null) {
+    if (!accountId) {
+      return "-";
+    }
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    return account ? `${account.code} · ${account.name}` : accountId;
+  }
+
+  function taxName(line: BillLine) {
+    if (line.tax_group_id) {
+      return taxGroups.find((group) => group.id === line.tax_group_id)?.name ?? line.tax_group_id;
+    }
+    if (line.tax_rate_id) {
+      return taxRates.find((rate) => rate.id === line.tax_rate_id)?.name ?? line.tax_rate_id;
+    }
+    return "No tax";
+  }
+
+  const selectedBill = bills.find((bill) => bill.id === selectedBillId) ?? null;
+
   useEffect(() => {
     if (focusTarget?.documentType !== "vendor_payment") {
       return;
@@ -6247,6 +6268,12 @@ function ExpensesPage({
                       >
                         {loading === `vendor-payments-${bill.id}` ? "Loading..." : "Payments"}
                       </button>
+                      <button
+                        className="secondary compact"
+                        onClick={() => setSelectedBillId(bill.id)}
+                      >
+                        Details
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -6255,6 +6282,47 @@ function ExpensesPage({
           </table>
         </section>
       </section>
+
+      {selectedBill && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Bill detail</p>
+              <h3>{selectedBill.bill_number} · {vendorName(selectedBill.vendor_id)}</h3>
+              <p>
+                {selectedBill.status} · {selectedBill.issue_date.slice(0, 10)} to {selectedBill.due_date.slice(0, 10)}
+                {" "}· {selectedBill.tax_inclusive ? "Tax inclusive" : "Tax exclusive"}
+              </p>
+            </div>
+            <button className="secondary compact" onClick={() => setSelectedBillId("")}>Close</button>
+          </div>
+          <div className="metric-grid">
+            <div><span>Subtotal</span><strong>{formatMinor(selectedBill.subtotal_minor, selectedBill.currency)}</strong></div>
+            <div><span>Tax</span><strong>{formatMinor(selectedBill.tax_total_minor, selectedBill.currency)}</strong></div>
+            <div><span>Total</span><strong>{formatMinor(selectedBill.total_minor, selectedBill.currency)}</strong></div>
+            <div><span>AP account</span><strong>{accountName(selectedBill.accounts_payable_id)}</strong></div>
+            <div><span>Journal</span><strong>{selectedBill.journal_transaction_id ?? "-"}</strong></div>
+            <div><span>Document attachment</span><strong>{selectedBill.document_attachment_id ?? "-"}</strong></div>
+          </div>
+          {selectedBill.lines && selectedBill.lines.length > 0 ? (
+            <DataTable
+              headers={["Description", "Qty", "Unit", "Expense", "Tax", "Subtotal", "Tax amount", "Line total"]}
+              rows={selectedBill.lines.map((line) => [
+                line.description,
+                formatQuantityMillis(line.quantity_millis),
+                formatMinor(line.unit_price_minor, selectedBill.currency),
+                accountName(line.expense_account_id),
+                taxName(line),
+                formatMinor(line.line_subtotal_minor, selectedBill.currency),
+                formatMinor(line.tax_amount_minor, selectedBill.currency),
+                formatMinor(line.line_total_minor, selectedBill.currency)
+              ])}
+            />
+          ) : (
+            <p>No bill lines are cached for this bill yet. Refresh bills while online to update local detail data.</p>
+          )}
+        </section>
+      )}
 
       <section className="panel queue-panel">
         <div className="queue-heading">
