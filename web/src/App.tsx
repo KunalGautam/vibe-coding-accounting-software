@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -4373,6 +4373,7 @@ function InvoicesPage({
   const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
   const [customerPaymentsInvoiceId, setCustomerPaymentsInvoiceId] = useState("");
   const [resolvedCustomerPaymentId, setResolvedCustomerPaymentId] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
   const [customerForm, setCustomerForm] = useState({
     display_name: "",
     email: "",
@@ -4841,6 +4842,26 @@ function InvoicesPage({
   function invoiceNumber(invoiceId?: string) {
     return invoices.find((invoice) => invoice.id === invoiceId)?.invoice_number ?? invoiceId ?? "";
   }
+
+  function accountName(accountId?: string | null) {
+    if (!accountId) {
+      return "-";
+    }
+    const account = accounts.find((candidate) => candidate.id === accountId);
+    return account ? `${account.code} · ${account.name}` : accountId;
+  }
+
+  function taxName(line: InvoiceLine) {
+    if (line.tax_group_id) {
+      return taxGroups.find((group) => group.id === line.tax_group_id)?.name ?? line.tax_group_id;
+    }
+    if (line.tax_rate_id) {
+      return taxRates.find((rate) => rate.id === line.tax_rate_id)?.name ?? line.tax_rate_id;
+    }
+    return "No tax";
+  }
+
+  const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
 
   useEffect(() => {
     if (focusTarget?.documentType !== "customer_payment") {
@@ -5426,6 +5447,12 @@ function InvoicesPage({
                       >
                         {loading === `customer-payments-${invoice.id}` ? "Loading..." : "Payments"}
                       </button>
+                      <button
+                        className="secondary compact"
+                        onClick={() => setSelectedInvoiceId(invoice.id)}
+                      >
+                        Details
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -5434,6 +5461,47 @@ function InvoicesPage({
           </table>
         </section>
       </section>
+
+      {selectedInvoice && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Invoice detail</p>
+              <h3>{selectedInvoice.invoice_number} · {customerName(selectedInvoice.customer_id)}</h3>
+              <p>
+                {selectedInvoice.status} · {selectedInvoice.issue_date?.slice(0, 10) ?? "-"} to {selectedInvoice.due_date?.slice(0, 10) ?? "-"}
+                {" "}· {selectedInvoice.tax_inclusive ? "Tax inclusive" : "Tax exclusive"}
+              </p>
+            </div>
+            <button className="secondary compact" onClick={() => setSelectedInvoiceId("")}>Close</button>
+          </div>
+          <div className="metric-grid">
+            <div><span>Subtotal</span><strong>{formatMinor(selectedInvoice.subtotal_minor, selectedInvoice.currency ?? "INR")}</strong></div>
+            <div><span>Tax</span><strong>{formatMinor(selectedInvoice.tax_total_minor, selectedInvoice.currency ?? "INR")}</strong></div>
+            <div><span>Total</span><strong>{formatMinor(selectedInvoice.total_minor, selectedInvoice.currency ?? "INR")}</strong></div>
+            <div><span>AR account</span><strong>{accountName(selectedInvoice.accounts_receivable_id)}</strong></div>
+            <div><span>Journal</span><strong>{selectedInvoice.journal_transaction_id ?? "-"}</strong></div>
+            <div><span>PDF attachment</span><strong>{selectedInvoice.pdf_attachment_id ?? "-"}</strong></div>
+          </div>
+          {selectedInvoice.lines && selectedInvoice.lines.length > 0 ? (
+            <DataTable
+              headers={["Description", "Qty", "Unit", "Income", "Tax", "Subtotal", "Tax amount", "Line total"]}
+              rows={selectedInvoice.lines.map((line) => [
+                line.description ?? "-",
+                formatQuantityMillis(line.quantity_millis ?? 0),
+                formatMinor(line.unit_price_minor ?? 0, selectedInvoice.currency ?? "INR"),
+                accountName(line.income_account_id),
+                taxName(line),
+                formatMinor(line.line_subtotal_minor ?? 0, selectedInvoice.currency ?? "INR"),
+                formatMinor(line.tax_amount_minor ?? 0, selectedInvoice.currency ?? "INR"),
+                formatMinor(line.line_total_minor ?? 0, selectedInvoice.currency ?? "INR")
+              ])}
+            />
+          ) : (
+            <p>No invoice lines are cached for this invoice yet. Refresh invoices while online to update local detail data.</p>
+          )}
+        </section>
+      )}
     </div>
   );
 }
