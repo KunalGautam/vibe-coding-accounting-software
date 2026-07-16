@@ -334,6 +334,15 @@ td .compact + .compact {
   margin-left: 0.5rem;
 }
 
+tr.focused-row td {
+  background: rgba(214, 142, 43, 0.16);
+  border-bottom-color: rgba(214, 142, 43, 0.45);
+}
+
+tr.focused-row td:first-child {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
 th {
   color: var(--muted);
   font-size: 0.75rem;

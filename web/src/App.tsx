@@ -4,10 +4,19 @@ import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadCon
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
 
+type FocusTarget = {
+  view: View;
+  documentType: string;
+  documentId: string;
+  documentNumber?: string;
+  journalTransactionId?: string;
+};
+
 export function App() {
   const cachedSnapshot = useMemo(() => loadAccountingSnapshot(), []);
   const [config, setConfig] = useState<ApiConfig>(() => loadConfig());
   const [view, setView] = useState<View>("dashboard");
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [accounts, setAccounts] = useState<Account[]>(() => cachedSnapshot?.accounts ?? []);
   const [transactions, setTransactions] = useState<JournalTransaction[]>(() => cachedSnapshot?.transactions ?? []);
   const [accountRegisterAccountId, setAccountRegisterAccountId] = useState(() => cachedSnapshot?.accountRegisterAccountId ?? "");
@@ -43,6 +52,11 @@ export function App() {
   const [notice, setNotice] = useState(cachedSnapshot ? `Loaded cached accounting snapshot from ${new Date(cachedSnapshot.savedAt).toLocaleString()}.` : "");
 
   const api = useMemo(() => new ApiClient(config), [config]);
+
+  function openFocusedDocument(target: FocusTarget) {
+    setFocusTarget(target);
+    setView(target.view);
+  }
 
   async function refresh() {
     if (!config.accessToken || !config.organizationId) {
@@ -459,6 +473,7 @@ export function App() {
             accountRegisterAccountId={accountRegisterAccountId}
             accountRegisterSplits={accountRegisterSplits}
             queuedJournalDrafts={queuedJournalDrafts}
+            focusTarget={focusTarget?.view === "ledger" ? focusTarget : null}
             api={api}
             onChanged={refresh}
             onAccountRegisterChanged={updateAccountRegister}
@@ -484,7 +499,7 @@ export function App() {
           />
         )}
         {view === "reports" && (
-          <ReportsPage api={api} budgets={budgets} onBudgetsChanged={setBudgets} onOpenView={setView} />
+          <ReportsPage api={api} budgets={budgets} onBudgetsChanged={setBudgets} onOpenSourceDocument={openFocusedDocument} />
         )}
         {view === "budgets" && (
           <BudgetsPage
@@ -515,6 +530,7 @@ export function App() {
             payrollRuns={payrollRuns}
             employees={employees}
             payslipPreview={lastPayslipPreview}
+            focusTarget={focusTarget?.view === "payroll" ? focusTarget : null}
             onPayrollRunsChanged={setPayrollRuns}
             onEmployeesChanged={setEmployees}
             onPayslipPreviewChanged={updatePayslipPreview}
@@ -532,6 +548,7 @@ export function App() {
             creditNotes={creditNotes}
             taxRates={taxRates}
             taxGroups={taxGroups}
+            focusTarget={focusTarget?.view === "invoices" ? focusTarget : null}
             onCustomersChanged={setCustomers}
             onInvoicesChanged={setInvoices}
             onRecurringInvoicesChanged={setRecurringInvoices}
@@ -550,6 +567,7 @@ export function App() {
             purchaseOrders={purchaseOrders}
             taxRates={taxRates}
             taxGroups={taxGroups}
+            focusTarget={focusTarget?.view === "expenses" ? focusTarget : null}
             onVendorsChanged={setVendors}
             onExpensesChanged={setExpenses}
             onBillsChanged={setBills}
@@ -1450,12 +1468,12 @@ function ReportsPage({
   api,
   budgets,
   onBudgetsChanged,
-  onOpenView
+  onOpenSourceDocument
 }: {
   api: ApiClient;
   budgets: Budget[];
   onBudgetsChanged: (budgets: Budget[]) => void;
-  onOpenView: (view: View) => void;
+  onOpenSourceDocument: (target: FocusTarget) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const cachedReports = useMemo(() => loadReportSnapshot(), []);
@@ -1607,8 +1625,21 @@ function ReportsPage({
   function sourceDocumentButton(row: AccountDrilldownReport["rows"][number]) {
     const target = sourceDocumentTarget(row);
     const label = row.source_document_type ? `Open ${titleCase(row.source_document_type.replace(/_/g, " "))}` : "Open journal";
+    const documentType = row.source_document_type || "journal_transaction";
+    const documentId = row.source_document_id || row.journal_transaction_id;
     return (
-      <button className="secondary compact" type="button" onClick={() => onOpenView(target)} title={row.source_document_id || row.journal_transaction_id}>
+      <button
+        className="secondary compact"
+        type="button"
+        onClick={() => onOpenSourceDocument({
+          view: target,
+          documentType,
+          documentId,
+          documentNumber: row.source_document_number || row.transaction_memo || undefined,
+          journalTransactionId: row.journal_transaction_id
+        })}
+        title={documentId}
+      >
         {label}
       </button>
     );
@@ -3370,6 +3401,7 @@ function PayrollPage({
   payrollRuns,
   employees,
   payslipPreview,
+  focusTarget,
   onPayrollRunsChanged,
   onEmployeesChanged,
   onPayslipPreviewChanged,
@@ -3380,6 +3412,7 @@ function PayrollPage({
   payrollRuns: PayrollRun[];
   employees: Employee[];
   payslipPreview: PayslipPreview | null;
+  focusTarget: FocusTarget | null;
   onPayrollRunsChanged: (runs: PayrollRun[]) => void;
   onEmployeesChanged: (employees: Employee[]) => void;
   onPayslipPreviewChanged: (preview: PayslipPreview | null) => void;
@@ -3718,6 +3751,7 @@ function PayrollPage({
 
       {payrollError && <div className="alert error">{payrollError}</div>}
       {payrollNotice && <div className="alert success">{payrollNotice}</div>}
+      <FocusNotice focusTarget={focusTarget} />
 
       <form className="panel form-grid" onSubmit={createEmployee}>
         <input
@@ -4111,7 +4145,7 @@ function PayrollPage({
             </thead>
             <tbody>
               {payrollRuns.map((run) => (
-                <tr key={run.id}>
+                <tr key={run.id} className={focusRowClass(focusTarget, "payroll_run", run.id)}>
                   <td>{run.run_number}</td>
                   <td>{run.period_start.slice(0, 10)} to {run.period_end.slice(0, 10)}</td>
                   <td>{run.pay_date.slice(0, 10)}</td>
@@ -4202,6 +4236,7 @@ function InvoicesPage({
   creditNotes,
   taxRates,
   taxGroups,
+  focusTarget,
   onCustomersChanged,
   onInvoicesChanged,
   onRecurringInvoicesChanged,
@@ -4218,6 +4253,7 @@ function InvoicesPage({
   creditNotes: CreditNote[];
   taxRates: TaxRate[];
   taxGroups: TaxGroup[];
+  focusTarget: FocusTarget | null;
   onCustomersChanged: (customers: Customer[]) => void;
   onInvoicesChanged: (invoices: Invoice[]) => void;
   onRecurringInvoicesChanged: (templates: RecurringInvoiceTemplate[]) => void;
@@ -4682,6 +4718,10 @@ function InvoicesPage({
 
       {invoiceError && <div className="alert error">{invoiceError}</div>}
       {invoiceNotice && <div className="alert success">{invoiceNotice}</div>}
+      <FocusNotice
+        focusTarget={focusTarget}
+        fallback={focusTarget?.documentType === "customer_payment" ? "Customer payment history is not listed yet; use the payment number to reconcile against the invoice ledger movement." : undefined}
+      />
 
       <form className="panel form-grid" onSubmit={createCustomer}>
         <input
@@ -4980,7 +5020,7 @@ function InvoicesPage({
             </thead>
             <tbody>
               {creditNotes.map((creditNote) => (
-                <tr key={creditNote.id}>
+                <tr key={creditNote.id} className={focusRowClass(focusTarget, "credit_note", creditNote.id)}>
                   <td>{creditNote.credit_note_number}</td>
                   <td>{customerName(creditNote.customer_id)}</td>
                   <td>{creditNote.issue_date.slice(0, 10)}</td>
@@ -5162,7 +5202,7 @@ function InvoicesPage({
             </thead>
             <tbody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id}>
+                <tr key={invoice.id} className={focusRowClass(focusTarget, "invoice", invoice.id)}>
                   <td>{invoice.invoice_number}</td>
                   <td>{customerName(invoice.customer_id)}</td>
                   <td>{invoice.issue_date?.slice(0, 10) ?? ""}</td>
@@ -5199,6 +5239,7 @@ function ExpensesPage({
   purchaseOrders,
   taxRates,
   taxGroups,
+  focusTarget,
   onVendorsChanged,
   onExpensesChanged,
   onBillsChanged,
@@ -5213,6 +5254,7 @@ function ExpensesPage({
   purchaseOrders: PurchaseOrder[];
   taxRates: TaxRate[];
   taxGroups: TaxGroup[];
+  focusTarget: FocusTarget | null;
   onVendorsChanged: (vendors: Vendor[]) => void;
   onExpensesChanged: (expenses: Expense[]) => void;
   onBillsChanged: (bills: Bill[]) => void;
@@ -5602,6 +5644,10 @@ function ExpensesPage({
 
       {expenseError && <div className="alert error">{expenseError}</div>}
       {expenseNotice && <div className="alert success">{expenseNotice}</div>}
+      <FocusNotice
+        focusTarget={focusTarget}
+        fallback={focusTarget?.documentType === "vendor_payment" ? "Vendor payment history is not listed yet; use the payment number to reconcile against the bill ledger movement." : undefined}
+      />
 
       <form className="panel form-grid" onSubmit={createVendor}>
         <input placeholder="Display name" value={vendorForm.display_name} onChange={(event) => setVendorForm({ ...vendorForm, display_name: event.target.value })} required />
@@ -5807,7 +5853,7 @@ function ExpensesPage({
             </thead>
             <tbody>
               {bills.map((bill) => (
-                <tr key={bill.id}>
+                <tr key={bill.id} className={focusRowClass(focusTarget, "bill", bill.id)}>
                   <td>{bill.bill_number}</td>
                   <td>{vendorName(bill.vendor_id)}</td>
                   <td>{bill.issue_date.slice(0, 10)}</td>
@@ -5929,7 +5975,7 @@ function ExpensesPage({
             </thead>
             <tbody>
               {expenses.map((expense) => (
-                <tr key={expense.id}>
+                <tr key={expense.id} className={focusRowClass(focusTarget, "expense", expense.id)}>
                   <td>{expense.expense_number}</td>
                   <td>{vendorName(expense.vendor_id)}</td>
                   <td>{expense.expense_date.slice(0, 10)}</td>
@@ -7417,6 +7463,7 @@ function LedgerPage({
   accountRegisterAccountId,
   accountRegisterSplits,
   queuedJournalDrafts,
+  focusTarget,
   api,
   onChanged,
   onAccountRegisterChanged,
@@ -7432,6 +7479,7 @@ function LedgerPage({
   accountRegisterAccountId: string;
   accountRegisterSplits: LedgerSplit[];
   queuedJournalDrafts: QueuedJournalDraft[];
+  focusTarget: FocusTarget | null;
   api: ApiClient;
   onChanged: () => Promise<void>;
   onAccountRegisterChanged: (accountId: string, splits: LedgerSplit[]) => void;
@@ -7582,6 +7630,7 @@ function LedgerPage({
         <button disabled={!registerAccountId || registerLoading}>{registerLoading ? "Loading..." : "Load register"}</button>
       </form>
       {registerError && <div className="alert error">{registerError}</div>}
+      <FocusNotice focusTarget={focusTarget} />
       <section className="panel queue-panel">
         <div className="queue-heading">
           <div>
@@ -7620,7 +7669,28 @@ function LedgerPage({
           </table>
         </section>
       </section>
-      <DataTable headers={["Date", "Memo", "Status", "Splits"]} rows={transactions.map((transaction) => [transaction.transaction_date.slice(0, 10), transaction.memo ?? "", transaction.status, transaction.splits.length.toString()])} />
+      <section className="panel table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Memo</th>
+              <th>Status</th>
+              <th>Splits</th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((transaction) => (
+              <tr key={transaction.id} className={focusTarget?.journalTransactionId === transaction.id || focusRowClass(focusTarget, "journal_transaction", transaction.id) ? "focused-row" : undefined}>
+                <td>{transaction.transaction_date.slice(0, 10)}</td>
+                <td>{transaction.memo ?? ""}</td>
+                <td>{transaction.status}</td>
+                <td>{transaction.splits.length.toString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
@@ -7686,6 +7756,23 @@ function AccountSelect({ label, accounts, value, onChange }: { label: string; ac
       </select>
     </label>
   );
+}
+
+function FocusNotice({ focusTarget, fallback }: { focusTarget: FocusTarget | null; fallback?: string }) {
+  if (!focusTarget) {
+    return null;
+  }
+  const label = titleCase(focusTarget.documentType.replace(/_/g, " "));
+  const identifier = focusTarget.documentNumber || focusTarget.documentId.slice(0, 8);
+  return (
+    <div className="alert success">
+      Focused from report drilldown: {label} {identifier}. {fallback ?? "Matching rows are highlighted below when available."}
+    </div>
+  );
+}
+
+function focusRowClass(focusTarget: FocusTarget | null, documentType: string, documentId?: string | null) {
+  return focusTarget?.documentType === documentType && focusTarget.documentId === documentId ? "focused-row" : undefined;
 }
 
 function DataTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
