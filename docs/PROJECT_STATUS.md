@@ -9,7 +9,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 
 ## Recently Completed
 - Broadened Flutter offline write replay beyond expense drafts to cover invoice drafts, customer/vendor payments, invoice/expense/bill/credit-note posting actions, estimate/purchase-order status transitions, attachment metadata creation, binary attachment upload replay, manual investment price capture, and average-cost investment sale replay with shared retry/error/conflict handling.
-- Added SQLite-backed Flutter offline persistence for the pending sync-operation queue, queued-attachment upload manifest, account read cache, tax catalog cache, and invoice cache, with memory/file repositories retained for tests and migration fallback.
+- Added SQLite-backed Flutter offline persistence for the pending sync-operation queue, queued-attachment upload manifest, account read cache, tax catalog cache, invoice cache, and investment cache, with memory/file repositories retained for tests and migration fallback.
 - Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
 - Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
@@ -29,7 +29,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
-- Flutter: offline-ready expense/invoice/investment shell with SQLite-backed sync queue/account cache/tax catalog cache/invoice cache/queued-attachment upload manifest, file-backed remaining read caches/settings/binary cache, typed API transport, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/ledger posting actions/estimate statuses/purchase-order statuses/attachment metadata/binary attachment uploads/investment prices/average-cost investment sales, and cached read models.
+- Flutter: offline-ready expense/invoice/investment shell with SQLite-backed sync queue/account cache/tax catalog cache/invoice cache/investment cache/queued-attachment upload manifest, file-backed attachment/settings/binary cache, typed API transport, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/ledger posting actions/estimate statuses/purchase-order statuses/attachment metadata/binary attachment uploads/investment prices/average-cost investment sales, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
@@ -42,7 +42,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Continue Flutter SQLite migration for investment/attachment read caches, settings, and binary cache now that the sync queue, account cache, tax catalog cache, invoice cache, and queued-attachment upload manifest are SQLite-backed.
+1. Continue Flutter SQLite migration for attachment metadata cache, attachment binary cache, and sync settings now that the sync queue, account cache, tax catalog cache, invoice cache, investment cache, and queued-attachment upload manifest are SQLite-backed.
 2. Broader offline write queues for invoice/expense edits, bank import drafts, and remaining approval/status transitions.
 3. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 4. Deeper operational monitoring runbooks and managed-cloud deployment notes.

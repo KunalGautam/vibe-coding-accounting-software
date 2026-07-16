@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:accounting_app/api/accounting_api_client.dart';
 import 'package:accounting_app/investments/investment_cache_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  setUpAll(sqfliteFfiInit);
+
   final lot = InvestmentLotSummary(
     id: 'lot-1',
     accountId: 'brokerage-1',
@@ -115,4 +118,85 @@ void main() {
     expect(cached.prices.single.symbol, 'NIFTYBEES');
     expect(cached.valuationReport?.rows.single.marketValueMinor, 840000);
   });
+
+  test('sqlite investment cache persists full investment snapshot', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createInvestmentCacheTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteInvestmentCacheRepository(database);
+
+    await repository.saveCached(
+      InvestmentCacheSnapshot(
+        lots: [lot],
+        realizedGainsReport: report,
+        prices: [price],
+        valuationReport: valuation,
+      ),
+    );
+
+    final cached = await repository.loadCached();
+    expect(cached.lots.single.id, 'lot-1');
+    expect(cached.lots.single.securityName, 'Nippon India ETF Nifty BeES');
+    expect(cached.realizedGainsReport?.rows.single.investmentLotId, 'lot-1');
+    expect(cached.realizedGainsReport?.totalGainLossMinor, 120000);
+    expect(cached.prices.single.priceMinor, 14000);
+    expect(cached.valuationReport?.rows.single.marketValueMinor, 840000);
+    expect(cached.valuationReport?.totalUnrealizedGainLossMinor, 240000);
+  });
+
+  test(
+    'sqlite investment cache orders lots and replaces stale snapshots',
+    () async {
+      final database = await databaseFactoryFfi.openDatabase(
+        inMemoryDatabasePath,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (database, _) => createInvestmentCacheTables(database),
+        ),
+      );
+      addTearDown(database.close);
+      final repository = SqliteInvestmentCacheRepository(database);
+
+      await repository.saveCached(InvestmentCacheSnapshot(lots: [lot]));
+      await repository.saveCached(
+        InvestmentCacheSnapshot(
+          lots: [
+            InvestmentLotSummary(
+              id: 'lot-z',
+              accountId: 'brokerage-1',
+              symbol: 'ZZZ',
+              acquisitionDate: DateTime.utc(2026, 5),
+              quantityMillis: 1000,
+              remainingQuantityMillis: 1000,
+              costBasisMinor: 10000,
+              currency: 'INR',
+              costMethod: 'specific_lot',
+            ),
+            InvestmentLotSummary(
+              id: 'lot-a',
+              accountId: 'brokerage-1',
+              symbol: 'AAA',
+              acquisitionDate: DateTime.utc(2026, 5),
+              quantityMillis: 1000,
+              remainingQuantityMillis: 1000,
+              costBasisMinor: 10000,
+              currency: 'INR',
+              costMethod: 'specific_lot',
+            ),
+          ],
+        ),
+      );
+
+      final cached = await repository.loadCached();
+      expect(cached.lots.map((cachedLot) => cachedLot.id), ['lot-a', 'lot-z']);
+      expect(cached.realizedGainsReport, isNull);
+      expect(cached.valuationReport, isNull);
+      expect(cached.lots.any((cachedLot) => cachedLot.id == 'lot-1'), false);
+    },
+  );
 }
