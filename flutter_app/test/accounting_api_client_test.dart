@@ -449,6 +449,90 @@ void main() {
     ]);
   });
 
+  test('converts estimates and purchase orders', () async {
+    final requestedPaths = <String>[];
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith(
+          '/estimates/estimate-1/convert-to-invoice',
+        )) {
+          expect(body['invoice_number'], 'INV-MOB-002');
+          expect(body['issue_date'], '2026-07-18');
+          expect(body['due_date'], '2026-08-17');
+          expect(body['accounts_receivable_id'], 'acct-ar');
+          expect(body['pdf_attachment_id'], 'attachment-pdf');
+          return http.Response(
+            jsonEncode({
+              'id': 'invoice-2',
+              'invoice_number': 'INV-MOB-002',
+              'status': 'draft',
+              'subtotal_minor': 100000,
+              'tax_total_minor': 18000,
+              'total_minor': 118000,
+              'currency': 'INR',
+              'pdf_attachment_id': 'attachment-pdf',
+              'lines': [],
+            }),
+            201,
+          );
+        }
+
+        expect(
+          request.url.path.endsWith('/purchase-orders/po-1/convert-to-bill'),
+          true,
+        );
+        expect(body['bill_number'], 'BILL-MOB-002');
+        expect(body['issue_date'], '2026-07-19');
+        expect(body['due_date'], '2026-08-18');
+        expect(body['accounts_payable_id'], 'acct-ap');
+        expect(body['document_attachment_id'], 'attachment-bill');
+        return http.Response(
+          jsonEncode({
+            'id': 'bill-2',
+            'bill_number': 'BILL-MOB-002',
+            'status': 'draft',
+            'total_minor': 59000,
+            'currency': 'INR',
+          }),
+          201,
+        );
+      }),
+    );
+
+    final invoice = await client.convertEstimateToInvoice(
+      'estimate-1',
+      ConvertEstimateToInvoiceRequest(
+        invoiceNumber: 'INV-MOB-002',
+        issueDate: DateTime.utc(2026, 7, 18),
+        dueDate: DateTime.utc(2026, 8, 17),
+        accountsReceivableId: 'acct-ar',
+        pdfAttachmentId: 'attachment-pdf',
+      ),
+    );
+    final bill = await client.convertPurchaseOrderToBill(
+      'po-1',
+      ConvertPurchaseOrderToBillRequest(
+        billNumber: 'BILL-MOB-002',
+        issueDate: DateTime.utc(2026, 7, 19),
+        dueDate: DateTime.utc(2026, 8, 18),
+        accountsPayableId: 'acct-ap',
+        documentAttachmentId: 'attachment-bill',
+      ),
+    );
+
+    expect(invoice.id, 'invoice-2');
+    expect(invoice.pdfAttachmentId, 'attachment-pdf');
+    expect(bill.id, 'bill-2');
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/estimates/estimate-1/convert-to-invoice',
+      '/api/v1/organizations/org-1/purchase-orders/po-1/convert-to-bill',
+    ]);
+  });
+
   test('lists and creates attachment metadata', () async {
     final client = AccountingApiClient(
       config: config,

@@ -470,6 +470,62 @@ class OfflineSyncQueue {
     );
   }
 
+  SyncOperation enqueueEstimateConversion({
+    required String estimateId,
+    required String invoiceNumber,
+    required DateTime issueDate,
+    required DateTime dueDate,
+    required String accountsReceivableId,
+    String? pdfAttachmentId,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'estimate-conversion-${timestamp.microsecondsSinceEpoch}',
+      module: 'commercial_documents',
+      action: 'convert_estimate_to_invoice',
+      createdAt: timestamp,
+      payload: {
+        'estimate_id': estimateId,
+        'invoice_number': invoiceNumber,
+        'issue_date': dateOnlyString(issueDate),
+        'due_date': dateOnlyString(dueDate),
+        'accounts_receivable_id': accountsReceivableId,
+        'pdf_attachment_id': ?normalizedOptional(pdfAttachmentId),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
+  SyncOperation enqueuePurchaseOrderConversion({
+    required String purchaseOrderId,
+    required String billNumber,
+    required DateTime issueDate,
+    required DateTime dueDate,
+    required String accountsPayableId,
+    String? documentAttachmentId,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'purchase-order-conversion-${timestamp.microsecondsSinceEpoch}',
+      module: 'commercial_documents',
+      action: 'convert_purchase_order_to_bill',
+      createdAt: timestamp,
+      payload: {
+        'purchase_order_id': purchaseOrderId,
+        'bill_number': billNumber,
+        'issue_date': dateOnlyString(issueDate),
+        'due_date': dateOnlyString(dueDate),
+        'accounts_payable_id': accountsPayableId,
+        'document_attachment_id': ?normalizedOptional(documentAttachmentId),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueInvoicePost({
     required String invoiceId,
     DateTime? createdAt,

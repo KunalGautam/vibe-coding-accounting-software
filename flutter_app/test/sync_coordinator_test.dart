@@ -720,6 +720,97 @@ void main() {
     ]);
   });
 
+  test('syncs queued commercial document conversions', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'estimate-conversion-local-1',
+        module: 'commercial_documents',
+        action: 'convert_estimate_to_invoice',
+        createdAt: DateTime.utc(2026, 7, 18),
+        payload: const {
+          'estimate_id': 'estimate-1',
+          'invoice_number': 'INV-MOB-002',
+          'issue_date': '2026-07-18',
+          'due_date': '2026-08-17',
+          'accounts_receivable_id': 'acct-ar',
+          'pdf_attachment_id': 'attachment-pdf',
+        },
+      ),
+      SyncOperation(
+        id: 'purchase-order-conversion-local-1',
+        module: 'commercial_documents',
+        action: 'convert_purchase_order_to_bill',
+        createdAt: DateTime.utc(2026, 7, 18),
+        payload: const {
+          'purchase_order_id': 'po-1',
+          'bill_number': 'BILL-MOB-002',
+          'issue_date': '2026-07-19',
+          'due_date': '2026-08-18',
+          'accounts_payable_id': 'acct-ap',
+          'document_attachment_id': 'attachment-bill',
+        },
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith(
+          '/estimates/estimate-1/convert-to-invoice',
+        )) {
+          expect(body['invoice_number'], 'INV-MOB-002');
+          expect(body['accounts_receivable_id'], 'acct-ar');
+          return http.Response(
+            jsonEncode({
+              'id': 'invoice-2',
+              'invoice_number': 'INV-MOB-002',
+              'status': 'draft',
+              'subtotal_minor': 100000,
+              'tax_total_minor': 18000,
+              'total_minor': 118000,
+              'currency': 'INR',
+              'lines': [],
+            }),
+            201,
+          );
+        }
+
+        expect(
+          request.url.path.endsWith('/purchase-orders/po-1/convert-to-bill'),
+          true,
+        );
+        expect(body['bill_number'], 'BILL-MOB-002');
+        expect(body['accounts_payable_id'], 'acct-ap');
+        return http.Response(
+          jsonEncode({
+            'id': 'bill-2',
+            'bill_number': 'BILL-MOB-002',
+            'status': 'draft',
+            'total_minor': 59000,
+            'currency': 'INR',
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 2);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/estimates/estimate-1/convert-to-invoice',
+      '/api/v1/organizations/org-1/purchase-orders/po-1/convert-to-bill',
+    ]);
+  });
+
   test('syncs queued ledger posting actions', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(

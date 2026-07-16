@@ -306,6 +306,46 @@ class AccountingApiClient {
     );
   }
 
+  Future<InvoiceSummary> convertEstimateToInvoice(
+    String estimateId,
+    ConvertEstimateToInvoiceRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/estimates/$estimateId/convert-to-invoice',
+      body: request.toJson(),
+    );
+    return InvoiceSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvoiceSummary> syncEstimateConversion(SyncOperation operation) {
+    final payload = operation.payload;
+    return convertEstimateToInvoice(
+      payload['estimate_id']! as String,
+      ConvertEstimateToInvoiceRequest.fromSyncOperation(operation),
+    );
+  }
+
+  Future<BillSummary> convertPurchaseOrderToBill(
+    String purchaseOrderId,
+    ConvertPurchaseOrderToBillRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/purchase-orders/$purchaseOrderId/convert-to-bill',
+      body: request.toJson(),
+    );
+    return BillSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<BillSummary> syncPurchaseOrderConversion(SyncOperation operation) {
+    final payload = operation.payload;
+    return convertPurchaseOrderToBill(
+      payload['purchase_order_id']! as String,
+      ConvertPurchaseOrderToBillRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<BillSummary> postBill(String billId) async {
     final response = await _send('POST', '/bills/$billId/post');
     return BillSummary.fromJson(_decodeObject(response));
@@ -1332,6 +1372,84 @@ class UpdateStatusRequest {
 
   Map<String, Object?> toJson() {
     return {'status': status};
+  }
+}
+
+class ConvertEstimateToInvoiceRequest {
+  const ConvertEstimateToInvoiceRequest({
+    required this.invoiceNumber,
+    required this.issueDate,
+    required this.dueDate,
+    required this.accountsReceivableId,
+    this.pdfAttachmentId,
+  });
+
+  final String invoiceNumber;
+  final DateTime issueDate;
+  final DateTime dueDate;
+  final String accountsReceivableId;
+  final String? pdfAttachmentId;
+
+  factory ConvertEstimateToInvoiceRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ConvertEstimateToInvoiceRequest(
+      invoiceNumber: payload['invoice_number']! as String,
+      issueDate: _parseDateOnlyUtc(payload['issue_date']! as String),
+      dueDate: _parseDateOnlyUtc(payload['due_date']! as String),
+      accountsReceivableId: payload['accounts_receivable_id']! as String,
+      pdfAttachmentId: payload['pdf_attachment_id'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'invoice_number': invoiceNumber,
+      'issue_date': _dateOnly(issueDate),
+      'due_date': _dateOnly(dueDate),
+      'accounts_receivable_id': accountsReceivableId,
+      'pdf_attachment_id': pdfAttachmentId,
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class ConvertPurchaseOrderToBillRequest {
+  const ConvertPurchaseOrderToBillRequest({
+    required this.billNumber,
+    required this.issueDate,
+    required this.dueDate,
+    required this.accountsPayableId,
+    this.documentAttachmentId,
+  });
+
+  final String billNumber;
+  final DateTime issueDate;
+  final DateTime dueDate;
+  final String accountsPayableId;
+  final String? documentAttachmentId;
+
+  factory ConvertPurchaseOrderToBillRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ConvertPurchaseOrderToBillRequest(
+      billNumber: payload['bill_number']! as String,
+      issueDate: _parseDateOnlyUtc(payload['issue_date']! as String),
+      dueDate: _parseDateOnlyUtc(payload['due_date']! as String),
+      accountsPayableId: payload['accounts_payable_id']! as String,
+      documentAttachmentId: payload['document_attachment_id'] as String?,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'bill_number': billNumber,
+      'issue_date': _dateOnly(issueDate),
+      'due_date': _dateOnly(dueDate),
+      'accounts_payable_id': accountsPayableId,
+      'document_attachment_id': documentAttachmentId,
+    }..removeWhere((_, value) => value == null);
   }
 }
 

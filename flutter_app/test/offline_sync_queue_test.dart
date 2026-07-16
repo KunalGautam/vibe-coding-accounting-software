@@ -418,6 +418,49 @@ void main() {
     expect(purchaseOrderStatus.payload['status'], 'approved');
   });
 
+  test('queues estimate and purchase order conversions', () {
+    final queue = OfflineSyncQueue();
+
+    final estimateConversion = queue.enqueueEstimateConversion(
+      estimateId: 'estimate-1',
+      invoiceNumber: 'INV-MOB-002',
+      issueDate: DateTime.utc(2026, 7, 18),
+      dueDate: DateTime.utc(2026, 8, 17),
+      accountsReceivableId: 'acct-ar',
+      pdfAttachmentId: 'attachment-pdf',
+      createdAt: DateTime.utc(2026, 7, 18, 9),
+    );
+    final purchaseOrderConversion = queue.enqueuePurchaseOrderConversion(
+      purchaseOrderId: 'po-1',
+      billNumber: 'BILL-MOB-002',
+      issueDate: DateTime.utc(2026, 7, 19),
+      dueDate: DateTime.utc(2026, 8, 18),
+      accountsPayableId: 'acct-ap',
+      documentAttachmentId: 'attachment-bill',
+      createdAt: DateTime.utc(2026, 7, 18, 10),
+    );
+
+    expect(estimateConversion.module, 'commercial_documents');
+    expect(estimateConversion.action, 'convert_estimate_to_invoice');
+    expect(estimateConversion.payload['estimate_id'], 'estimate-1');
+    expect(estimateConversion.payload['invoice_number'], 'INV-MOB-002');
+    expect(estimateConversion.payload['issue_date'], '2026-07-18');
+    expect(estimateConversion.payload['due_date'], '2026-08-17');
+    expect(estimateConversion.payload['accounts_receivable_id'], 'acct-ar');
+    expect(estimateConversion.payload['pdf_attachment_id'], 'attachment-pdf');
+    expect(purchaseOrderConversion.module, 'commercial_documents');
+    expect(purchaseOrderConversion.action, 'convert_purchase_order_to_bill');
+    expect(purchaseOrderConversion.payload['purchase_order_id'], 'po-1');
+    expect(purchaseOrderConversion.payload['bill_number'], 'BILL-MOB-002');
+    expect(purchaseOrderConversion.payload['issue_date'], '2026-07-19');
+    expect(purchaseOrderConversion.payload['due_date'], '2026-08-18');
+    expect(purchaseOrderConversion.payload['accounts_payable_id'], 'acct-ap');
+    expect(
+      purchaseOrderConversion.payload['document_attachment_id'],
+      'attachment-bill',
+    );
+  });
+
   test('queues ledger posting actions for later replay', () {
     final queue = OfflineSyncQueue();
 

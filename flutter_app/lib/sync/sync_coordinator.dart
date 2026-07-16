@@ -130,6 +130,14 @@ final Map<String, _SyncHandler> _syncHandlers = {
       (client, operation) async {
         await client.syncPurchaseOrderStatusUpdate(operation);
       },
+  'commercial_documents.convert_estimate_to_invoice':
+      (client, operation) async {
+        await client.syncEstimateConversion(operation);
+      },
+  'commercial_documents.convert_purchase_order_to_bill':
+      (client, operation) async {
+        await client.syncPurchaseOrderConversion(operation);
+      },
 };
 
 class SyncResult {
