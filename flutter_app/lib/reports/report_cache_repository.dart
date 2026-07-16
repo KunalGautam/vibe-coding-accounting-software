@@ -9,7 +9,7 @@ import '../storage/offline_sqlite.dart';
 Future<ReportCacheRepository> createDefaultReportCacheRepository() async {
   final database = await openOfflineDatabase(
     fileName: 'offline-reports.sqlite',
-    version: 4,
+    version: 5,
     onCreate: (database, _) => createReportCacheTables(database),
     onUpgrade: (database, _, _) => createReportCacheTables(database),
   );
@@ -26,6 +26,8 @@ class ReportCacheSnapshot {
     this.apAging,
     this.taxLiability,
     this.taxSummary,
+    this.budgets = const [],
+    this.budgetVsActual,
   });
 
   final TrialBalanceReport? trialBalance;
@@ -36,6 +38,8 @@ class ReportCacheSnapshot {
   final APAgingReport? apAging;
   final TaxLiabilityReport? taxLiability;
   final TaxSummaryReport? taxSummary;
+  final List<BudgetSummary> budgets;
+  final BudgetVsActualReport? budgetVsActual;
 
   factory ReportCacheSnapshot.fromJson(Map<String, Object?> json) {
     return ReportCacheSnapshot(
@@ -73,6 +77,15 @@ class ReportCacheSnapshot {
               json['tax_summary']! as Map<String, Object?>,
             )
           : null,
+      budgets: (json['budgets'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(BudgetSummary.fromJson)
+          .toList(growable: false),
+      budgetVsActual: json['budget_vs_actual'] is Map<String, Object?>
+          ? BudgetVsActualReport.fromJson(
+              json['budget_vs_actual']! as Map<String, Object?>,
+            )
+          : null,
     );
   }
 
@@ -85,6 +98,8 @@ class ReportCacheSnapshot {
     APAgingReport? apAging,
     TaxLiabilityReport? taxLiability,
     TaxSummaryReport? taxSummary,
+    List<BudgetSummary>? budgets,
+    BudgetVsActualReport? budgetVsActual,
   }) {
     return ReportCacheSnapshot(
       trialBalance: trialBalance ?? this.trialBalance,
@@ -95,6 +110,8 @@ class ReportCacheSnapshot {
       apAging: apAging ?? this.apAging,
       taxLiability: taxLiability ?? this.taxLiability,
       taxSummary: taxSummary ?? this.taxSummary,
+      budgets: budgets ?? this.budgets,
+      budgetVsActual: budgetVsActual ?? this.budgetVsActual,
     );
   }
 
@@ -108,6 +125,11 @@ class ReportCacheSnapshot {
       if (apAging != null) 'ap_aging': apAging!.toJson(),
       if (taxLiability != null) 'tax_liability': taxLiability!.toJson(),
       if (taxSummary != null) 'tax_summary': taxSummary!.toJson(),
+      if (budgets.isNotEmpty)
+        'budgets': budgets
+            .map((budget) => budget.toJson())
+            .toList(growable: false),
+      if (budgetVsActual != null) 'budget_vs_actual': budgetVsActual!.toJson(),
     };
   }
 }
@@ -237,6 +259,14 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       'cached_tax_summary_rows',
       orderBy: 'row_index ASC, name ASC, tax_rate_id ASC, tax_group_id ASC',
     );
+    final budgetRows = await database.query(
+      'cached_budgets',
+      orderBy: 'row_index ASC, name ASC',
+    );
+    final budgetVsActualRows = await database.query(
+      'cached_budget_vs_actual_report',
+      limit: 1,
+    );
     return ReportCacheSnapshot(
       trialBalance: trialBalanceRows.isEmpty
           ? null
@@ -274,6 +304,10 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       taxSummary: taxSummaryRows.isEmpty
           ? null
           : _taxSummaryFromRows(taxSummaryRows.single, taxSummaryDetailRows),
+      budgets: budgetRows.map(_budgetFromCacheRow).toList(growable: false),
+      budgetVsActual: budgetVsActualRows.isEmpty
+          ? null
+          : _budgetVsActualFromCacheRow(budgetVsActualRows.single),
     );
   }
 
@@ -296,6 +330,8 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       await transaction.delete('cached_tax_liability_rows');
       await transaction.delete('cached_tax_summary_report');
       await transaction.delete('cached_tax_summary_rows');
+      await transaction.delete('cached_budgets');
+      await transaction.delete('cached_budget_vs_actual_report');
 
       final trialBalance = snapshot.trialBalance;
       if (trialBalance != null) {
@@ -434,6 +470,23 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
           transaction,
           'cached_tax_summary_rows',
           taxSummary.rows,
+        );
+      }
+
+      for (var index = 0; index < snapshot.budgets.length; index += 1) {
+        await transaction.insert(
+          'cached_budgets',
+          _budgetToCacheRow(index, snapshot.budgets[index]),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      final budgetVsActual = snapshot.budgetVsActual;
+      if (budgetVsActual != null) {
+        await transaction.insert(
+          'cached_budget_vs_actual_report',
+          _budgetVsActualToCacheRow(budgetVsActual),
+          conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
     });
@@ -638,6 +691,22 @@ CREATE TABLE IF NOT EXISTS cached_tax_summary_rows (
   PRIMARY KEY (row_index, tax_rate_id, tax_group_id)
 )
 ''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_budgets (
+  row_index INTEGER NOT NULL,
+  budget_id TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  budget_json TEXT NOT NULL,
+  PRIMARY KEY (row_index, budget_id)
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_budget_vs_actual_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  budget_id TEXT NOT NULL,
+  report_json TEXT NOT NULL
+)
+''');
 }
 
 Map<String, Object?> _trialBalanceToRow(TrialBalanceReport report) {
@@ -823,6 +892,39 @@ Future<void> _insertTaxRows(
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+}
+
+Map<String, Object?> _budgetToCacheRow(int index, BudgetSummary budget) {
+  return {
+    'row_index': index,
+    'budget_id': budget.id,
+    'name': budget.name,
+    'budget_json': jsonEncode(budget.toJson()),
+  };
+}
+
+BudgetSummary _budgetFromCacheRow(Map<String, Object?> row) {
+  final decoded = jsonDecode(row['budget_json']! as String);
+  if (decoded is! Map<String, Object?>) {
+    throw const FormatException('Expected cached budget JSON object');
+  }
+  return BudgetSummary.fromJson(decoded);
+}
+
+Map<String, Object?> _budgetVsActualToCacheRow(BudgetVsActualReport report) {
+  return {
+    'id': 1,
+    'budget_id': report.budgetId,
+    'report_json': jsonEncode(report.toJson()),
+  };
+}
+
+BudgetVsActualReport _budgetVsActualFromCacheRow(Map<String, Object?> row) {
+  final decoded = jsonDecode(row['report_json']! as String);
+  if (decoded is! Map<String, Object?>) {
+    throw const FormatException('Expected cached budget-vs-actual JSON object');
+  }
+  return BudgetVsActualReport.fromJson(decoded);
 }
 
 Future<void> _insertSectionRows(

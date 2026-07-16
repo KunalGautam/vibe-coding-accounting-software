@@ -320,6 +320,18 @@ class AccountingApiClient {
     return TaxSummaryReport.fromJson(_decodeObject(response));
   }
 
+  Future<List<BudgetSummary>> listBudgets() async {
+    final response = await _send('GET', '/budgets');
+    return _decodeList(response, BudgetSummary.fromJson);
+  }
+
+  Future<BudgetVsActualReport> getBudgetVsActual({
+    required String budgetId,
+  }) async {
+    final response = await _send('GET', '/budgets/$budgetId/vs-actual');
+    return BudgetVsActualReport.fromJson(_decodeObject(response));
+  }
+
   Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
     final response = await _send('GET', '/investments/prices');
     return _decodeList(response, InvestmentPriceSummary.fromJson);
@@ -1897,6 +1909,177 @@ class TaxSummaryReport {
     return {
       'from_date': _dateOnly(fromDate),
       'to_date': _dateOnly(toDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class BudgetLineSummary {
+  const BudgetLineSummary({
+    required this.id,
+    required this.accountId,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.amountMinor,
+  });
+
+  final String id;
+  final String accountId;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final int amountMinor;
+
+  factory BudgetLineSummary.fromJson(Map<String, Object?> json) {
+    return BudgetLineSummary(
+      id: json['id']! as String,
+      accountId: json['account_id']! as String,
+      periodStart: DateTime.parse(json['period_start']! as String),
+      periodEnd: DateTime.parse(json['period_end']! as String),
+      amountMinor: json['amount_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'account_id': accountId,
+      'period_start': _dateOnly(periodStart),
+      'period_end': _dateOnly(periodEnd),
+      'amount_minor': amountMinor,
+    };
+  }
+}
+
+class BudgetSummary {
+  const BudgetSummary({
+    required this.id,
+    required this.organizationId,
+    required this.name,
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+    required this.lines,
+  });
+
+  final String id;
+  final String organizationId;
+  final String name;
+  final DateTime startDate;
+  final DateTime endDate;
+  final String status;
+  final List<BudgetLineSummary> lines;
+
+  factory BudgetSummary.fromJson(Map<String, Object?> json) {
+    return BudgetSummary(
+      id: json['id']! as String,
+      organizationId: json['organization_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      startDate: DateTime.parse(json['start_date']! as String),
+      endDate: DateTime.parse(json['end_date']! as String),
+      status: json['status'] as String? ?? 'draft',
+      lines: (json['lines'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(BudgetLineSummary.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'organization_id': organizationId,
+      'name': name,
+      'start_date': _dateOnly(startDate),
+      'end_date': _dateOnly(endDate),
+      'status': status,
+      'lines': lines.map((line) => line.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class BudgetVsActualReportRow {
+  const BudgetVsActualReportRow({
+    required this.accountId,
+    required this.accountCode,
+    required this.accountName,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.budgetMinor,
+    required this.actualMinor,
+    required this.varianceMinor,
+    required this.variancePercentBasis,
+  });
+
+  final String accountId;
+  final String accountCode;
+  final String accountName;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final int budgetMinor;
+  final int actualMinor;
+  final int varianceMinor;
+  final int variancePercentBasis;
+
+  factory BudgetVsActualReportRow.fromJson(Map<String, Object?> json) {
+    return BudgetVsActualReportRow(
+      accountId: json['account_id']! as String,
+      accountCode: json['account_code'] as String? ?? '',
+      accountName: json['account_name'] as String? ?? '',
+      periodStart: DateTime.parse(json['period_start']! as String),
+      periodEnd: DateTime.parse(json['period_end']! as String),
+      budgetMinor: json['budget_minor'] as int? ?? 0,
+      actualMinor: json['actual_minor'] as int? ?? 0,
+      varianceMinor: json['variance_minor'] as int? ?? 0,
+      variancePercentBasis: json['variance_percent_basis'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'account_code': accountCode,
+      'account_name': accountName,
+      'period_start': _dateOnly(periodStart),
+      'period_end': _dateOnly(periodEnd),
+      'budget_minor': budgetMinor,
+      'actual_minor': actualMinor,
+      'variance_minor': varianceMinor,
+      'variance_percent_basis': variancePercentBasis,
+    };
+  }
+}
+
+class BudgetVsActualReport {
+  const BudgetVsActualReport({required this.budgetId, required this.rows});
+
+  final String budgetId;
+  final List<BudgetVsActualReportRow> rows;
+
+  factory BudgetVsActualReport.fromJson(Map<String, Object?> json) {
+    return BudgetVsActualReport(
+      budgetId: json['budget_id']! as String,
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(BudgetVsActualReportRow.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  int get totalBudgetMinor {
+    return rows.fold(0, (total, row) => total + row.budgetMinor);
+  }
+
+  int get totalActualMinor {
+    return rows.fold(0, (total, row) => total + row.actualMinor);
+  }
+
+  int get totalVarianceMinor {
+    return rows.fold(0, (total, row) => total + row.varianceMinor);
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'budget_id': budgetId,
       'rows': rows.map((row) => row.toJson()).toList(growable: false),
     };
   }

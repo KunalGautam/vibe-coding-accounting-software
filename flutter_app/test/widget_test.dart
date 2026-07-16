@@ -1419,6 +1419,41 @@ void main() {
             ),
           ],
         ),
+        budgetLoader: (_) async => [
+          BudgetSummary(
+            id: 'budget-1',
+            organizationId: 'org-1',
+            name: 'FY 2026 Operating Budget',
+            startDate: DateTime.utc(2026, 4),
+            endDate: DateTime.utc(2027, 3, 31),
+            status: 'active',
+            lines: [
+              BudgetLineSummary(
+                id: 'budget-line-1',
+                accountId: 'acct-rent',
+                periodStart: DateTime.utc(2026, 4),
+                periodEnd: DateTime.utc(2026, 4, 30),
+                amountMinor: 150000,
+              ),
+            ],
+          ),
+        ],
+        budgetVsActualLoader: (_, budgetId) async => BudgetVsActualReport(
+          budgetId: budgetId,
+          rows: [
+            BudgetVsActualReportRow(
+              accountId: 'acct-rent',
+              accountCode: '5000',
+              accountName: 'Rent',
+              periodStart: DateTime.utc(2026, 4),
+              periodEnd: DateTime.utc(2026, 4, 30),
+              budgetMinor: 150000,
+              actualMinor: 125000,
+              varianceMinor: 25000,
+              variancePercentBasis: 1667,
+            ),
+          ],
+        ),
       ),
     );
     await tester.pump();
@@ -1448,6 +1483,12 @@ void main() {
     await tester.ensureVisible(find.text('Fetch tax summary'));
     await tester.tap(find.text('Fetch tax summary'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch budgets'));
+    await tester.tap(find.text('Fetch budgets'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch budget vs actual'));
+    await tester.tap(find.text('Fetch budget vs actual'));
+    await tester.pumpAndSettle();
 
     final cached = await reportCacheRepository.loadCached();
     expect(cached.trialBalance?.balanced, true);
@@ -1459,12 +1500,21 @@ void main() {
     expect(cached.apAging?.totalOutstandingMinor, 59000);
     expect(cached.taxLiability?.netPayableMinor, 63000);
     expect(cached.taxSummary?.rows.single.taxGroupId, 'gst-group-18');
+    expect(cached.budgets.single.name, 'FY 2026 Operating Budget');
+    expect(cached.budgetVsActual?.totalVarianceMinor, 25000);
     expect(find.text('Net payable INR 630.00'), findsOneWidget);
     expect(
       find.text(
         'GST 18% · Output INR 900.00 · Input INR 270.00 · Net INR 630.00',
       ),
       findsNWidgets(2),
+    );
+    expect(find.text('Variance INR 250.00'), findsOneWidget);
+    expect(
+      find.text(
+        '5000 · Rent · Budget INR 1500.00 · Actual INR 1250.00 · Var INR 250.00',
+      ),
+      findsOneWidget,
     );
   });
 

@@ -58,6 +58,13 @@ typedef TaxSummaryReportLoader =
       DateTime from,
       DateTime to,
     );
+typedef BudgetLoader =
+    Future<List<BudgetSummary>> Function(SyncSettings settings);
+typedef BudgetVsActualLoader =
+    Future<BudgetVsActualReport> Function(
+      SyncSettings settings,
+      String budgetId,
+    );
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -156,6 +163,8 @@ class AccountingApp extends StatelessWidget {
     this.apAgingLoader,
     this.taxLiabilityReportLoader,
     this.taxSummaryReportLoader,
+    this.budgetLoader,
+    this.budgetVsActualLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -192,6 +201,8 @@ class AccountingApp extends StatelessWidget {
   final APAgingLoader? apAgingLoader;
   final TaxLiabilityReportLoader? taxLiabilityReportLoader;
   final TaxSummaryReportLoader? taxSummaryReportLoader;
+  final BudgetLoader? budgetLoader;
+  final BudgetVsActualLoader? budgetVsActualLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -240,6 +251,8 @@ class AccountingApp extends StatelessWidget {
         apAgingLoader: apAgingLoader,
         taxLiabilityReportLoader: taxLiabilityReportLoader,
         taxSummaryReportLoader: taxSummaryReportLoader,
+        budgetLoader: budgetLoader,
+        budgetVsActualLoader: budgetVsActualLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -280,6 +293,8 @@ class MobileDeskShell extends StatefulWidget {
     this.apAgingLoader,
     this.taxLiabilityReportLoader,
     this.taxSummaryReportLoader,
+    this.budgetLoader,
+    this.budgetVsActualLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -316,6 +331,8 @@ class MobileDeskShell extends StatefulWidget {
   final APAgingLoader? apAgingLoader;
   final TaxLiabilityReportLoader? taxLiabilityReportLoader;
   final TaxSummaryReportLoader? taxSummaryReportLoader;
+  final BudgetLoader? budgetLoader;
+  final BudgetVsActualLoader? budgetVsActualLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -382,6 +399,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   APAgingReport? cachedAPAgingReport;
   TaxLiabilityReport? cachedTaxLiabilityReport;
   TaxSummaryReport? cachedTaxSummaryReport;
+  List<BudgetSummary> cachedBudgets = const [];
+  BudgetVsActualReport? cachedBudgetVsActualReport;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -490,6 +509,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       cachedAPAgingReport = snapshot.apAging;
       cachedTaxLiabilityReport = snapshot.taxLiability;
       cachedTaxSummaryReport = snapshot.taxSummary;
+      cachedBudgets = snapshot.budgets;
+      cachedBudgetVsActualReport = snapshot.budgetVsActual;
     });
   }
 
@@ -1140,6 +1161,89 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> fetchBudgets() async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching budgets.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.budgetLoader ??
+          (settings) =>
+              AccountingApiClient(config: settings.toApiConfig()).listBudgets();
+      final budgets = await loader(settings);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(budgets: budgets),
+      );
+      setState(() {
+        cachedBudgets = budgets;
+        syncNotice = 'Fetched ${budgets.length} budgets.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Budget fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchBudgetVsActual(String budgetId) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.budgetVsActualLoader ??
+          (settings, budgetId) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getBudgetVsActual(budgetId: budgetId);
+      final report = await loader(settings, budgetId);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(budgetVsActual: report),
+      );
+      setState(() {
+        cachedBudgetVsActualReport = report;
+        syncNotice = 'Fetched budget vs actual report.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Budget vs actual fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchTaxCatalog() async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1690,6 +1794,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         apAging: cachedAPAgingReport,
         taxLiability: cachedTaxLiabilityReport,
         taxSummary: cachedTaxSummaryReport,
+        budgets: cachedBudgets,
+        budgetVsActual: cachedBudgetVsActualReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
         onFetchTrialBalance: fetchTrialBalance,
@@ -1700,6 +1806,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchAPAging: fetchAPAging,
         onFetchTaxLiability: fetchTaxLiabilityReport,
         onFetchTaxSummary: fetchTaxSummaryReport,
+        onFetchBudgets: fetchBudgets,
+        onFetchBudgetVsActual: fetchBudgetVsActual,
       ),
       SyncPage(
         settings: settings,
@@ -3057,6 +3165,8 @@ class ReportsPage extends StatelessWidget {
     required this.apAging,
     required this.taxLiability,
     required this.taxSummary,
+    required this.budgets,
+    required this.budgetVsActual,
     required this.isLoading,
     required this.onFetchTrialBalance,
     required this.onFetchProfitAndLoss,
@@ -3066,6 +3176,8 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchAPAging,
     required this.onFetchTaxLiability,
     required this.onFetchTaxSummary,
+    required this.onFetchBudgets,
+    required this.onFetchBudgetVsActual,
     this.notice,
     super.key,
   });
@@ -3078,6 +3190,8 @@ class ReportsPage extends StatelessWidget {
   final APAgingReport? apAging;
   final TaxLiabilityReport? taxLiability;
   final TaxSummaryReport? taxSummary;
+  final List<BudgetSummary> budgets;
+  final BudgetVsActualReport? budgetVsActual;
   final bool isLoading;
   final String? notice;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
@@ -3088,6 +3202,8 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime asOf) onFetchAPAging;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxLiability;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
+  final Future<void> Function() onFetchBudgets;
+  final Future<void> Function(String budgetId) onFetchBudgetVsActual;
 
   @override
   Widget build(BuildContext context) {
@@ -3095,6 +3211,7 @@ class ReportsPage extends StatelessWidget {
     final fiscalStart = asOf.month >= 4
         ? DateTime.utc(asOf.year, 4)
         : DateTime.utc(asOf.year - 1, 4);
+    final selectedBudget = _selectedBudget(budgets, budgetVsActual?.budgetId);
     return AppPage(
       eyebrow: 'Reports',
       title: 'Financial snapshots',
@@ -3317,12 +3434,53 @@ class ReportsPage extends StatelessWidget {
             ],
           ],
         ),
+        _ReportCard(
+          title: 'Budget vs actual',
+          description:
+              'Refreshes the budget catalog and compares the latest cached budget against ledger actuals.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch budgets',
+          icon: Icons.fact_check_outlined,
+          isLoading: isLoading,
+          onPressed: onFetchBudgets,
+          children: [
+            if (budgets.isEmpty)
+              const Text('No cached budgets yet.')
+            else ...[
+              Text(
+                'Selected budget: ${selectedBudget!.name} · ${selectedBudget.status}',
+              ),
+              Text(
+                '${formatDateOnly(selectedBudget.startDate)} to ${formatDateOnly(selectedBudget.endDate)} · ${selectedBudget.lines.length} lines',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchBudgetVsActual(selectedBudget.id),
+                icon: const Icon(Icons.compare_arrows_outlined),
+                label: const Text('Fetch budget vs actual'),
+              ),
+              if (budgetVsActual != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Budget ${formatMinorAsInr(budgetVsActual!.totalBudgetMinor)} · Actual ${formatMinorAsInr(budgetVsActual!.totalActualMinor)}',
+                ),
+                Text(
+                  'Variance ${formatMinorAsInr(budgetVsActual!.totalVarianceMinor)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                _BudgetVsActualRows(rows: budgetVsActual!.rows),
+              ],
+            ],
+          ],
+        ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
             'Target APIs: financial statements, aging, tax liability, and tax summary reports',
             'Latest financial report snapshots are cached locally for offline review',
-            'Budget, comparative, and export polish remain next reporting parity targets',
+            'Comparative periods and export polish remain next reporting parity targets',
           ],
         ),
       ],
@@ -3375,6 +3533,21 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
+BudgetSummary? _selectedBudget(List<BudgetSummary> budgets, String? budgetId) {
+  if (budgets.isEmpty) {
+    return null;
+  }
+  if (budgetId == null) {
+    return budgets.first;
+  }
+  for (final budget in budgets) {
+    if (budget.id == budgetId) {
+      return budget;
+    }
+  }
+  return budgets.first;
+}
+
 class _ReportRows extends StatelessWidget {
   const _ReportRows({required this.rows});
 
@@ -3393,6 +3566,31 @@ class _ReportRows extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
               '${row.accountCode} · ${row.accountName} · ${row.accountType} · Dr ${formatMinorAsInr(row.debitMinor)} · Cr ${formatMinorAsInr(row.creditMinor)} · Bal ${formatMinorAsInr(row.balanceMinor)}',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _BudgetVsActualRows extends StatelessWidget {
+  const _BudgetVsActualRows({required this.rows});
+
+  final List<BudgetVsActualReportRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No budget lines in this report.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.accountCode} · ${row.accountName} · Budget ${formatMinorAsInr(row.budgetMinor)} · Actual ${formatMinorAsInr(row.actualMinor)} · Var ${formatMinorAsInr(row.varianceMinor)}',
             ),
           ),
       ],

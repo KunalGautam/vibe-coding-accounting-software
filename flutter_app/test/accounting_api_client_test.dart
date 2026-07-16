@@ -383,6 +383,51 @@ void main() {
             200,
           );
         }
+        if (request.url.path.endsWith('/budgets')) {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'budget-1',
+                'organization_id': 'org-1',
+                'name': 'FY 2026 Operating Budget',
+                'start_date': '2026-04-01T00:00:00Z',
+                'end_date': '2027-03-31T00:00:00Z',
+                'status': 'active',
+                'lines': [
+                  {
+                    'id': 'budget-line-1',
+                    'account_id': 'acct-rent',
+                    'period_start': '2026-04-01T00:00:00Z',
+                    'period_end': '2026-04-30T00:00:00Z',
+                    'amount_minor': 150000,
+                  },
+                ],
+              },
+            ]),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/budgets/budget-1/vs-actual')) {
+          return http.Response(
+            jsonEncode({
+              'budget_id': 'budget-1',
+              'rows': [
+                {
+                  'account_id': 'acct-rent',
+                  'account_code': '5000',
+                  'account_name': 'Rent',
+                  'period_start': '2026-04-01T00:00:00Z',
+                  'period_end': '2026-04-30T00:00:00Z',
+                  'budget_minor': 150000,
+                  'actual_minor': 125000,
+                  'variance_minor': 25000,
+                  'variance_percent_basis': 1667,
+                },
+              ],
+            }),
+            200,
+          );
+        }
         return http.Response('unexpected path', 404);
       }),
     );
@@ -401,6 +446,8 @@ void main() {
       from: DateTime.utc(2026, 4),
       to: DateTime.utc(2026, 7, 31),
     );
+    final budgets = await client.listBudgets();
+    final budgetVsActual = await client.getBudgetVsActual(budgetId: 'budget-1');
 
     expect(cashFlow.closingCashMinor, 600000);
     expect(cashFlow.rows.single.sourceModule, 'invoice');
@@ -411,6 +458,8 @@ void main() {
     expect(taxLiability.netPayableMinor, 63000);
     expect(taxLiability.rows.single.taxRateId, 'gst-18');
     expect(taxSummary.rows.single.taxGroupId, 'gst-group-18');
+    expect(budgets.single.name, 'FY 2026 Operating Budget');
+    expect(budgetVsActual.totalVarianceMinor, 25000);
   });
 
   test('lists invoice and expense summaries', () async {

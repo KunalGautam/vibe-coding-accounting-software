@@ -195,6 +195,41 @@ void main() {
       ),
     ],
   );
+  final budgets = [
+    BudgetSummary(
+      id: 'budget-1',
+      organizationId: 'org-1',
+      name: 'FY 2026 Operating Budget',
+      startDate: DateTime.utc(2026, 4),
+      endDate: DateTime.utc(2027, 3, 31),
+      status: 'active',
+      lines: [
+        BudgetLineSummary(
+          id: 'budget-line-1',
+          accountId: 'acct-rent',
+          periodStart: DateTime.utc(2026, 4),
+          periodEnd: DateTime.utc(2026, 4, 30),
+          amountMinor: 150000,
+        ),
+      ],
+    ),
+  ];
+  final budgetVsActual = BudgetVsActualReport(
+    budgetId: 'budget-1',
+    rows: [
+      BudgetVsActualReportRow(
+        accountId: 'acct-rent',
+        accountCode: '5000',
+        accountName: 'Rent',
+        periodStart: DateTime.utc(2026, 4),
+        periodEnd: DateTime.utc(2026, 4, 30),
+        budgetMinor: 150000,
+        actualMinor: 125000,
+        varianceMinor: 25000,
+        variancePercentBasis: 1667,
+      ),
+    ],
+  );
 
   test('memory report cache stores core reports', () async {
     final repository = MemoryReportCacheRepository();
@@ -209,6 +244,8 @@ void main() {
         apAging: apAging,
         taxLiability: taxLiability,
         taxSummary: taxSummary,
+        budgets: budgets,
+        budgetVsActual: budgetVsActual,
       ),
     );
 
@@ -222,6 +259,8 @@ void main() {
     expect(cached.apAging?.rows.single.billNumber, 'BILL-001');
     expect(cached.taxLiability?.netPayableMinor, 63000);
     expect(cached.taxSummary?.rows.single.taxGroupId, 'gst-group-18');
+    expect(cached.budgets.single.name, 'FY 2026 Operating Budget');
+    expect(cached.budgetVsActual?.totalVarianceMinor, 25000);
   });
 
   test('file report cache persists core reports', () async {
@@ -243,6 +282,8 @@ void main() {
         apAging: apAging,
         taxLiability: taxLiability,
         taxSummary: taxSummary,
+        budgets: budgets,
+        budgetVsActual: budgetVsActual,
       ),
     );
 
@@ -256,6 +297,8 @@ void main() {
     expect(cached.apAging?.totalOutstandingMinor, 59000);
     expect(cached.taxLiability?.outputTaxMinor, 90000);
     expect(cached.taxSummary?.rows.single.name, 'GST 18%');
+    expect(cached.budgets.single.status, 'active');
+    expect(cached.budgetVsActual?.rows.single.accountName, 'Rent');
   });
 
   test('sqlite report cache persists and replaces core reports', () async {
@@ -279,6 +322,8 @@ void main() {
         apAging: apAging,
         taxLiability: taxLiability,
         taxSummary: taxSummary,
+        budgets: budgets,
+        budgetVsActual: budgetVsActual,
       ),
     );
     await repository.saveCached(
@@ -316,6 +361,8 @@ void main() {
     expect(cached.apAging?.totalOutstandingMinor, isNull);
     expect(cached.taxLiability?.netPayableMinor, isNull);
     expect(cached.taxSummary?.rows, isNull);
+    expect(cached.budgets, isEmpty);
+    expect(cached.budgetVsActual?.rows, isNull);
   });
 
   test('snapshot copyWith preserves existing cached reports', () {
@@ -334,8 +381,12 @@ void main() {
     final withTax = updated.copyWith(
       taxLiability: taxLiability,
       taxSummary: taxSummary,
+      budgets: budgets,
+      budgetVsActual: budgetVsActual,
     );
     expect(withTax.taxLiability?.netPayableMinor, 63000);
     expect(withTax.taxSummary?.rows.single.taxRateId, 'gst-18');
+    expect(withTax.budgets.single.id, 'budget-1');
+    expect(withTax.budgetVsActual?.totalBudgetMinor, 150000);
   });
 }
