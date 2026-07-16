@@ -1361,56 +1361,62 @@ void main() {
             generatedFromSubtypes: const ['bank', 'cash'],
           );
         },
-        arAgingLoader: (_, asOf) async => ARAgingReport(
-          asOfDate: asOf,
-          rows: [
-            ARAgingRow(
-              customerId: 'cust-1',
-              customerName: 'Acme',
-              invoiceId: 'inv-1',
-              invoiceNumber: 'INV-001',
-              dueDate: DateTime.utc(2026, 7, 1),
-              daysOverdue: 30,
-              outstandingMinor: 118000,
-              currentMinor: 0,
-              oneToThirtyMinor: 118000,
-              thirtyOneToSixtyMinor: 0,
-              sixtyOneToNinetyMinor: 0,
-              overNinetyMinor: 0,
-            ),
-          ],
-          totalCurrentMinor: 0,
-          totalOneToThirtyMinor: 118000,
-          totalThirtyOneToSixtyMinor: 0,
-          totalSixtyOneToNinetyMinor: 0,
-          totalOverNinetyMinor: 0,
-          totalOutstandingMinor: 118000,
-        ),
-        apAgingLoader: (_, asOf) async => APAgingReport(
-          asOfDate: asOf,
-          rows: [
-            APAgingRow(
-              vendorId: 'vendor-1',
-              vendorName: 'Office Supplies Co',
-              billId: 'bill-1',
-              billNumber: 'BILL-001',
-              dueDate: DateTime.utc(2026, 6, 30),
-              daysOverdue: 31,
-              outstandingMinor: 59000,
-              currentMinor: 0,
-              oneToThirtyMinor: 0,
-              thirtyOneToSixtyMinor: 59000,
-              sixtyOneToNinetyMinor: 0,
-              overNinetyMinor: 0,
-            ),
-          ],
-          totalCurrentMinor: 0,
-          totalOneToThirtyMinor: 0,
-          totalThirtyOneToSixtyMinor: 59000,
-          totalSixtyOneToNinetyMinor: 0,
-          totalOverNinetyMinor: 0,
-          totalOutstandingMinor: 59000,
-        ),
+        arAgingLoader: (_, asOf) async {
+          final outstandingMinor = asOf.year < 2026 ? 100000 : 118000;
+          return ARAgingReport(
+            asOfDate: asOf,
+            rows: [
+              ARAgingRow(
+                customerId: 'cust-1',
+                customerName: 'Acme',
+                invoiceId: 'inv-1',
+                invoiceNumber: 'INV-001',
+                dueDate: DateTime.utc(2026, 7, 1),
+                daysOverdue: 30,
+                outstandingMinor: outstandingMinor,
+                currentMinor: 0,
+                oneToThirtyMinor: outstandingMinor,
+                thirtyOneToSixtyMinor: 0,
+                sixtyOneToNinetyMinor: 0,
+                overNinetyMinor: 0,
+              ),
+            ],
+            totalCurrentMinor: 0,
+            totalOneToThirtyMinor: outstandingMinor,
+            totalThirtyOneToSixtyMinor: 0,
+            totalSixtyOneToNinetyMinor: 0,
+            totalOverNinetyMinor: 0,
+            totalOutstandingMinor: outstandingMinor,
+          );
+        },
+        apAgingLoader: (_, asOf) async {
+          final outstandingMinor = asOf.year < 2026 ? 40000 : 59000;
+          return APAgingReport(
+            asOfDate: asOf,
+            rows: [
+              APAgingRow(
+                vendorId: 'vendor-1',
+                vendorName: 'Office Supplies Co',
+                billId: 'bill-1',
+                billNumber: 'BILL-001',
+                dueDate: DateTime.utc(2026, 6, 30),
+                daysOverdue: 31,
+                outstandingMinor: outstandingMinor,
+                currentMinor: 0,
+                oneToThirtyMinor: 0,
+                thirtyOneToSixtyMinor: outstandingMinor,
+                sixtyOneToNinetyMinor: 0,
+                overNinetyMinor: 0,
+              ),
+            ],
+            totalCurrentMinor: 0,
+            totalOneToThirtyMinor: 0,
+            totalThirtyOneToSixtyMinor: outstandingMinor,
+            totalSixtyOneToNinetyMinor: 0,
+            totalOverNinetyMinor: 0,
+            totalOutstandingMinor: outstandingMinor,
+          );
+        },
         taxLiabilityReportLoader: (_, from, to) async => TaxLiabilityReport(
           fromDate: from,
           toDate: to,
@@ -1524,9 +1530,23 @@ void main() {
     await tester.ensureVisible(find.text('Fetch AR aging'));
     await tester.tap(find.text('Fetch AR aging'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch AR aging comparison'));
+    await tester.tap(find.text('Fetch AR aging comparison'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Outstanding prior INR 1000.00 · Var INR 180.00 (+18.00%)'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Fetch AP aging'));
     await tester.tap(find.text('Fetch AP aging'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch AP aging comparison'));
+    await tester.tap(find.text('Fetch AP aging comparison'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Outstanding prior INR 400.00 · Var INR 190.00 (+47.50%)'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Fetch tax liability'));
     await tester.tap(find.text('Fetch tax liability'));
     await tester.pumpAndSettle();

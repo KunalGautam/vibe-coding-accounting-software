@@ -418,7 +418,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   CashFlowReport? cachedCashFlowReport;
   CashFlowReport? priorCashFlowReport;
   ARAgingReport? cachedARAgingReport;
+  ARAgingReport? priorARAgingReport;
   APAgingReport? cachedAPAgingReport;
+  APAgingReport? priorAPAgingReport;
   TaxLiabilityReport? cachedTaxLiabilityReport;
   TaxSummaryReport? cachedTaxSummaryReport;
   List<BudgetSummary> cachedBudgets = const [];
@@ -1202,6 +1204,54 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> fetchARAgingComparison(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.arAgingLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getARAging(asOf: asOf);
+      final current = await loader(settings, asOf);
+      final previous = await loader(
+        settings,
+        DateTime.utc(asOf.year - 1, asOf.month, asOf.day),
+      );
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(arAging: current),
+      );
+      setState(() {
+        cachedARAgingReport = current;
+        priorARAgingReport = previous;
+        syncNotice =
+            'Fetched AR aging comparison as of ${formatDateOnly(current.asOfDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'AR aging comparison fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchAPAging(DateTime asOf) async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1234,6 +1284,54 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     } on Object catch (error) {
       setState(() {
         syncNotice = 'AP aging fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchAPAgingComparison(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.apAgingLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getAPAging(asOf: asOf);
+      final current = await loader(settings, asOf);
+      final previous = await loader(
+        settings,
+        DateTime.utc(asOf.year - 1, asOf.month, asOf.day),
+      );
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(apAging: current),
+      );
+      setState(() {
+        cachedAPAgingReport = current;
+        priorAPAgingReport = previous;
+        syncNotice =
+            'Fetched AP aging comparison as of ${formatDateOnly(current.asOfDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'AP aging comparison fetch failed: $error';
       });
     } finally {
       if (mounted) {
@@ -2035,7 +2133,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         cashFlow: cachedCashFlowReport,
         priorCashFlow: priorCashFlowReport,
         arAging: cachedARAgingReport,
+        priorARAging: priorARAgingReport,
         apAging: cachedAPAgingReport,
+        priorAPAging: priorAPAgingReport,
         taxLiability: cachedTaxLiabilityReport,
         taxSummary: cachedTaxSummaryReport,
         budgets: cachedBudgets,
@@ -2051,7 +2151,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchCashFlow: fetchCashFlow,
         onFetchCashFlowComparison: fetchCashFlowComparison,
         onFetchARAging: fetchARAging,
+        onFetchARAgingComparison: fetchARAgingComparison,
         onFetchAPAging: fetchAPAging,
+        onFetchAPAgingComparison: fetchAPAgingComparison,
         onFetchTaxLiability: fetchTaxLiabilityReport,
         onFetchTaxSummary: fetchTaxSummaryReport,
         onFetchBudgets: fetchBudgets,
@@ -3415,7 +3517,9 @@ class ReportsPage extends StatelessWidget {
     required this.cashFlow,
     required this.priorCashFlow,
     required this.arAging,
+    required this.priorARAging,
     required this.apAging,
+    required this.priorAPAging,
     required this.taxLiability,
     required this.taxSummary,
     required this.budgets,
@@ -3429,7 +3533,9 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchCashFlow,
     required this.onFetchCashFlowComparison,
     required this.onFetchARAging,
+    required this.onFetchARAgingComparison,
     required this.onFetchAPAging,
+    required this.onFetchAPAgingComparison,
     required this.onFetchTaxLiability,
     required this.onFetchTaxSummary,
     required this.onFetchBudgets,
@@ -3449,7 +3555,9 @@ class ReportsPage extends StatelessWidget {
   final CashFlowReport? cashFlow;
   final CashFlowReport? priorCashFlow;
   final ARAgingReport? arAging;
+  final ARAgingReport? priorARAging;
   final APAgingReport? apAging;
+  final APAgingReport? priorAPAging;
   final TaxLiabilityReport? taxLiability;
   final TaxSummaryReport? taxSummary;
   final List<BudgetSummary> budgets;
@@ -3467,7 +3575,9 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to)
   onFetchCashFlowComparison;
   final Future<void> Function(DateTime asOf) onFetchARAging;
+  final Future<void> Function(DateTime asOf) onFetchARAgingComparison;
   final Future<void> Function(DateTime asOf) onFetchAPAging;
+  final Future<void> Function(DateTime asOf) onFetchAPAgingComparison;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxLiability;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
   final Future<void> Function() onFetchBudgets;
@@ -3694,6 +3804,23 @@ class ReportsPage extends StatelessWidget {
               Text('As of ${formatDateOnly(arAging!.asOfDate)}'),
               _AgingTotalsText(totals: arAging!.totals),
               const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchARAgingComparison(asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch AR aging comparison'),
+              ),
+              if (priorARAging != null) ...[
+                const SizedBox(height: 8),
+                _AgingComparison(
+                  title: 'AR aging prior',
+                  current: arAging!.totals,
+                  previous: priorARAging!.totals,
+                  previousDate: priorARAging!.asOfDate,
+                ),
+              ],
+              const SizedBox(height: 8),
               _ARAgingRows(rows: arAging!.rows),
             ],
           ],
@@ -3712,6 +3839,23 @@ class ReportsPage extends StatelessWidget {
             else ...[
               Text('As of ${formatDateOnly(apAging!.asOfDate)}'),
               _AgingTotalsText(totals: apAging!.totals),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () => onFetchAPAgingComparison(asOf),
+                icon: const Icon(Icons.compare_outlined),
+                label: const Text('Fetch AP aging comparison'),
+              ),
+              if (priorAPAging != null) ...[
+                const SizedBox(height: 8),
+                _AgingComparison(
+                  title: 'AP aging prior',
+                  current: apAging!.totals,
+                  previous: priorAPAging!.totals,
+                  previousDate: priorAPAging!.asOfDate,
+                ),
+              ],
               const SizedBox(height: 8),
               _APAgingRows(rows: apAging!.rows),
             ],
@@ -4156,6 +4300,84 @@ class _ReportRows extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _AgingComparison extends StatelessWidget {
+  const _AgingComparison({
+    required this.title,
+    required this.current,
+    required this.previous,
+    required this.previousDate,
+  });
+
+  final String title;
+  final AgingBucketTotals current;
+  final AgingBucketTotals previous;
+  final DateTime previousDate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$title as of ${formatDateOnly(previousDate)}'),
+        _AgingComparisonLine(
+          label: 'Outstanding',
+          currentMinor: current.outstandingMinor,
+          previousMinor: previous.outstandingMinor,
+        ),
+        _AgingComparisonLine(
+          label: 'Current',
+          currentMinor: current.currentMinor,
+          previousMinor: previous.currentMinor,
+        ),
+        _AgingComparisonLine(
+          label: '1-30',
+          currentMinor: current.oneToThirtyMinor,
+          previousMinor: previous.oneToThirtyMinor,
+        ),
+        _AgingComparisonLine(
+          label: '31-60',
+          currentMinor: current.thirtyOneToSixtyMinor,
+          previousMinor: previous.thirtyOneToSixtyMinor,
+        ),
+        _AgingComparisonLine(
+          label: '61-90',
+          currentMinor: current.sixtyOneToNinetyMinor,
+          previousMinor: previous.sixtyOneToNinetyMinor,
+        ),
+        _AgingComparisonLine(
+          label: '90+',
+          currentMinor: current.overNinetyMinor,
+          previousMinor: previous.overNinetyMinor,
+        ),
+      ],
+    );
+  }
+}
+
+class _AgingComparisonLine extends StatelessWidget {
+  const _AgingComparisonLine({
+    required this.label,
+    required this.currentMinor,
+    required this.previousMinor,
+  });
+
+  final String label;
+  final int currentMinor;
+  final int previousMinor;
+
+  @override
+  Widget build(BuildContext context) {
+    final variance = currentMinor - previousMinor;
+    final percent = _formatPercentBasis(_percentBasis(variance, previousMinor));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        '$label prior ${formatMinorAsInr(previousMinor)} · Var ${formatMinorAsInr(variance)} ($percent)',
+      ),
     );
   }
 }
