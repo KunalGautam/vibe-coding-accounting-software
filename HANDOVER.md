@@ -39,7 +39,7 @@ Major backend modules are implemented and tested for:
 
 React web currently has broad admin/control surfaces, offline-oriented localStorage snapshots, manual draft queues, report CSV exports, payroll preview/payslip flows, and typed API support.
 
-Flutter currently has an offline-ready expense/invoice/investment shell with file-backed caches/queues, typed API transport, attachment handling, sync settings, and tests. The sync coordinator can now replay queued expense drafts, invoice drafts, customer payments, vendor payments, attachment metadata creation, binary attachment uploads, and manual investment price captures with shared retry/error/conflict metadata.
+Flutter currently has an offline-ready expense/invoice/investment shell with file-backed caches/queues, typed API transport, attachment handling, sync settings, and tests. The sync coordinator can now replay queued expense drafts, invoice drafts, customer payments, vendor payments, estimate status transitions, purchase-order status transitions, attachment metadata creation, binary attachment uploads, and manual investment price captures with shared retry/error/conflict metadata.
 
 ## Git Notes
 The normal `.git` path in this workspace is a read-only/busy placeholder. The actual Git metadata was initialized in `.gitrepo`.
@@ -123,12 +123,12 @@ Current API coverage: `132` OpenAPI route/method pairs, matched to Gin handlers 
 2. Production readiness: deeper operational monitoring runbooks and managed-cloud deployment notes.
 3. Security hardening polish: broader auth UX and account recovery flows.
 4. Email/account flows: richer onboarding and account-management polish.
-5. Offline sync depth: native Flutter SQLite persistence and additional write queues for edits/status changes/import drafts.
+5. Offline sync depth: native Flutter SQLite persistence and additional write queues for edits/import drafts/remaining approval transitions.
 6. Export/reporting polish: broader PDF/Excel exports and comparative reports.
 7. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
 
 ## Recommended Next Step
-Continue offline depth by replacing Flutter file-backed repositories with SQLite-backed repositories and adding a durable blob manifest for queued attachment uploads. Keep the current operation keys (`expenses.create_draft`, `invoices.create_draft`, `payments.record_customer`, `payments.record_vendor`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract while migrating persistence.
+Continue offline depth by replacing Flutter file-backed repositories with SQLite-backed repositories and adding a durable blob manifest for queued attachment uploads. Keep the current operation keys (`expenses.create_draft`, `invoices.create_draft`, `payments.record_customer`, `payments.record_vendor`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract while migrating persistence.
 
 ## Files To Read First
 1. `PROJECT_CONTEXT.md`

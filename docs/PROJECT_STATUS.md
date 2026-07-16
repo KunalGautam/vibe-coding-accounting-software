@@ -8,7 +8,7 @@ The platform has a working full-stack foundation across the Go API, React web ap
 The product is not production-ready yet. The remaining work is mainly depth, compliance, deployment, security, and UX completeness rather than initial scaffolding.
 
 ## Recently Completed
-- Broadened Flutter offline write replay beyond expense drafts to cover invoice drafts, customer/vendor payments, attachment metadata creation, binary attachment upload replay, and manual investment price capture with shared retry/error/conflict handling.
+- Broadened Flutter offline write replay beyond expense drafts to cover invoice drafts, customer/vendor payments, estimate/purchase-order status transitions, attachment metadata creation, binary attachment upload replay, and manual investment price capture with shared retry/error/conflict handling.
 - Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
 - Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
@@ -28,12 +28,12 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
-- Flutter: offline-ready expense/invoice/investment shell with file-backed queues/caches, typed API transport, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/attachment metadata/binary attachment uploads/investment prices, and cached read models.
+- Flutter: offline-ready expense/invoice/investment shell with file-backed queues/caches, typed API transport, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/estimate statuses/purchase-order statuses/attachment metadata/binary attachment uploads/investment prices, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
 - Investment depth: AMFI, NSE-style equity CSV, Yahoo Finance historical CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
-- Offline sync depth: Flutter queued writes now persist retry/error/conflict metadata, surface conflict review state, and replay expense drafts, invoice drafts, customer payments, vendor payments, attachment metadata, binary attachment uploads, and investment prices; native SQLite persistence and additional module write queues remain.
+- Offline sync depth: Flutter queued writes now persist retry/error/conflict metadata, surface conflict review state, and replay expense drafts, invoice drafts, customer payments, vendor payments, estimate statuses, purchase-order statuses, attachment metadata, binary attachment uploads, and investment prices; native SQLite persistence and additional module write queues remain.
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
@@ -42,7 +42,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 
 ## Suggested Next Build Order
 1. Flutter SQLite cache migration for file-backed repositories and durable attachment blob manifests.
-2. Broader offline write queues for invoice/expense edits, bank import drafts, and approval/status transitions.
+2. Broader offline write queues for invoice/expense edits, bank import drafts, and remaining approval/status transitions.
 3. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 4. Deeper operational monitoring runbooks and managed-cloud deployment notes.
 5. Security hardening polish: broader auth UX and account recovery flows.

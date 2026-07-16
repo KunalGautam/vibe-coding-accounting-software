@@ -348,6 +348,56 @@ class OfflineSyncQueue {
     );
   }
 
+  SyncOperation enqueueEstimateStatusUpdate({
+    required String estimateId,
+    required String status,
+    DateTime? createdAt,
+  }) {
+    return _enqueueStatusUpdate(
+      action: 'update_estimate_status',
+      idPrefix: 'estimate-status',
+      documentKey: 'estimate_id',
+      documentId: estimateId,
+      status: status,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueuePurchaseOrderStatusUpdate({
+    required String purchaseOrderId,
+    required String status,
+    DateTime? createdAt,
+  }) {
+    return _enqueueStatusUpdate(
+      action: 'update_purchase_order_status',
+      idPrefix: 'purchase-order-status',
+      documentKey: 'purchase_order_id',
+      documentId: purchaseOrderId,
+      status: status,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation _enqueueStatusUpdate({
+    required String action,
+    required String idPrefix,
+    required String documentKey,
+    required String documentId,
+    required String status,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: '$idPrefix-${timestamp.microsecondsSinceEpoch}',
+      module: 'commercial_documents',
+      action: action,
+      createdAt: timestamp,
+      payload: {documentKey: documentId, 'status': status},
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation _enqueuePayment({
     required String module,
     required String action,

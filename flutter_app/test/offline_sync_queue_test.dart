@@ -312,4 +312,28 @@ void main() {
     expect(vendorPayment.payload['payment_date'], '2026-07-16');
     expect(vendorPayment.payload['payment_method'], isNull);
   });
+
+  test('queues estimate and purchase order status updates', () {
+    final queue = OfflineSyncQueue();
+
+    final estimateStatus = queue.enqueueEstimateStatusUpdate(
+      estimateId: 'estimate-1',
+      status: 'accepted',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+    final purchaseOrderStatus = queue.enqueuePurchaseOrderStatusUpdate(
+      purchaseOrderId: 'po-1',
+      status: 'approved',
+      createdAt: DateTime.utc(2026, 7, 15, 10),
+    );
+
+    expect(estimateStatus.module, 'commercial_documents');
+    expect(estimateStatus.action, 'update_estimate_status');
+    expect(estimateStatus.payload['estimate_id'], 'estimate-1');
+    expect(estimateStatus.payload['status'], 'accepted');
+    expect(purchaseOrderStatus.module, 'commercial_documents');
+    expect(purchaseOrderStatus.action, 'update_purchase_order_status');
+    expect(purchaseOrderStatus.payload['purchase_order_id'], 'po-1');
+    expect(purchaseOrderStatus.payload['status'], 'approved');
+  });
 }

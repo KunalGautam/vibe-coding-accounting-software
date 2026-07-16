@@ -491,4 +491,87 @@ void main() {
       '/api/v1/organizations/org-1/bills/bill-1/payments',
     ]);
   });
+
+  test('syncs queued commercial document status updates', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'estimate-status-local-1',
+        module: 'commercial_documents',
+        action: 'update_estimate_status',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'estimate_id': 'estimate-1', 'status': 'accepted'},
+      ),
+      SyncOperation(
+        id: 'purchase-order-status-local-1',
+        module: 'commercial_documents',
+        action: 'update_purchase_order_status',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {'purchase_order_id': 'po-1', 'status': 'approved'},
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith('/estimates/estimate-1/status')) {
+          expect(body['status'], 'accepted');
+          return http.Response(
+            jsonEncode({
+              'id': 'estimate-1',
+              'organization_id': 'org-1',
+              'customer_id': 'customer-1',
+              'estimate_number': 'EST-001',
+              'issue_date': '2026-07-01T00:00:00Z',
+              'expiry_date': '2026-07-31T00:00:00Z',
+              'status': 'accepted',
+              'currency': 'INR',
+              'subtotal_minor': 100000,
+              'tax_total_minor': 18000,
+              'total_minor': 118000,
+              'lines': [],
+            }),
+            200,
+          );
+        }
+
+        if (request.url.path.endsWith('/purchase-orders/po-1/status')) {
+          expect(body['status'], 'approved');
+          return http.Response(
+            jsonEncode({
+              'id': 'po-1',
+              'organization_id': 'org-1',
+              'vendor_id': 'vendor-1',
+              'purchase_order_number': 'PO-001',
+              'issue_date': '2026-07-01T00:00:00Z',
+              'status': 'approved',
+              'currency': 'INR',
+              'subtotal_minor': 50000,
+              'tax_total_minor': 9000,
+              'total_minor': 59000,
+              'lines': [],
+            }),
+            200,
+          );
+        }
+
+        fail('unexpected path: ${request.url.path}');
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 2);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/estimates/estimate-1/status',
+      '/api/v1/organizations/org-1/purchase-orders/po-1/status',
+    ]);
+  });
 }

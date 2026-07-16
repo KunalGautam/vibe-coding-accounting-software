@@ -99,6 +99,13 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'payments.record_vendor': (client, operation) async {
     await client.syncVendorPayment(operation);
   },
+  'commercial_documents.update_estimate_status': (client, operation) async {
+    await client.syncEstimateStatusUpdate(operation);
+  },
+  'commercial_documents.update_purchase_order_status':
+      (client, operation) async {
+        await client.syncPurchaseOrderStatusUpdate(operation);
+      },
 };
 
 class SyncResult {

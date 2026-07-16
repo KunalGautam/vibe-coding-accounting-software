@@ -238,6 +238,48 @@ class AccountingApiClient {
     );
   }
 
+  Future<EstimateSummary> updateEstimateStatus(
+    String estimateId,
+    UpdateStatusRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/estimates/$estimateId/status',
+      body: request.toJson(),
+    );
+    return EstimateSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<EstimateSummary> syncEstimateStatusUpdate(SyncOperation operation) {
+    final payload = operation.payload;
+    return updateEstimateStatus(
+      payload['estimate_id']! as String,
+      UpdateStatusRequest.fromSyncOperation(operation),
+    );
+  }
+
+  Future<PurchaseOrderSummary> updatePurchaseOrderStatus(
+    String purchaseOrderId,
+    UpdateStatusRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/purchase-orders/$purchaseOrderId/status',
+      body: request.toJson(),
+    );
+    return PurchaseOrderSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<PurchaseOrderSummary> syncPurchaseOrderStatusUpdate(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return updatePurchaseOrderStatus(
+      payload['purchase_order_id']! as String,
+      UpdateStatusRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<InvestmentValuationReport> getInvestmentValuation({
     required DateTime asOf,
   }) async {
@@ -991,6 +1033,72 @@ class RecordPaymentRequest {
       'amount_minor': amountMinor,
       'payment_account_id': paymentAccountId,
     }..removeWhere((_, value) => value == null);
+  }
+}
+
+class EstimateSummary {
+  const EstimateSummary({
+    required this.id,
+    required this.estimateNumber,
+    required this.status,
+    required this.totalMinor,
+    this.currency = 'INR',
+  });
+
+  final String id;
+  final String estimateNumber;
+  final String status;
+  final int totalMinor;
+  final String currency;
+
+  factory EstimateSummary.fromJson(Map<String, Object?> json) {
+    return EstimateSummary(
+      id: json['id']! as String,
+      estimateNumber: json['estimate_number']! as String,
+      status: json['status']! as String,
+      totalMinor: json['total_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class PurchaseOrderSummary {
+  const PurchaseOrderSummary({
+    required this.id,
+    required this.purchaseOrderNumber,
+    required this.status,
+    required this.totalMinor,
+    this.currency = 'INR',
+  });
+
+  final String id;
+  final String purchaseOrderNumber;
+  final String status;
+  final int totalMinor;
+  final String currency;
+
+  factory PurchaseOrderSummary.fromJson(Map<String, Object?> json) {
+    return PurchaseOrderSummary(
+      id: json['id']! as String,
+      purchaseOrderNumber: json['purchase_order_number']! as String,
+      status: json['status']! as String,
+      totalMinor: json['total_minor'] as int? ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+class UpdateStatusRequest {
+  const UpdateStatusRequest({required this.status});
+
+  final String status;
+
+  factory UpdateStatusRequest.fromSyncOperation(SyncOperation operation) {
+    return UpdateStatusRequest(status: operation.payload['status']! as String);
+  }
+
+  Map<String, Object?> toJson() {
+    return {'status': status};
   }
 }
 
