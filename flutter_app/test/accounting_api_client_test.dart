@@ -339,6 +339,50 @@ void main() {
             200,
           );
         }
+        if (request.url.path.endsWith('/reports/tax-liability')) {
+          expect(request.url.queryParameters['from'], '2026-04-01');
+          expect(request.url.queryParameters['to'], '2026-07-31');
+          return http.Response(
+            jsonEncode({
+              'from_date': '2026-04-01T00:00:00Z',
+              'to_date': '2026-07-31T00:00:00Z',
+              'output_tax_minor': 90000,
+              'input_tax_minor': 27000,
+              'net_payable_minor': 63000,
+              'rows': [
+                {
+                  'tax_rate_id': 'gst-18',
+                  'name': 'GST 18%',
+                  'output_tax_minor': 90000,
+                  'input_tax_minor': 27000,
+                  'net_payable_minor': 63000,
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        if (request.url.path.endsWith('/reports/tax-summary')) {
+          expect(request.url.queryParameters['from'], '2026-04-01');
+          expect(request.url.queryParameters['to'], '2026-07-31');
+          return http.Response(
+            jsonEncode({
+              'from_date': '2026-04-01T00:00:00Z',
+              'to_date': '2026-07-31T00:00:00Z',
+              'rows': [
+                {
+                  'tax_rate_id': 'gst-18',
+                  'tax_group_id': 'gst-group-18',
+                  'name': 'GST 18%',
+                  'output_tax_minor': 90000,
+                  'input_tax_minor': 27000,
+                  'net_payable_minor': 63000,
+                },
+              ],
+            }),
+            200,
+          );
+        }
         return http.Response('unexpected path', 404);
       }),
     );
@@ -349,6 +393,14 @@ void main() {
     );
     final arAging = await client.getARAging(asOf: DateTime.utc(2026, 7, 31));
     final apAging = await client.getAPAging(asOf: DateTime.utc(2026, 7, 31));
+    final taxLiability = await client.getTaxLiability(
+      from: DateTime.utc(2026, 4),
+      to: DateTime.utc(2026, 7, 31),
+    );
+    final taxSummary = await client.getTaxSummary(
+      from: DateTime.utc(2026, 4),
+      to: DateTime.utc(2026, 7, 31),
+    );
 
     expect(cashFlow.closingCashMinor, 600000);
     expect(cashFlow.rows.single.sourceModule, 'invoice');
@@ -356,6 +408,9 @@ void main() {
     expect(arAging.totalOutstandingMinor, 118000);
     expect(apAging.rows.single.billNumber, 'BILL-001');
     expect(apAging.totalOutstandingMinor, 59000);
+    expect(taxLiability.netPayableMinor, 63000);
+    expect(taxLiability.rows.single.taxRateId, 'gst-18');
+    expect(taxSummary.rows.single.taxGroupId, 'gst-group-18');
   });
 
   test('lists invoice and expense summaries', () async {

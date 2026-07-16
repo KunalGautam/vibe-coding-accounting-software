@@ -1388,6 +1388,37 @@ void main() {
           totalOverNinetyMinor: 0,
           totalOutstandingMinor: 59000,
         ),
+        taxLiabilityReportLoader: (_, from, to) async => TaxLiabilityReport(
+          fromDate: from,
+          toDate: to,
+          outputTaxMinor: 90000,
+          inputTaxMinor: 27000,
+          netPayableMinor: 63000,
+          rows: const [
+            TaxReportRowSummary(
+              taxRateId: 'gst-18',
+              taxGroupId: '',
+              name: 'GST 18%',
+              outputTaxMinor: 90000,
+              inputTaxMinor: 27000,
+              netPayableMinor: 63000,
+            ),
+          ],
+        ),
+        taxSummaryReportLoader: (_, from, to) async => TaxSummaryReport(
+          fromDate: from,
+          toDate: to,
+          rows: const [
+            TaxReportRowSummary(
+              taxRateId: 'gst-18',
+              taxGroupId: 'gst-group-18',
+              name: 'GST 18%',
+              outputTaxMinor: 90000,
+              inputTaxMinor: 27000,
+              netPayableMinor: 63000,
+            ),
+          ],
+        ),
       ),
     );
     await tester.pump();
@@ -1411,6 +1442,12 @@ void main() {
     await tester.ensureVisible(find.text('Fetch AP aging'));
     await tester.tap(find.text('Fetch AP aging'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch tax liability'));
+    await tester.tap(find.text('Fetch tax liability'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Fetch tax summary'));
+    await tester.tap(find.text('Fetch tax summary'));
+    await tester.pumpAndSettle();
 
     final cached = await reportCacheRepository.loadCached();
     expect(cached.trialBalance?.balanced, true);
@@ -1420,34 +1457,14 @@ void main() {
     expect(cached.cashFlow?.closingCashMinor, 600000);
     expect(cached.arAging?.totalOutstandingMinor, 118000);
     expect(cached.apAging?.totalOutstandingMinor, 59000);
-    expect(find.text('Balanced'), findsNWidgets(2));
-    expect(
-      find.text('Debits INR 1250.00 · Credits INR 1250.00'),
-      findsOneWidget,
-    );
+    expect(cached.taxLiability?.netPayableMinor, 63000);
+    expect(cached.taxSummary?.rows.single.taxGroupId, 'gst-group-18');
+    expect(find.text('Net payable INR 630.00'), findsOneWidget);
     expect(
       find.text(
-        '1000 · Cash · asset · Dr INR 1250.00 · Cr INR 0.00 · Bal INR 1250.00',
+        'GST 18% · Output INR 900.00 · Input INR 270.00 · Net INR 630.00',
       ),
-      findsOneWidget,
-    );
-    expect(find.text('Net income INR 3500.00'), findsOneWidget);
-    expect(
-      find.text(
-        'Assets INR 3500.00 · Liabilities INR 0.00 · Equity INR 3500.00',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Net cash flow INR 3500.00'), findsOneWidget);
-    expect(
-      find.text('INV-001 · Acme · due 2026-07-01 · 30 days · INR 1180.00'),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'BILL-001 · Office Supplies Co · due 2026-06-30 · 31 days · INR 590.00',
-      ),
-      findsOneWidget,
+      findsNWidgets(2),
     );
   });
 

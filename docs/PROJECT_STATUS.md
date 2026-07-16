@@ -18,7 +18,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added draft-update API contracts for invoices and expenses, keeping OpenAPI/Postman coverage aligned at 134 documented route/method pairs.
 - Added Flutter file picker, gallery, and camera receipt capture for attachment uploads, including offline queueing through the existing attachment upload manifest.
 - Added Flutter customer/vendor API transport, SQLite-backed offline party cache, and Sync-page review panel for AR/AP master-data visibility.
-- Added Flutter Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, and AP Aging report transport, SQLite-backed report cache with migration support, and a Reports page for offline financial snapshot review.
+- Added Flutter Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, and Tax Summary report transport, SQLite-backed report cache with migration support, and a Reports page for offline financial/tax snapshot review.
 
 ## Completed By Area
 - Core accounting: chart of accounts, double-entry journal posting, split validation, account registers, audit logs.
@@ -32,7 +32,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
-- Flutter: offline-ready expense/invoice/investment/report shell with SQLite-backed sync queue/settings/account cache/customer-vendor party cache/tax catalog cache/invoice cache/investment cache/financial report cache/attachment metadata cache/downloaded binary cache/queued-attachment upload manifest, typed API transport, file picker/gallery/camera attachment capture, conflict-aware queued writes for expense/invoice creation and draft edits, customer payments, vendor payments, ledger posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank imports, attachment metadata/binary attachment uploads, investment prices, average-cost investment sales, and cached read models.
+- Flutter: offline-ready expense/invoice/investment/report shell with SQLite-backed sync queue/settings/account cache/customer-vendor party cache/tax catalog cache/invoice cache/investment cache/financial and tax report cache/attachment metadata cache/downloaded binary cache/queued-attachment upload manifest, typed API transport, file picker/gallery/camera attachment capture, conflict-aware queued writes for expense/invoice creation and draft edits, customer payments, vendor payments, ledger posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank imports, attachment metadata/binary attachment uploads, investment prices, average-cost investment sales, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
@@ -45,7 +45,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Broaden Flutter report parity to tax reports, budget-vs-actual, comparative periods, and export polish.
+1. Broaden Flutter report parity to budget-vs-actual, comparative periods, and export polish.
 2. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 3. Deeper operational monitoring runbooks and managed-cloud deployment notes.
 4. Security hardening polish: broader auth UX and account recovery flows.

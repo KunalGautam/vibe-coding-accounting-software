@@ -164,6 +164,37 @@ void main() {
     totalOverNinetyMinor: 0,
     totalOutstandingMinor: 59000,
   );
+  final taxLiability = TaxLiabilityReport(
+    fromDate: DateTime.utc(2026, 4),
+    toDate: DateTime.utc(2026, 7, 31),
+    outputTaxMinor: 90000,
+    inputTaxMinor: 27000,
+    netPayableMinor: 63000,
+    rows: const [
+      TaxReportRowSummary(
+        taxRateId: 'gst-18',
+        taxGroupId: '',
+        name: 'GST 18%',
+        outputTaxMinor: 90000,
+        inputTaxMinor: 27000,
+        netPayableMinor: 63000,
+      ),
+    ],
+  );
+  final taxSummary = TaxSummaryReport(
+    fromDate: DateTime.utc(2026, 4),
+    toDate: DateTime.utc(2026, 7, 31),
+    rows: const [
+      TaxReportRowSummary(
+        taxRateId: 'gst-18',
+        taxGroupId: 'gst-group-18',
+        name: 'GST 18%',
+        outputTaxMinor: 90000,
+        inputTaxMinor: 27000,
+        netPayableMinor: 63000,
+      ),
+    ],
+  );
 
   test('memory report cache stores core reports', () async {
     final repository = MemoryReportCacheRepository();
@@ -176,6 +207,8 @@ void main() {
         cashFlow: cashFlow,
         arAging: arAging,
         apAging: apAging,
+        taxLiability: taxLiability,
+        taxSummary: taxSummary,
       ),
     );
 
@@ -187,6 +220,8 @@ void main() {
     expect(cached.cashFlow?.closingCashMinor, 600000);
     expect(cached.arAging?.rows.single.invoiceNumber, 'INV-001');
     expect(cached.apAging?.rows.single.billNumber, 'BILL-001');
+    expect(cached.taxLiability?.netPayableMinor, 63000);
+    expect(cached.taxSummary?.rows.single.taxGroupId, 'gst-group-18');
   });
 
   test('file report cache persists core reports', () async {
@@ -206,6 +241,8 @@ void main() {
         cashFlow: cashFlow,
         arAging: arAging,
         apAging: apAging,
+        taxLiability: taxLiability,
+        taxSummary: taxSummary,
       ),
     );
 
@@ -217,6 +254,8 @@ void main() {
     expect(cached.cashFlow?.generatedFromSubtypes, ['bank', 'cash']);
     expect(cached.arAging?.totalOutstandingMinor, 118000);
     expect(cached.apAging?.totalOutstandingMinor, 59000);
+    expect(cached.taxLiability?.outputTaxMinor, 90000);
+    expect(cached.taxSummary?.rows.single.name, 'GST 18%');
   });
 
   test('sqlite report cache persists and replaces core reports', () async {
@@ -238,6 +277,8 @@ void main() {
         cashFlow: cashFlow,
         arAging: arAging,
         apAging: apAging,
+        taxLiability: taxLiability,
+        taxSummary: taxSummary,
       ),
     );
     await repository.saveCached(
@@ -273,6 +314,8 @@ void main() {
     expect(cached.cashFlow?.netCashFlowMinor, isNull);
     expect(cached.arAging?.totalOutstandingMinor, isNull);
     expect(cached.apAging?.totalOutstandingMinor, isNull);
+    expect(cached.taxLiability?.netPayableMinor, isNull);
+    expect(cached.taxSummary?.rows, isNull);
   });
 
   test('snapshot copyWith preserves existing cached reports', () {
@@ -288,5 +331,11 @@ void main() {
     expect(updated.cashFlow?.openingCashMinor, 250000);
     expect(updated.arAging?.totalOutstandingMinor, 118000);
     expect(updated.apAging?.totalOutstandingMinor, 59000);
+    final withTax = updated.copyWith(
+      taxLiability: taxLiability,
+      taxSummary: taxSummary,
+    );
+    expect(withTax.taxLiability?.netPayableMinor, 63000);
+    expect(withTax.taxSummary?.rows.single.taxRateId, 'gst-18');
   });
 }

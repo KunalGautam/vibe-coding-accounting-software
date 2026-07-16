@@ -298,6 +298,28 @@ class AccountingApiClient {
     return APAgingReport.fromJson(_decodeObject(response));
   }
 
+  Future<TaxLiabilityReport> getTaxLiability({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final params = Uri(
+      queryParameters: {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    ).query;
+    final response = await _send('GET', '/reports/tax-liability?$params');
+    return TaxLiabilityReport.fromJson(_decodeObject(response));
+  }
+
+  Future<TaxSummaryReport> getTaxSummary({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final params = Uri(
+      queryParameters: {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    ).query;
+    final response = await _send('GET', '/reports/tax-summary?$params');
+    return TaxSummaryReport.fromJson(_decodeObject(response));
+  }
+
   Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
     final response = await _send('GET', '/investments/prices');
     return _decodeList(response, InvestmentPriceSummary.fromJson);
@@ -1762,6 +1784,120 @@ class APAgingReport {
       'total_sixty_one_to_ninety_minor': totalSixtyOneToNinetyMinor,
       'total_over_ninety_minor': totalOverNinetyMinor,
       'total_outstanding_minor': totalOutstandingMinor,
+    };
+  }
+}
+
+class TaxReportRowSummary {
+  const TaxReportRowSummary({
+    required this.taxRateId,
+    required this.taxGroupId,
+    required this.name,
+    required this.outputTaxMinor,
+    required this.inputTaxMinor,
+    required this.netPayableMinor,
+  });
+
+  final String taxRateId;
+  final String taxGroupId;
+  final String name;
+  final int outputTaxMinor;
+  final int inputTaxMinor;
+  final int netPayableMinor;
+
+  factory TaxReportRowSummary.fromJson(Map<String, Object?> json) {
+    return TaxReportRowSummary(
+      taxRateId: json['tax_rate_id'] as String? ?? '',
+      taxGroupId: json['tax_group_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      outputTaxMinor: json['output_tax_minor'] as int? ?? 0,
+      inputTaxMinor: json['input_tax_minor'] as int? ?? 0,
+      netPayableMinor: json['net_payable_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'tax_rate_id': taxRateId,
+      if (taxGroupId.isNotEmpty) 'tax_group_id': taxGroupId,
+      'name': name,
+      'output_tax_minor': outputTaxMinor,
+      'input_tax_minor': inputTaxMinor,
+      'net_payable_minor': netPayableMinor,
+    };
+  }
+}
+
+class TaxLiabilityReport {
+  const TaxLiabilityReport({
+    required this.fromDate,
+    required this.toDate,
+    required this.outputTaxMinor,
+    required this.inputTaxMinor,
+    required this.netPayableMinor,
+    required this.rows,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final int outputTaxMinor;
+  final int inputTaxMinor;
+  final int netPayableMinor;
+  final List<TaxReportRowSummary> rows;
+
+  factory TaxLiabilityReport.fromJson(Map<String, Object?> json) {
+    return TaxLiabilityReport(
+      fromDate: DateTime.parse(json['from_date']! as String),
+      toDate: DateTime.parse(json['to_date']! as String),
+      outputTaxMinor: json['output_tax_minor'] as int? ?? 0,
+      inputTaxMinor: json['input_tax_minor'] as int? ?? 0,
+      netPayableMinor: json['net_payable_minor'] as int? ?? 0,
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(TaxReportRowSummary.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'from_date': _dateOnly(fromDate),
+      'to_date': _dateOnly(toDate),
+      'output_tax_minor': outputTaxMinor,
+      'input_tax_minor': inputTaxMinor,
+      'net_payable_minor': netPayableMinor,
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+    };
+  }
+}
+
+class TaxSummaryReport {
+  const TaxSummaryReport({
+    required this.fromDate,
+    required this.toDate,
+    required this.rows,
+  });
+
+  final DateTime fromDate;
+  final DateTime toDate;
+  final List<TaxReportRowSummary> rows;
+
+  factory TaxSummaryReport.fromJson(Map<String, Object?> json) {
+    return TaxSummaryReport(
+      fromDate: DateTime.parse(json['from_date']! as String),
+      toDate: DateTime.parse(json['to_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(TaxReportRowSummary.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'from_date': _dateOnly(fromDate),
+      'to_date': _dateOnly(toDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
     };
   }
 }

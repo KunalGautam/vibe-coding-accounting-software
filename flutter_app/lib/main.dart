@@ -46,6 +46,18 @@ typedef ARAgingLoader =
     Future<ARAgingReport> Function(SyncSettings settings, DateTime asOf);
 typedef APAgingLoader =
     Future<APAgingReport> Function(SyncSettings settings, DateTime asOf);
+typedef TaxLiabilityReportLoader =
+    Future<TaxLiabilityReport> Function(
+      SyncSettings settings,
+      DateTime from,
+      DateTime to,
+    );
+typedef TaxSummaryReportLoader =
+    Future<TaxSummaryReport> Function(
+      SyncSettings settings,
+      DateTime from,
+      DateTime to,
+    );
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -142,6 +154,8 @@ class AccountingApp extends StatelessWidget {
     this.cashFlowLoader,
     this.arAgingLoader,
     this.apAgingLoader,
+    this.taxLiabilityReportLoader,
+    this.taxSummaryReportLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -176,6 +190,8 @@ class AccountingApp extends StatelessWidget {
   final CashFlowLoader? cashFlowLoader;
   final ARAgingLoader? arAgingLoader;
   final APAgingLoader? apAgingLoader;
+  final TaxLiabilityReportLoader? taxLiabilityReportLoader;
+  final TaxSummaryReportLoader? taxSummaryReportLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -222,6 +238,8 @@ class AccountingApp extends StatelessWidget {
         cashFlowLoader: cashFlowLoader,
         arAgingLoader: arAgingLoader,
         apAgingLoader: apAgingLoader,
+        taxLiabilityReportLoader: taxLiabilityReportLoader,
+        taxSummaryReportLoader: taxSummaryReportLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -260,6 +278,8 @@ class MobileDeskShell extends StatefulWidget {
     this.cashFlowLoader,
     this.arAgingLoader,
     this.apAgingLoader,
+    this.taxLiabilityReportLoader,
+    this.taxSummaryReportLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -294,6 +314,8 @@ class MobileDeskShell extends StatefulWidget {
   final CashFlowLoader? cashFlowLoader;
   final ARAgingLoader? arAgingLoader;
   final APAgingLoader? apAgingLoader;
+  final TaxLiabilityReportLoader? taxLiabilityReportLoader;
+  final TaxSummaryReportLoader? taxSummaryReportLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -358,6 +380,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   CashFlowReport? cachedCashFlowReport;
   ARAgingReport? cachedARAgingReport;
   APAgingReport? cachedAPAgingReport;
+  TaxLiabilityReport? cachedTaxLiabilityReport;
+  TaxSummaryReport? cachedTaxSummaryReport;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -464,6 +488,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       cachedCashFlowReport = snapshot.cashFlow;
       cachedARAgingReport = snapshot.arAging;
       cachedAPAgingReport = snapshot.apAging;
+      cachedTaxLiabilityReport = snapshot.taxLiability;
+      cachedTaxSummaryReport = snapshot.taxSummary;
     });
   }
 
@@ -1028,6 +1054,92 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> fetchTaxLiabilityReport(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.taxLiabilityReportLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getTaxLiability(from: from, to: to);
+      final report = await loader(settings, from, to);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(taxLiability: report),
+      );
+      setState(() {
+        cachedTaxLiabilityReport = report;
+        syncNotice =
+            'Fetched tax liability from ${formatDateOnly(report.fromDate)} to ${formatDateOnly(report.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Tax liability fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchTaxSummaryReport(DateTime from, DateTime to) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.taxSummaryReportLoader ??
+          (settings, from, to) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getTaxSummary(from: from, to: to);
+      final report = await loader(settings, from, to);
+      final snapshot = await reportCacheRepository.loadCached();
+      await reportCacheRepository.saveCached(
+        snapshot.copyWith(taxSummary: report),
+      );
+      setState(() {
+        cachedTaxSummaryReport = report;
+        syncNotice =
+            'Fetched tax summary from ${formatDateOnly(report.fromDate)} to ${formatDateOnly(report.toDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Tax summary fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchTaxCatalog() async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1576,6 +1688,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         cashFlow: cachedCashFlowReport,
         arAging: cachedARAgingReport,
         apAging: cachedAPAgingReport,
+        taxLiability: cachedTaxLiabilityReport,
+        taxSummary: cachedTaxSummaryReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
         onFetchTrialBalance: fetchTrialBalance,
@@ -1584,6 +1698,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchCashFlow: fetchCashFlow,
         onFetchARAging: fetchARAging,
         onFetchAPAging: fetchAPAging,
+        onFetchTaxLiability: fetchTaxLiabilityReport,
+        onFetchTaxSummary: fetchTaxSummaryReport,
       ),
       SyncPage(
         settings: settings,
@@ -2939,6 +3055,8 @@ class ReportsPage extends StatelessWidget {
     required this.cashFlow,
     required this.arAging,
     required this.apAging,
+    required this.taxLiability,
+    required this.taxSummary,
     required this.isLoading,
     required this.onFetchTrialBalance,
     required this.onFetchProfitAndLoss,
@@ -2946,6 +3064,8 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchCashFlow,
     required this.onFetchARAging,
     required this.onFetchAPAging,
+    required this.onFetchTaxLiability,
+    required this.onFetchTaxSummary,
     this.notice,
     super.key,
   });
@@ -2956,6 +3076,8 @@ class ReportsPage extends StatelessWidget {
   final CashFlowReport? cashFlow;
   final ARAgingReport? arAging;
   final APAgingReport? apAging;
+  final TaxLiabilityReport? taxLiability;
+  final TaxSummaryReport? taxSummary;
   final bool isLoading;
   final String? notice;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
@@ -2964,6 +3086,8 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to) onFetchCashFlow;
   final Future<void> Function(DateTime asOf) onFetchARAging;
   final Future<void> Function(DateTime asOf) onFetchAPAging;
+  final Future<void> Function(DateTime from, DateTime to) onFetchTaxLiability;
+  final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -3146,12 +3270,59 @@ class ReportsPage extends StatelessWidget {
             ],
           ],
         ),
+        _ReportCard(
+          title: 'Tax liability',
+          description:
+              'Summarizes output tax minus input tax from ${formatDateOnly(fiscalStart)} to ${formatDateOnly(asOf)}.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch tax liability',
+          icon: Icons.account_balance_wallet_outlined,
+          isLoading: isLoading,
+          onPressed: () => onFetchTaxLiability(fiscalStart, asOf),
+          children: [
+            if (taxLiability == null)
+              const Text('No cached tax liability report yet.')
+            else ...[
+              Text(
+                '${formatDateOnly(taxLiability!.fromDate)} to ${formatDateOnly(taxLiability!.toDate)}',
+              ),
+              Text(
+                'Output ${formatMinorAsInr(taxLiability!.outputTaxMinor)} · Input ${formatMinorAsInr(taxLiability!.inputTaxMinor)}',
+              ),
+              Text(
+                'Net payable ${formatMinorAsInr(taxLiability!.netPayableMinor)}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _TaxReportRows(rows: taxLiability!.rows),
+            ],
+          ],
+        ),
+        _ReportCard(
+          title: 'Tax summary',
+          description:
+              'Breaks tax activity down by configured rate/group for filing support.',
+          buttonLabel: isLoading ? 'Loading reports...' : 'Fetch tax summary',
+          icon: Icons.summarize_outlined,
+          isLoading: isLoading,
+          onPressed: () => onFetchTaxSummary(fiscalStart, asOf),
+          children: [
+            if (taxSummary == null)
+              const Text('No cached tax summary report yet.')
+            else ...[
+              Text(
+                '${formatDateOnly(taxSummary!.fromDate)} to ${formatDateOnly(taxSummary!.toDate)}',
+              ),
+              const SizedBox(height: 8),
+              _TaxReportRows(rows: taxSummary!.rows),
+            ],
+          ],
+        ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
-            'Target APIs: trial balance, P&L, balance sheet, cash flow, AR aging, and AP aging',
+            'Target APIs: financial statements, aging, tax liability, and tax summary reports',
             'Latest financial report snapshots are cached locally for offline review',
-            'Tax, budget, comparative, and export polish remain next reporting parity targets',
+            'Budget, comparative, and export polish remain next reporting parity targets',
           ],
         ),
       ],
@@ -3310,6 +3481,31 @@ class _APAgingRows extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
               '${row.billNumber} · ${row.vendorName} · due ${formatDateOnly(row.dueDate)} · ${row.daysOverdue} days · ${formatMinorAsInr(row.outstandingMinor)}',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TaxReportRows extends StatelessWidget {
+  const _TaxReportRows({required this.rows});
+
+  final List<TaxReportRowSummary> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return const Text('No tax activity in this period.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final row in rows.take(12))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '${row.name} · Output ${formatMinorAsInr(row.outputTaxMinor)} · Input ${formatMinorAsInr(row.inputTaxMinor)} · Net ${formatMinorAsInr(row.netPayableMinor)}',
             ),
           ),
       ],

@@ -9,7 +9,7 @@ import '../storage/offline_sqlite.dart';
 Future<ReportCacheRepository> createDefaultReportCacheRepository() async {
   final database = await openOfflineDatabase(
     fileName: 'offline-reports.sqlite',
-    version: 3,
+    version: 4,
     onCreate: (database, _) => createReportCacheTables(database),
     onUpgrade: (database, _, _) => createReportCacheTables(database),
   );
@@ -24,6 +24,8 @@ class ReportCacheSnapshot {
     this.cashFlow,
     this.arAging,
     this.apAging,
+    this.taxLiability,
+    this.taxSummary,
   });
 
   final TrialBalanceReport? trialBalance;
@@ -32,6 +34,8 @@ class ReportCacheSnapshot {
   final CashFlowReport? cashFlow;
   final ARAgingReport? arAging;
   final APAgingReport? apAging;
+  final TaxLiabilityReport? taxLiability;
+  final TaxSummaryReport? taxSummary;
 
   factory ReportCacheSnapshot.fromJson(Map<String, Object?> json) {
     return ReportCacheSnapshot(
@@ -59,6 +63,16 @@ class ReportCacheSnapshot {
       apAging: json['ap_aging'] is Map<String, Object?>
           ? APAgingReport.fromJson(json['ap_aging']! as Map<String, Object?>)
           : null,
+      taxLiability: json['tax_liability'] is Map<String, Object?>
+          ? TaxLiabilityReport.fromJson(
+              json['tax_liability']! as Map<String, Object?>,
+            )
+          : null,
+      taxSummary: json['tax_summary'] is Map<String, Object?>
+          ? TaxSummaryReport.fromJson(
+              json['tax_summary']! as Map<String, Object?>,
+            )
+          : null,
     );
   }
 
@@ -69,6 +83,8 @@ class ReportCacheSnapshot {
     CashFlowReport? cashFlow,
     ARAgingReport? arAging,
     APAgingReport? apAging,
+    TaxLiabilityReport? taxLiability,
+    TaxSummaryReport? taxSummary,
   }) {
     return ReportCacheSnapshot(
       trialBalance: trialBalance ?? this.trialBalance,
@@ -77,6 +93,8 @@ class ReportCacheSnapshot {
       cashFlow: cashFlow ?? this.cashFlow,
       arAging: arAging ?? this.arAging,
       apAging: apAging ?? this.apAging,
+      taxLiability: taxLiability ?? this.taxLiability,
+      taxSummary: taxSummary ?? this.taxSummary,
     );
   }
 
@@ -88,6 +106,8 @@ class ReportCacheSnapshot {
       if (cashFlow != null) 'cash_flow': cashFlow!.toJson(),
       if (arAging != null) 'ar_aging': arAging!.toJson(),
       if (apAging != null) 'ap_aging': apAging!.toJson(),
+      if (taxLiability != null) 'tax_liability': taxLiability!.toJson(),
+      if (taxSummary != null) 'tax_summary': taxSummary!.toJson(),
     };
   }
 }
@@ -201,6 +221,22 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       'cached_ap_aging_rows',
       orderBy: 'row_index ASC, due_date ASC, bill_number ASC',
     );
+    final taxLiabilityRows = await database.query(
+      'cached_tax_liability_report',
+      limit: 1,
+    );
+    final taxLiabilityDetailRows = await database.query(
+      'cached_tax_liability_rows',
+      orderBy: 'row_index ASC, name ASC, tax_rate_id ASC, tax_group_id ASC',
+    );
+    final taxSummaryRows = await database.query(
+      'cached_tax_summary_report',
+      limit: 1,
+    );
+    final taxSummaryDetailRows = await database.query(
+      'cached_tax_summary_rows',
+      orderBy: 'row_index ASC, name ASC, tax_rate_id ASC, tax_group_id ASC',
+    );
     return ReportCacheSnapshot(
       trialBalance: trialBalanceRows.isEmpty
           ? null
@@ -229,6 +265,15 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       apAging: apAgingRows.isEmpty
           ? null
           : _apAgingFromRows(apAgingRows.single, apAgingDetailRows),
+      taxLiability: taxLiabilityRows.isEmpty
+          ? null
+          : _taxLiabilityFromRows(
+              taxLiabilityRows.single,
+              taxLiabilityDetailRows,
+            ),
+      taxSummary: taxSummaryRows.isEmpty
+          ? null
+          : _taxSummaryFromRows(taxSummaryRows.single, taxSummaryDetailRows),
     );
   }
 
@@ -247,6 +292,10 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
       await transaction.delete('cached_ar_aging_rows');
       await transaction.delete('cached_ap_aging_report');
       await transaction.delete('cached_ap_aging_rows');
+      await transaction.delete('cached_tax_liability_report');
+      await transaction.delete('cached_tax_liability_rows');
+      await transaction.delete('cached_tax_summary_report');
+      await transaction.delete('cached_tax_summary_rows');
 
       final trialBalance = snapshot.trialBalance;
       if (trialBalance != null) {
@@ -358,6 +407,34 @@ class SqliteReportCacheRepository implements ReportCacheRepository {
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
         }
+      }
+
+      final taxLiability = snapshot.taxLiability;
+      if (taxLiability != null) {
+        await transaction.insert(
+          'cached_tax_liability_report',
+          _taxLiabilityToRow(taxLiability),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await _insertTaxRows(
+          transaction,
+          'cached_tax_liability_rows',
+          taxLiability.rows,
+        );
+      }
+
+      final taxSummary = snapshot.taxSummary;
+      if (taxSummary != null) {
+        await transaction.insert(
+          'cached_tax_summary_report',
+          _taxSummaryToRow(taxSummary),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await _insertTaxRows(
+          transaction,
+          'cached_tax_summary_rows',
+          taxSummary.rows,
+        );
       }
     });
   }
@@ -520,6 +597,47 @@ CREATE TABLE IF NOT EXISTS cached_ap_aging_rows (
   PRIMARY KEY (row_index, bill_id)
 )
 ''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_tax_liability_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  from_date TEXT NOT NULL,
+  to_date TEXT NOT NULL,
+  output_tax_minor INTEGER NOT NULL DEFAULT 0,
+  input_tax_minor INTEGER NOT NULL DEFAULT 0,
+  net_payable_minor INTEGER NOT NULL DEFAULT 0
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_tax_liability_rows (
+  row_index INTEGER NOT NULL,
+  tax_rate_id TEXT NOT NULL DEFAULT '',
+  tax_group_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  output_tax_minor INTEGER NOT NULL DEFAULT 0,
+  input_tax_minor INTEGER NOT NULL DEFAULT 0,
+  net_payable_minor INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (row_index, tax_rate_id, tax_group_id)
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_tax_summary_report (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  from_date TEXT NOT NULL,
+  to_date TEXT NOT NULL
+)
+''');
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS cached_tax_summary_rows (
+  row_index INTEGER NOT NULL,
+  tax_rate_id TEXT NOT NULL DEFAULT '',
+  tax_group_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  output_tax_minor INTEGER NOT NULL DEFAULT 0,
+  input_tax_minor INTEGER NOT NULL DEFAULT 0,
+  net_payable_minor INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (row_index, tax_rate_id, tax_group_id)
+)
+''');
 }
 
 Map<String, Object?> _trialBalanceToRow(TrialBalanceReport report) {
@@ -662,6 +780,51 @@ Map<String, Object?> _apAgingRowToRow(int index, APAgingRow row) {
   };
 }
 
+Map<String, Object?> _taxLiabilityToRow(TaxLiabilityReport report) {
+  return {
+    'id': 1,
+    'from_date': _dateOnly(report.fromDate),
+    'to_date': _dateOnly(report.toDate),
+    'output_tax_minor': report.outputTaxMinor,
+    'input_tax_minor': report.inputTaxMinor,
+    'net_payable_minor': report.netPayableMinor,
+  };
+}
+
+Map<String, Object?> _taxSummaryToRow(TaxSummaryReport report) {
+  return {
+    'id': 1,
+    'from_date': _dateOnly(report.fromDate),
+    'to_date': _dateOnly(report.toDate),
+  };
+}
+
+Map<String, Object?> _taxReportRowToRow(int index, TaxReportRowSummary row) {
+  return {
+    'row_index': index,
+    'tax_rate_id': row.taxRateId,
+    'tax_group_id': row.taxGroupId,
+    'name': row.name,
+    'output_tax_minor': row.outputTaxMinor,
+    'input_tax_minor': row.inputTaxMinor,
+    'net_payable_minor': row.netPayableMinor,
+  };
+}
+
+Future<void> _insertTaxRows(
+  DatabaseExecutor transaction,
+  String table,
+  List<TaxReportRowSummary> rows,
+) async {
+  for (var index = 0; index < rows.length; index += 1) {
+    await transaction.insert(
+      table,
+      _taxReportRowToRow(index, rows[index]),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+}
+
 Future<void> _insertSectionRows(
   DatabaseExecutor transaction,
   String table,
@@ -779,6 +942,31 @@ APAgingReport _apAgingFromRows(
   );
 }
 
+TaxLiabilityReport _taxLiabilityFromRows(
+  Map<String, Object?> report,
+  List<Map<String, Object?>> rows,
+) {
+  return TaxLiabilityReport(
+    fromDate: DateTime.parse(report['from_date']! as String),
+    toDate: DateTime.parse(report['to_date']! as String),
+    outputTaxMinor: report['output_tax_minor'] as int? ?? 0,
+    inputTaxMinor: report['input_tax_minor'] as int? ?? 0,
+    netPayableMinor: report['net_payable_minor'] as int? ?? 0,
+    rows: rows.map(_taxReportRowFromRow).toList(growable: false),
+  );
+}
+
+TaxSummaryReport _taxSummaryFromRows(
+  Map<String, Object?> report,
+  List<Map<String, Object?>> rows,
+) {
+  return TaxSummaryReport(
+    fromDate: DateTime.parse(report['from_date']! as String),
+    toDate: DateTime.parse(report['to_date']! as String),
+    rows: rows.map(_taxReportRowFromRow).toList(growable: false),
+  );
+}
+
 List<ReportRowSummary> _sectionRows(
   List<Map<String, Object?>> rows,
   String section,
@@ -787,6 +975,17 @@ List<ReportRowSummary> _sectionRows(
       .where((row) => row['section'] == section)
       .map(_reportRowFromRow)
       .toList(growable: false);
+}
+
+TaxReportRowSummary _taxReportRowFromRow(Map<String, Object?> row) {
+  return TaxReportRowSummary(
+    taxRateId: row['tax_rate_id'] as String? ?? '',
+    taxGroupId: row['tax_group_id'] as String? ?? '',
+    name: row['name'] as String? ?? '',
+    outputTaxMinor: row['output_tax_minor'] as int? ?? 0,
+    inputTaxMinor: row['input_tax_minor'] as int? ?? 0,
+    netPayableMinor: row['net_payable_minor'] as int? ?? 0,
+  );
 }
 
 CashFlowRow _cashFlowRowFromRow(Map<String, Object?> row) {
