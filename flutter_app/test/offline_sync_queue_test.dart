@@ -332,6 +332,33 @@ void main() {
     expect(lines.single['amount_minor'], 125000);
   });
 
+  test('queues QIF and OFX bank statement imports for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final qif = queue.enqueueQifBankStatementImport(
+      accountId: 'acct-bank',
+      fileName: 'july-bank.qif',
+      qifContent: '!Type:Bank\nD13/07/2026\nT1250.00\n^',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+    final ofx = queue.enqueueOfxBankStatementImport(
+      accountId: 'acct-bank',
+      fileName: 'july-bank.ofx',
+      ofxContent: '<OFX><STMTTRN><TRNAMT>1250.00',
+      createdAt: DateTime.utc(2026, 7, 15, 10),
+    );
+
+    expect(qif.module, 'imports');
+    expect(qif.action, 'bank_statement_qif');
+    expect(qif.payload['account_id'], 'acct-bank');
+    expect(qif.payload['file_name'], 'july-bank.qif');
+    expect(qif.payload['qif_content'], contains('!Type:Bank'));
+    expect(ofx.module, 'imports');
+    expect(ofx.action, 'bank_statement_ofx');
+    expect(ofx.payload['file_name'], 'july-bank.ofx');
+    expect(ofx.payload['ofx_content'], contains('<OFX>'));
+  });
+
   test('queues customer and vendor payments for later replay', () {
     final queue = OfflineSyncQueue();
 

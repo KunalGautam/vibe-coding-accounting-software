@@ -571,6 +571,72 @@ void main() {
     ]);
   });
 
+  test('syncs queued QIF and OFX bank statement imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'qif-import-local-1',
+        module: 'imports',
+        action: 'bank_statement_qif',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'account_id': 'acct-bank',
+          'file_name': 'july-bank.qif',
+          'qif_content': '!Type:Bank\nD13/07/2026\nT1250.00\n^',
+        },
+      ),
+      SyncOperation(
+        id: 'ofx-import-local-1',
+        module: 'imports',
+        action: 'bank_statement_ofx',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'account_id': 'acct-bank',
+          'file_name': 'july-bank.ofx',
+          'ofx_content': '<OFX><STMTTRN><TRNAMT>1250.00',
+        },
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-bank');
+
+        if (request.url.path.endsWith('/bank-statements/import/qif')) {
+          expect(body['qif_content'], contains('!Type:Bank'));
+          return http.Response(
+            jsonEncode(
+              _bankImportJson(fileName: 'july-bank.qif', format: 'qif'),
+            ),
+            201,
+          );
+        }
+
+        expect(request.url.path.endsWith('/bank-statements/import/ofx'), true);
+        expect(body['ofx_content'], contains('<OFX>'));
+        return http.Response(
+          jsonEncode(_bankImportJson(fileName: 'july-bank.ofx', format: 'ofx')),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 2);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/bank-statements/import/qif',
+      '/api/v1/organizations/org-1/bank-statements/import/ofx',
+    ]);
+  });
+
   test('syncs queued commercial document status updates', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(
@@ -842,4 +908,31 @@ void main() {
     expect(result.synced, 1);
     expect(queue.pendingCount, 0);
   });
+}
+
+Map<String, Object?> _bankImportJson({
+  required String fileName,
+  required String format,
+}) {
+  return {
+    'id': 'bank-import-$format',
+    'organization_id': 'org-1',
+    'account_id': 'acct-bank',
+    'file_name': fileName,
+    'format': format,
+    'status': 'completed',
+    'line_count': 1,
+    'lines': [
+      {
+        'id': 'bank-line-$format',
+        'organization_id': 'org-1',
+        'account_id': 'acct-bank',
+        'posted_date': '2026-07-15T00:00:00Z',
+        'description': 'Imported line',
+        'amount_minor': 125000,
+        'reference': 'BANK-123',
+        'is_duplicate': false,
+      },
+    ],
+  };
 }

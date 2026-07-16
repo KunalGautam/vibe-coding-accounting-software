@@ -403,6 +403,52 @@ void main() {
     expect(imported.lines.single.isDuplicate, false);
   });
 
+  test('imports QIF and OFX bank statement content', () async {
+    final requestedPaths = <String>[];
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-bank');
+
+        if (request.url.path.endsWith('/bank-statements/import/qif')) {
+          expect(body['file_name'], 'july-bank.qif');
+          expect(body['qif_content'], contains('!Type:Bank'));
+          return _bankImportResponse(fileName: 'july-bank.qif', format: 'qif');
+        }
+
+        expect(request.url.path.endsWith('/bank-statements/import/ofx'), true);
+        expect(body['file_name'], 'july-bank.ofx');
+        expect(body['ofx_content'], contains('<OFX>'));
+        return _bankImportResponse(fileName: 'july-bank.ofx', format: 'ofx');
+      }),
+    );
+
+    final qif = await client.importQifBankStatement(
+      const ImportQifBankStatementRequest(
+        accountId: 'acct-bank',
+        fileName: 'july-bank.qif',
+        qifContent: '!Type:Bank\nD13/07/2026\nT1250.00\n^',
+      ),
+    );
+    final ofx = await client.importOfxBankStatement(
+      const ImportOfxBankStatementRequest(
+        accountId: 'acct-bank',
+        fileName: 'july-bank.ofx',
+        ofxContent: '<OFX><STMTTRN><TRNAMT>1250.00',
+      ),
+    );
+
+    expect(qif.format, 'qif');
+    expect(ofx.format, 'ofx');
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/bank-statements/import/qif',
+      '/api/v1/organizations/org-1/bank-statements/import/ofx',
+    ]);
+  });
+
   test('lists and creates attachment metadata', () async {
     final client = AccountingApiClient(
       config: config,
@@ -668,4 +714,35 @@ class _StreamingMockClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     return handler(request);
   }
+}
+
+http.Response _bankImportResponse({
+  required String fileName,
+  required String format,
+}) {
+  return http.Response(jsonEncode(_bankImportJson(fileName, format)), 201);
+}
+
+Map<String, Object?> _bankImportJson(String fileName, String format) {
+  return {
+    'id': 'bank-import-$format',
+    'organization_id': 'org-1',
+    'account_id': 'acct-bank',
+    'file_name': fileName,
+    'format': format,
+    'status': 'completed',
+    'line_count': 1,
+    'lines': [
+      {
+        'id': 'bank-line-$format',
+        'organization_id': 'org-1',
+        'account_id': 'acct-bank',
+        'posted_date': '2026-07-15T00:00:00Z',
+        'description': 'Imported line',
+        'amount_minor': 125000,
+        'reference': 'BANK-123',
+        'is_duplicate': false,
+      },
+    ],
+  };
 }

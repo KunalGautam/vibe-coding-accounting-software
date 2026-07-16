@@ -369,6 +369,44 @@ class AccountingApiClient {
     );
   }
 
+  Future<BankStatementImportSummary> importQifBankStatement(
+    ImportQifBankStatementRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/bank-statements/import/qif',
+      body: request.toJson(),
+    );
+    return BankStatementImportSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<BankStatementImportSummary> syncQifBankStatementImport(
+    SyncOperation operation,
+  ) {
+    return importQifBankStatement(
+      ImportQifBankStatementRequest.fromSyncOperation(operation),
+    );
+  }
+
+  Future<BankStatementImportSummary> importOfxBankStatement(
+    ImportOfxBankStatementRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/bank-statements/import/ofx',
+      body: request.toJson(),
+    );
+    return BankStatementImportSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<BankStatementImportSummary> syncOfxBankStatementImport(
+    SyncOperation operation,
+  ) {
+    return importOfxBankStatement(
+      ImportOfxBankStatementRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<http.Response> _send(
     String method,
     String path, {
@@ -1419,6 +1457,68 @@ class ImportBankStatementLineRequest {
       'description': description.isEmpty ? null : description,
       'amount_minor': amountMinor,
       'reference': reference.isEmpty ? null : reference,
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class ImportQifBankStatementRequest {
+  const ImportQifBankStatementRequest({
+    required this.accountId,
+    required this.qifContent,
+    this.fileName = '',
+  });
+
+  final String accountId;
+  final String qifContent;
+  final String fileName;
+
+  factory ImportQifBankStatementRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ImportQifBankStatementRequest(
+      accountId: payload['account_id']! as String,
+      qifContent: payload['qif_content']! as String,
+      fileName: payload['file_name'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'file_name': fileName.isEmpty ? null : fileName,
+      'qif_content': qifContent,
+    }..removeWhere((_, value) => value == null);
+  }
+}
+
+class ImportOfxBankStatementRequest {
+  const ImportOfxBankStatementRequest({
+    required this.accountId,
+    required this.ofxContent,
+    this.fileName = '',
+  });
+
+  final String accountId;
+  final String ofxContent;
+  final String fileName;
+
+  factory ImportOfxBankStatementRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return ImportOfxBankStatementRequest(
+      accountId: payload['account_id']! as String,
+      ofxContent: payload['ofx_content']! as String,
+      fileName: payload['file_name'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'file_name': fileName.isEmpty ? null : fileName,
+      'ofx_content': ofxContent,
     }..removeWhere((_, value) => value == null);
   }
 }

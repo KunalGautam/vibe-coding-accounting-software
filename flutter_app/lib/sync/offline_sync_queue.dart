@@ -350,6 +350,40 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueQifBankStatementImport({
+    required String accountId,
+    required String qifContent,
+    String fileName = '',
+    DateTime? createdAt,
+  }) {
+    return _enqueueRawBankStatementImport(
+      action: 'bank_statement_qif',
+      idPrefix: 'qif-bank-import',
+      accountId: accountId,
+      contentKey: 'qif_content',
+      content: qifContent,
+      fileName: fileName,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueueOfxBankStatementImport({
+    required String accountId,
+    required String ofxContent,
+    String fileName = '',
+    DateTime? createdAt,
+  }) {
+    return _enqueueRawBankStatementImport(
+      action: 'bank_statement_ofx',
+      idPrefix: 'ofx-bank-import',
+      accountId: accountId,
+      contentKey: 'ofx_content',
+      content: ofxContent,
+      fileName: fileName,
+      createdAt: createdAt,
+    );
+  }
+
   SyncOperation enqueueCustomerPayment({
     required String invoiceId,
     required String paymentNumber,
@@ -499,6 +533,31 @@ class OfflineSyncQueue {
       action: action,
       createdAt: timestamp,
       payload: {documentKey: documentId},
+    );
+    enqueue(operation);
+    return operation;
+  }
+
+  SyncOperation _enqueueRawBankStatementImport({
+    required String action,
+    required String idPrefix,
+    required String accountId,
+    required String contentKey,
+    required String content,
+    required String fileName,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: '$idPrefix-${timestamp.microsecondsSinceEpoch}',
+      module: 'imports',
+      action: action,
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'file_name': ?normalizedOptional(fileName),
+        contentKey: content,
+      },
     );
     enqueue(operation);
     return operation;
