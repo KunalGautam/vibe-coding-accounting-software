@@ -43,6 +43,7 @@ flutter test
 - Account lookup from the API so users can discover chart-of-account IDs for sync settings.
 - One-tap account selection for default expense and payment posting accounts.
 - Resolved default account labels from the cached chart of accounts for offline review.
+- Customer/vendor lookup from the API with SQLite-backed offline party snapshots for AR/AP reference.
 - Tax lookup from the API so users can discover configured tax rate/group IDs for expense drafts.
 - One-tap tax rate/group selection for default config-driven tax metadata.
 - Resolved default tax labels from the cached tax catalog for offline review.

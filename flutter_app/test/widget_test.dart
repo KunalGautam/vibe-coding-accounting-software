@@ -10,6 +10,7 @@ import 'package:accounting_app/attachments/attachment_cache_repository.dart';
 import 'package:accounting_app/invoices/invoice_cache_repository.dart';
 import 'package:accounting_app/investments/investment_cache_repository.dart';
 import 'package:accounting_app/main.dart';
+import 'package:accounting_app/parties/party_cache_repository.dart';
 import 'package:accounting_app/settings/sync_settings.dart';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
 import 'package:accounting_app/sync/sync_operation_repository.dart';
@@ -620,6 +621,66 @@ void main() {
     expect(saved.defaultPaymentAccountId, 'acct-cash');
     expect(saved.canSyncExpenses, true);
     expect(find.text('Default payment account set to 1000.'), findsOneWidget);
+  });
+
+  testWidgets('fetches and caches customers and vendors from saved settings', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final settingsRepository = MemorySyncSettingsRepository(
+      const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
+    );
+    final partyCacheRepository = MemoryPartyCacheRepository();
+
+    await tester.pumpWidget(
+      AccountingApp(
+        settingsRepository: settingsRepository,
+        partyCacheRepository: partyCacheRepository,
+        customerLoader: (_) async => const [
+          CustomerSummary(
+            id: 'customer-1',
+            organizationId: 'org-1',
+            displayName: 'Acme Exports',
+            email: 'billing@acme.test',
+            phone: '+91-99999-00001',
+            gstin: '27ABCDE1234F1Z5',
+            isActive: true,
+          ),
+        ],
+        vendorLoader: (_) async => const [
+          VendorSummary(
+            id: 'vendor-1',
+            organizationId: 'org-1',
+            displayName: 'Stationery House',
+            email: 'ap@stationery.test',
+            phone: '+91-99999-00002',
+            gstin: '27ABCDE1234F1Z6',
+            isActive: true,
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Sync'));
+    await tester.pump();
+    await tester.tap(find.text('Fetch customers/vendors'));
+    await tester.pumpAndSettle();
+
+    final cached = await partyCacheRepository.loadCached();
+    expect(cached.customers.single.displayName, 'Acme Exports');
+    expect(cached.vendors.single.displayName, 'Stationery House');
+    expect(find.text('Fetched 1 customers and 1 vendors.'), findsOneWidget);
+    expect(find.text('Customers (1)'), findsOneWidget);
+    expect(find.text('Acme Exports'), findsOneWidget);
+    expect(
+      find.text('billing@acme.test · +91-99999-00001 · GSTIN 27ABCDE1234F1Z5'),
+      findsOneWidget,
+    );
+    expect(find.text('Party ID: customer-1'), findsOneWidget);
+    expect(find.text('Vendors (1)'), findsOneWidget);
+    expect(find.text('Stationery House'), findsOneWidget);
+    expect(find.text('Party ID: vendor-1'), findsOneWidget);
   });
 
   testWidgets('fetches and selects tax defaults from saved settings', (

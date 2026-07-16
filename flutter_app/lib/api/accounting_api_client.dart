@@ -55,6 +55,16 @@ class AccountingApiClient {
     return _decodeList(response, AccountSummary.fromJson);
   }
 
+  Future<List<CustomerSummary>> listCustomers() async {
+    final response = await _send('GET', '/customers');
+    return _decodeList(response, CustomerSummary.fromJson);
+  }
+
+  Future<List<VendorSummary>> listVendors() async {
+    final response = await _send('GET', '/vendors');
+    return _decodeList(response, VendorSummary.fromJson);
+  }
+
   Future<List<InvoiceSummary>> listInvoices() async {
     final response = await _send('GET', '/invoices');
     return _decodeList(response, InvoiceSummary.fromJson);
@@ -617,6 +627,102 @@ class AccountSummary {
       'name': name,
       'type': type,
       'currency': currency,
+      'is_active': isActive,
+    };
+  }
+}
+
+class CustomerSummary {
+  const CustomerSummary({
+    required this.id,
+    required this.organizationId,
+    required this.displayName,
+    required this.isActive,
+    this.email = '',
+    this.phone = '',
+    this.billingAddress = '',
+    this.gstin = '',
+  });
+
+  final String id;
+  final String organizationId;
+  final String displayName;
+  final String email;
+  final String phone;
+  final String billingAddress;
+  final String gstin;
+  final bool isActive;
+
+  factory CustomerSummary.fromJson(Map<String, Object?> json) {
+    return CustomerSummary(
+      id: json['id']! as String,
+      organizationId: json['organization_id'] as String? ?? '',
+      displayName: json['display_name']! as String,
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      billingAddress: json['billing_address'] as String? ?? '',
+      gstin: json['gstin'] as String? ?? '',
+      isActive: json['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'organization_id': organizationId,
+      'display_name': displayName,
+      'email': email,
+      'phone': phone,
+      'billing_address': billingAddress,
+      'gstin': gstin,
+      'is_active': isActive,
+    };
+  }
+}
+
+class VendorSummary {
+  const VendorSummary({
+    required this.id,
+    required this.organizationId,
+    required this.displayName,
+    required this.isActive,
+    this.email = '',
+    this.phone = '',
+    this.billingAddress = '',
+    this.gstin = '',
+  });
+
+  final String id;
+  final String organizationId;
+  final String displayName;
+  final String email;
+  final String phone;
+  final String billingAddress;
+  final String gstin;
+  final bool isActive;
+
+  factory VendorSummary.fromJson(Map<String, Object?> json) {
+    return VendorSummary(
+      id: json['id']! as String,
+      organizationId: json['organization_id'] as String? ?? '',
+      displayName: json['display_name']! as String,
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      billingAddress: json['billing_address'] as String? ?? '',
+      gstin: json['gstin'] as String? ?? '',
+      isActive: json['is_active'] as bool? ?? true,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'organization_id': organizationId,
+      'display_name': displayName,
+      'email': email,
+      'phone': phone,
+      'billing_address': billingAddress,
+      'gstin': gstin,
       'is_active': isActive,
     };
   }

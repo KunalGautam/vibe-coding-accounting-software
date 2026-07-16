@@ -10,6 +10,7 @@ import 'api/accounting_api_client.dart';
 import 'attachments/attachment_cache_repository.dart';
 import 'invoices/invoice_cache_repository.dart';
 import 'investments/investment_cache_repository.dart';
+import 'parties/party_cache_repository.dart';
 import 'settings/sync_settings.dart';
 import 'sync/offline_sync_queue.dart';
 import 'sync/sync_coordinator.dart';
@@ -20,6 +21,10 @@ typedef AccountLoader =
     Future<List<AccountSummary>> Function(SyncSettings settings);
 typedef InvoiceLoader =
     Future<List<InvoiceSummary>> Function(SyncSettings settings);
+typedef CustomerLoader =
+    Future<List<CustomerSummary>> Function(SyncSettings settings);
+typedef VendorLoader =
+    Future<List<VendorSummary>> Function(SyncSettings settings);
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -66,6 +71,7 @@ Future<void> main() async {
   final invoiceCacheRepository = await createDefaultInvoiceCacheRepository();
   final investmentCacheRepository =
       await createDefaultInvestmentCacheRepository();
+  final partyCacheRepository = await createDefaultPartyCacheRepository();
   final attachmentCacheRepository =
       await createDefaultAttachmentCacheRepository();
   final attachmentBinaryCacheRepository =
@@ -81,6 +87,7 @@ Future<void> main() async {
       accountCacheRepository: accountCacheRepository,
       invoiceCacheRepository: invoiceCacheRepository,
       investmentCacheRepository: investmentCacheRepository,
+      partyCacheRepository: partyCacheRepository,
       attachmentCacheRepository: attachmentCacheRepository,
       attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
       attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -96,12 +103,15 @@ class AccountingApp extends StatelessWidget {
     this.accountCacheRepository,
     this.invoiceCacheRepository,
     this.investmentCacheRepository,
+    this.partyCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
     this.taxCatalogCacheRepository,
     this.accountLoader,
     this.invoiceLoader,
+    this.customerLoader,
+    this.vendorLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -120,12 +130,15 @@ class AccountingApp extends StatelessWidget {
   final AccountCacheRepository? accountCacheRepository;
   final InvoiceCacheRepository? invoiceCacheRepository;
   final InvestmentCacheRepository? investmentCacheRepository;
+  final PartyCacheRepository? partyCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
   final TaxCatalogCacheRepository? taxCatalogCacheRepository;
   final AccountLoader? accountLoader;
   final InvoiceLoader? invoiceLoader;
+  final CustomerLoader? customerLoader;
+  final VendorLoader? vendorLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -156,12 +169,15 @@ class AccountingApp extends StatelessWidget {
         accountCacheRepository: accountCacheRepository,
         invoiceCacheRepository: invoiceCacheRepository,
         investmentCacheRepository: investmentCacheRepository,
+        partyCacheRepository: partyCacheRepository,
         attachmentCacheRepository: attachmentCacheRepository,
         attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
         attachmentUploadManifestRepository: attachmentUploadManifestRepository,
         taxCatalogCacheRepository: taxCatalogCacheRepository,
         accountLoader: accountLoader,
         invoiceLoader: invoiceLoader,
+        customerLoader: customerLoader,
+        vendorLoader: vendorLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -184,12 +200,15 @@ class MobileDeskShell extends StatefulWidget {
     this.accountCacheRepository,
     this.invoiceCacheRepository,
     this.investmentCacheRepository,
+    this.partyCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
     this.taxCatalogCacheRepository,
     this.accountLoader,
     this.invoiceLoader,
+    this.customerLoader,
+    this.vendorLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -208,12 +227,15 @@ class MobileDeskShell extends StatefulWidget {
   final AccountCacheRepository? accountCacheRepository;
   final InvoiceCacheRepository? invoiceCacheRepository;
   final InvestmentCacheRepository? investmentCacheRepository;
+  final PartyCacheRepository? partyCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
   final TaxCatalogCacheRepository? taxCatalogCacheRepository;
   final AccountLoader? accountLoader;
   final InvoiceLoader? invoiceLoader;
+  final CustomerLoader? customerLoader;
+  final VendorLoader? vendorLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -235,6 +257,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   late final AccountCacheRepository accountCacheRepository;
   late final InvoiceCacheRepository invoiceCacheRepository;
   late final InvestmentCacheRepository investmentCacheRepository;
+  late final PartyCacheRepository partyCacheRepository;
   late final AttachmentCacheRepository attachmentCacheRepository;
   late final AttachmentBinaryCacheRepository attachmentBinaryCacheRepository;
   late final AttachmentUploadManifestRepository
@@ -268,6 +291,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   SyncOperation? editingDraft;
   List<AccountSummary> discoveredAccounts = const [];
   List<InvoiceSummary> cachedInvoices = const [];
+  List<CustomerSummary> cachedCustomers = const [];
+  List<VendorSummary> cachedVendors = const [];
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -277,6 +302,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   List<AttachmentSummary> discoveredAttachments = const [];
   Set<String> cachedAttachmentBinaryIds = const {};
   bool isLoadingAccounts = false;
+  bool isLoadingParties = false;
   bool isLoadingInvoices = false;
   bool isLoadingInvestments = false;
   bool isLoadingTaxCatalog = false;
@@ -294,6 +320,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         widget.invoiceCacheRepository ?? MemoryInvoiceCacheRepository();
     investmentCacheRepository =
         widget.investmentCacheRepository ?? MemoryInvestmentCacheRepository();
+    partyCacheRepository =
+        widget.partyCacheRepository ?? MemoryPartyCacheRepository();
     attachmentCacheRepository =
         widget.attachmentCacheRepository ?? MemoryAttachmentCacheRepository();
     attachmentBinaryCacheRepository =
@@ -307,6 +335,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     hydratePendingOperations();
     hydrateSettings();
     hydrateAccounts();
+    hydrateParties();
     hydrateInvoices();
     hydrateInvestments();
     hydrateAttachments();
@@ -340,6 +369,17 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
     setState(() {
       discoveredAccounts = accounts;
+    });
+  }
+
+  Future<void> hydrateParties() async {
+    final snapshot = await partyCacheRepository.loadCached();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      cachedCustomers = snapshot.customers;
+      cachedVendors = snapshot.vendors;
     });
   }
 
@@ -595,6 +635,54 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       if (mounted) {
         setState(() {
           isLoadingAccounts = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchParties() async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching customers and vendors.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingParties = true;
+      syncNotice = null;
+    });
+
+    try {
+      final customerLoader =
+          widget.customerLoader ??
+          (settings) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).listCustomers();
+      final vendorLoader =
+          widget.vendorLoader ??
+          (settings) =>
+              AccountingApiClient(config: settings.toApiConfig()).listVendors();
+      final customers = await customerLoader(settings);
+      final vendors = await vendorLoader(settings);
+      await partyCacheRepository.saveCached(
+        PartySnapshot(customers: customers, vendors: vendors),
+      );
+      setState(() {
+        cachedCustomers = customers;
+        cachedVendors = vendors;
+        syncNotice =
+            'Fetched ${customers.length} customers and ${vendors.length} vendors.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Customer/vendor fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingParties = false;
         });
       }
     }
@@ -1155,6 +1243,10 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         isLoadingAccounts: isLoadingAccounts,
         onSelectExpenseAccount: selectExpenseAccount,
         onSelectPaymentAccount: selectPaymentAccount,
+        customers: cachedCustomers,
+        vendors: cachedVendors,
+        isLoadingParties: isLoadingParties,
+        onFetchParties: fetchParties,
         onFetchTaxCatalog: fetchTaxCatalog,
         discoveredTaxRates: discoveredTaxRates,
         discoveredTaxGroups: discoveredTaxGroups,
@@ -2490,6 +2582,10 @@ class SyncPage extends StatelessWidget {
     required this.isLoadingAccounts,
     required this.onSelectExpenseAccount,
     required this.onSelectPaymentAccount,
+    required this.customers,
+    required this.vendors,
+    required this.isLoadingParties,
+    required this.onFetchParties,
     required this.onFetchTaxCatalog,
     required this.discoveredTaxRates,
     required this.discoveredTaxGroups,
@@ -2521,6 +2617,10 @@ class SyncPage extends StatelessWidget {
   final bool isLoadingAccounts;
   final Future<void> Function(AccountSummary account) onSelectExpenseAccount;
   final Future<void> Function(AccountSummary account) onSelectPaymentAccount;
+  final List<CustomerSummary> customers;
+  final List<VendorSummary> vendors;
+  final bool isLoadingParties;
+  final Future<void> Function() onFetchParties;
   final Future<void> Function() onFetchTaxCatalog;
   final List<TaxRateSummary> discoveredTaxRates;
   final List<TaxGroupSummary> discoveredTaxGroups;
@@ -2619,6 +2719,13 @@ class SyncPage extends StatelessWidget {
                   onFetchAccounts: onFetchAccounts,
                   onSelectExpenseAccount: onSelectExpenseAccount,
                   onSelectPaymentAccount: onSelectPaymentAccount,
+                ),
+                const SizedBox(height: 12),
+                PartyDiscoveryPanel(
+                  customers: customers,
+                  vendors: vendors,
+                  isLoading: isLoadingParties,
+                  onFetchParties: onFetchParties,
                 ),
                 const SizedBox(height: 12),
                 TaxDiscoveryPanel(
@@ -2992,6 +3099,139 @@ class AccountDiscoveryPanel extends StatelessWidget {
                 ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class PartyDiscoveryPanel extends StatelessWidget {
+  const PartyDiscoveryPanel({
+    required this.customers,
+    required this.vendors,
+    required this.isLoading,
+    required this.onFetchParties,
+    super.key,
+  });
+
+  final List<CustomerSummary> customers;
+  final List<VendorSummary> vendors;
+  final bool isLoading;
+  final Future<void> Function() onFetchParties;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Customers and vendors',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Refresh AR/AP party records for offline invoice, bill, and payment reference.',
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: isLoading ? null : () => onFetchParties(),
+              icon: isLoading
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.groups_2_outlined),
+              label: Text(
+                isLoading ? 'Loading parties...' : 'Fetch customers/vendors',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Customers (${customers.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            if (customers.isEmpty)
+              const Text('No customers cached yet.')
+            else
+              for (final customer in customers.take(6))
+                _PartyTile(
+                  name: customer.displayName,
+                  id: customer.id,
+                  email: customer.email,
+                  phone: customer.phone,
+                  gstin: customer.gstin,
+                ),
+            const SizedBox(height: 12),
+            Text(
+              'Vendors (${vendors.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            if (vendors.isEmpty)
+              const Text('No vendors cached yet.')
+            else
+              for (final vendor in vendors.take(6))
+                _PartyTile(
+                  name: vendor.displayName,
+                  id: vendor.id,
+                  email: vendor.email,
+                  phone: vendor.phone,
+                  gstin: vendor.gstin,
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PartyTile extends StatelessWidget {
+  const _PartyTile({
+    required this.name,
+    required this.id,
+    required this.email,
+    required this.phone,
+    required this.gstin,
+  });
+
+  final String name;
+  final String id;
+  final String email;
+  final String phone;
+  final String gstin;
+
+  @override
+  Widget build(BuildContext context) {
+    final contact = [
+      if (email.trim().isNotEmpty) email,
+      if (phone.trim().isNotEmpty) phone,
+      if (gstin.trim().isNotEmpty) 'GSTIN $gstin',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withAlpha(90),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: Theme.of(context).textTheme.titleSmall),
+              if (contact.isNotEmpty) Text(contact),
+              SelectableText('Party ID: $id'),
+            ],
+          ),
         ),
       ),
     );

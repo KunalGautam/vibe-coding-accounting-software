@@ -44,6 +44,60 @@ void main() {
     expect(accounts.single.name, 'Cash');
   });
 
+  test('lists customers and vendors with organization path', () async {
+    final requestedPaths = <String>[];
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        if (request.url.path.endsWith('/customers')) {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'customer-1',
+                'organization_id': 'org-1',
+                'display_name': 'Acme Exports',
+                'email': 'billing@acme.test',
+                'phone': '+91-99999-00001',
+                'billing_address': 'Mumbai',
+                'gstin': '27ABCDE1234F1Z5',
+                'is_active': true,
+              },
+            ]),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 'vendor-1',
+              'organization_id': 'org-1',
+              'display_name': 'Stationery House',
+              'email': 'ap@stationery.test',
+              'phone': '+91-99999-00002',
+              'billing_address': 'Pune',
+              'gstin': '27ABCDE1234F1Z6',
+              'is_active': true,
+            },
+          ]),
+          200,
+        );
+      }),
+    );
+
+    final customers = await client.listCustomers();
+    final vendors = await client.listVendors();
+
+    expect(customers.single.displayName, 'Acme Exports');
+    expect(customers.single.gstin, '27ABCDE1234F1Z5');
+    expect(vendors.single.displayName, 'Stationery House');
+    expect(vendors.single.email, 'ap@stationery.test');
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/customers',
+      '/api/v1/organizations/org-1/vendors',
+    ]);
+  });
+
   test('lists invoice and expense summaries', () async {
     final client = AccountingApiClient(
       config: config,
