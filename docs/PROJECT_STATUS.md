@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Current Summary
 The platform has a working full-stack foundation across the Go API, React web app, Flutter shell, OpenAPI/Postman documentation, Swagger UI, and CI checks. Core double-entry accounting flows are implemented for chart of accounts, journal posting, invoicing, expenses/AP, GST tax setup/reporting, payroll drafts/posting, reconciliation, budgeting, reports, fiscal close, multi-currency revaluation, investments, attachments, backups, and offline-oriented client caches.
@@ -9,6 +9,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 
 ## Recently Completed
 - Broadened Flutter offline write replay beyond expense drafts to cover invoice drafts, customer/vendor payments, invoice/expense/bill/credit-note posting actions, estimate/purchase-order status transitions, attachment metadata creation, binary attachment upload replay, manual investment price capture, and average-cost investment sale replay with shared retry/error/conflict handling.
+- Added a durable Flutter queued-attachment upload manifest with file-backed and memory repositories so offline local receipt uploads retain operation/file metadata through restarts.
 - Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
 - Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
@@ -28,12 +29,12 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
 - React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
-- Flutter: offline-ready expense/invoice/investment shell with file-backed queues/caches, typed API transport, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/ledger posting actions/estimate statuses/purchase-order statuses/attachment metadata/binary attachment uploads/investment prices/average-cost investment sales, and cached read models.
+- Flutter: offline-ready expense/invoice/investment shell with file-backed queues/caches, typed API transport, durable queued-attachment upload manifest, conflict-aware queued writes for expenses/invoices/customer payments/vendor payments/ledger posting actions/estimate statuses/purchase-order statuses/attachment metadata/binary attachment uploads/investment prices/average-cost investment sales, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
 ## Highest-Value Work Left
 - Investment depth: AMFI, NSE-style equity CSV, Yahoo Finance historical CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
-- Offline sync depth: Flutter queued writes now persist retry/error/conflict metadata, surface conflict review state, and replay expense drafts, invoice drafts, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses, purchase-order statuses, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales; native SQLite persistence and additional module write queues remain.
+- Offline sync depth: Flutter queued writes now persist retry/error/conflict metadata, surface conflict review state, track queued attachment upload blob metadata in a durable manifest, and replay expense drafts, invoice drafts, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses, purchase-order statuses, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales; native SQLite persistence and additional module write queues remain.
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
@@ -41,7 +42,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Flutter SQLite cache migration for file-backed repositories and durable attachment blob manifests.
+1. Flutter SQLite cache migration for file-backed repositories, including the sync queue and queued-attachment upload manifest.
 2. Broader offline write queues for invoice/expense edits, bank import drafts, and remaining approval/status transitions.
 3. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 4. Deeper operational monitoring runbooks and managed-cloud deployment notes.

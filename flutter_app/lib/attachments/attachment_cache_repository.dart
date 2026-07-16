@@ -21,6 +21,14 @@ createDefaultAttachmentBinaryCacheRepository() async {
   );
 }
 
+Future<AttachmentUploadManifestRepository>
+createDefaultAttachmentUploadManifestRepository() async {
+  final directory = await getApplicationSupportDirectory();
+  return FileAttachmentUploadManifestRepository(
+    File('${directory.path}/queued-attachment-uploads.json'),
+  );
+}
+
 abstract interface class AttachmentCacheRepository {
   Future<List<AttachmentSummary>> loadCached();
 
@@ -31,6 +39,54 @@ abstract interface class AttachmentBinaryCacheRepository {
   Future<void> saveDownloaded(String attachmentId, AttachmentDownload download);
 
   Future<AttachmentDownload?> loadDownloaded(String attachmentId);
+}
+
+abstract interface class AttachmentUploadManifestRepository {
+  Future<List<AttachmentUploadManifestEntry>> loadPending();
+
+  Future<void> savePending(List<AttachmentUploadManifestEntry> entries);
+
+  Future<void> upsert(AttachmentUploadManifestEntry entry);
+}
+
+class AttachmentUploadManifestEntry {
+  const AttachmentUploadManifestEntry({
+    required this.operationId,
+    required this.fileName,
+    required this.localFilePath,
+    required this.sizeBytes,
+    required this.createdAt,
+    this.contentType,
+  });
+
+  final String operationId;
+  final String fileName;
+  final String localFilePath;
+  final int sizeBytes;
+  final DateTime createdAt;
+  final String? contentType;
+
+  Map<String, Object?> toJson() {
+    return {
+      'operation_id': operationId,
+      'file_name': fileName,
+      'local_file_path': localFilePath,
+      'size_bytes': sizeBytes,
+      'created_at': createdAt.toIso8601String(),
+      'content_type': contentType,
+    }..removeWhere((_, value) => value == null);
+  }
+
+  factory AttachmentUploadManifestEntry.fromJson(Map<String, Object?> json) {
+    return AttachmentUploadManifestEntry(
+      operationId: json['operation_id']! as String,
+      fileName: json['file_name']! as String,
+      localFilePath: json['local_file_path']! as String,
+      sizeBytes: json['size_bytes'] as int? ?? 0,
+      createdAt: DateTime.parse(json['created_at']! as String),
+      contentType: json['content_type'] as String?,
+    );
+  }
 }
 
 class MemoryAttachmentCacheRepository implements AttachmentCacheRepository {
@@ -115,6 +171,39 @@ class MemoryAttachmentBinaryCacheRepository
   }
 }
 
+class MemoryAttachmentUploadManifestRepository
+    implements AttachmentUploadManifestRepository {
+  MemoryAttachmentUploadManifestRepository([
+    List<AttachmentUploadManifestEntry>? seed,
+  ]) : _entries = [...?seed];
+
+  final List<AttachmentUploadManifestEntry> _entries;
+
+  @override
+  Future<List<AttachmentUploadManifestEntry>> loadPending() async {
+    return List.unmodifiable(_entries);
+  }
+
+  @override
+  Future<void> savePending(List<AttachmentUploadManifestEntry> entries) async {
+    _entries
+      ..clear()
+      ..addAll(entries);
+  }
+
+  @override
+  Future<void> upsert(AttachmentUploadManifestEntry entry) async {
+    final existingIndex = _entries.indexWhere(
+      (candidate) => candidate.operationId == entry.operationId,
+    );
+    if (existingIndex == -1) {
+      _entries.add(entry);
+      return;
+    }
+    _entries[existingIndex] = entry;
+  }
+}
+
 class FileAttachmentBinaryCacheRepository
     implements AttachmentBinaryCacheRepository {
   const FileAttachmentBinaryCacheRepository(this.directory);
@@ -172,5 +261,66 @@ class FileAttachmentBinaryCacheRepository
 
   String _pathFor(String attachmentId) {
     return '${directory.path}/$attachmentId.bin';
+  }
+}
+
+class FileAttachmentUploadManifestRepository
+    implements AttachmentUploadManifestRepository {
+  const FileAttachmentUploadManifestRepository(this.file);
+
+  final File file;
+
+  @override
+  Future<List<AttachmentUploadManifestEntry>> loadPending() async {
+    if (!await file.exists()) {
+      return [];
+    }
+
+    final contents = await file.readAsString();
+    if (contents.trim().isEmpty) {
+      return [];
+    }
+
+    final decoded = jsonDecode(contents);
+    if (decoded is! List) {
+      throw const FormatException(
+        'Expected attachment upload manifest JSON array',
+      );
+    }
+
+    return decoded
+        .cast<Map<String, Object?>>()
+        .map(AttachmentUploadManifestEntry.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> savePending(List<AttachmentUploadManifestEntry> entries) async {
+    await file.parent.create(recursive: true);
+    final tempFile = File('${file.path}.tmp');
+    final encoded = jsonEncode(
+      entries.map((entry) => entry.toJson()).toList(growable: false),
+    );
+
+    await tempFile.writeAsString(encoded, flush: true);
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await tempFile.rename(file.path);
+  }
+
+  @override
+  Future<void> upsert(AttachmentUploadManifestEntry entry) async {
+    final pending = await loadPending();
+    final next = [...pending];
+    final existingIndex = next.indexWhere(
+      (candidate) => candidate.operationId == entry.operationId,
+    );
+    if (existingIndex == -1) {
+      next.add(entry);
+    } else {
+      next[existingIndex] = entry;
+    }
+    await savePending(next);
   }
 }

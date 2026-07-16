@@ -66,6 +66,8 @@ Future<void> main() async {
       await createDefaultAttachmentCacheRepository();
   final attachmentBinaryCacheRepository =
       await createDefaultAttachmentBinaryCacheRepository();
+  final attachmentUploadManifestRepository =
+      await createDefaultAttachmentUploadManifestRepository();
   final taxCatalogCacheRepository =
       await createDefaultTaxCatalogCacheRepository();
   runApp(
@@ -77,6 +79,7 @@ Future<void> main() async {
       investmentCacheRepository: investmentCacheRepository,
       attachmentCacheRepository: attachmentCacheRepository,
       attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
+      attachmentUploadManifestRepository: attachmentUploadManifestRepository,
       taxCatalogCacheRepository: taxCatalogCacheRepository,
     ),
   );
@@ -91,6 +94,7 @@ class AccountingApp extends StatelessWidget {
     this.investmentCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
+    this.attachmentUploadManifestRepository,
     this.taxCatalogCacheRepository,
     this.accountLoader,
     this.invoiceLoader,
@@ -113,6 +117,7 @@ class AccountingApp extends StatelessWidget {
   final InvestmentCacheRepository? investmentCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
+  final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
   final TaxCatalogCacheRepository? taxCatalogCacheRepository;
   final AccountLoader? accountLoader;
   final InvoiceLoader? invoiceLoader;
@@ -147,6 +152,7 @@ class AccountingApp extends StatelessWidget {
         investmentCacheRepository: investmentCacheRepository,
         attachmentCacheRepository: attachmentCacheRepository,
         attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
+        attachmentUploadManifestRepository: attachmentUploadManifestRepository,
         taxCatalogCacheRepository: taxCatalogCacheRepository,
         accountLoader: accountLoader,
         invoiceLoader: invoiceLoader,
@@ -173,6 +179,7 @@ class MobileDeskShell extends StatefulWidget {
     this.investmentCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
+    this.attachmentUploadManifestRepository,
     this.taxCatalogCacheRepository,
     this.accountLoader,
     this.invoiceLoader,
@@ -195,6 +202,7 @@ class MobileDeskShell extends StatefulWidget {
   final InvestmentCacheRepository? investmentCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
+  final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
   final TaxCatalogCacheRepository? taxCatalogCacheRepository;
   final AccountLoader? accountLoader;
   final InvoiceLoader? invoiceLoader;
@@ -220,6 +228,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   late final InvestmentCacheRepository investmentCacheRepository;
   late final AttachmentCacheRepository attachmentCacheRepository;
   late final AttachmentBinaryCacheRepository attachmentBinaryCacheRepository;
+  late final AttachmentUploadManifestRepository
+  attachmentUploadManifestRepository;
   late final TaxCatalogCacheRepository taxCatalogCacheRepository;
   SyncSettings settings = const SyncSettings();
   final syncQueue = OfflineSyncQueue([
@@ -280,6 +290,9 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     attachmentBinaryCacheRepository =
         widget.attachmentBinaryCacheRepository ??
         MemoryAttachmentBinaryCacheRepository();
+    attachmentUploadManifestRepository =
+        widget.attachmentUploadManifestRepository ??
+        MemoryAttachmentUploadManifestRepository();
     taxCatalogCacheRepository =
         widget.taxCatalogCacheRepository ?? MemoryTaxCatalogCacheRepository();
     hydratePendingOperations();
@@ -886,6 +899,16 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         final operation = syncQueue.enqueueAttachmentUpload(
           fileName: localFile.fileName,
           localFilePath: trimmedPath,
+        );
+        await attachmentUploadManifestRepository.upsert(
+          AttachmentUploadManifestEntry(
+            operationId: operation.id,
+            fileName: localFile.fileName,
+            localFilePath: trimmedPath,
+            sizeBytes: localFile.bytes.length,
+            createdAt: operation.createdAt,
+            contentType: 'application/octet-stream',
+          ),
         );
         await repository.savePending(syncQueue.pending);
         setState(() {
