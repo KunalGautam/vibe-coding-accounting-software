@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -4264,6 +4264,9 @@ function InvoicesPage({
   const [invoiceError, setInvoiceError] = useState("");
   const [invoiceNotice, setInvoiceNotice] = useState("");
   const [loading, setLoading] = useState<"customers" | "invoices" | "create-customer" | string | null>(null);
+  const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
+  const [customerPaymentsInvoiceId, setCustomerPaymentsInvoiceId] = useState("");
+  const [resolvedCustomerPaymentId, setResolvedCustomerPaymentId] = useState("");
   const [customerForm, setCustomerForm] = useState({
     display_name: "",
     email: "",
@@ -4619,6 +4622,49 @@ function InvoicesPage({
     }
   }
 
+  async function loadCustomerPayments(invoiceId: string) {
+    if (!invoiceId) {
+      return;
+    }
+    setLoading(`customer-payments-${invoiceId}`);
+    setInvoiceError("");
+    try {
+      const payments = await api.listCustomerPayments(invoiceId);
+      setCustomerPayments(payments);
+      setCustomerPaymentsInvoiceId(invoiceId);
+      setInvoiceNotice(`Loaded ${payments.length} payment(s) for invoice ${invoiceNumber(invoiceId)}.`);
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadFocusedCustomerPaymentHistory(paymentId: string) {
+    if (!paymentId || resolvedCustomerPaymentId === paymentId) {
+      return;
+    }
+    setLoading(`customer-payment-focus-${paymentId}`);
+    setInvoiceError("");
+    try {
+      for (const invoice of invoices) {
+        const payments = await api.listCustomerPayments(invoice.id);
+        if (payments.some((payment) => payment.id === paymentId)) {
+          setCustomerPayments(payments);
+          setCustomerPaymentsInvoiceId(invoice.id);
+          setResolvedCustomerPaymentId(paymentId);
+          setInvoiceNotice(`Loaded payment history for invoice ${invoice.invoice_number}.`);
+          return;
+        }
+      }
+      setInvoiceNotice("Focused customer payment was not found in the currently cached invoice payment histories.");
+    } catch (error) {
+      setInvoiceError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function postCreditNote(creditNoteId: string) {
     setLoading(creditNoteId);
     setInvoiceError("");
@@ -4686,6 +4732,17 @@ function InvoicesPage({
     return customers.find((customer) => customer.id === customerId)?.display_name ?? customerId ?? "";
   }
 
+  function invoiceNumber(invoiceId?: string) {
+    return invoices.find((invoice) => invoice.id === invoiceId)?.invoice_number ?? invoiceId ?? "";
+  }
+
+  useEffect(() => {
+    if (focusTarget?.documentType !== "customer_payment") {
+      return;
+    }
+    void loadFocusedCustomerPaymentHistory(focusTarget.documentId);
+  }, [focusTarget, invoices, resolvedCustomerPaymentId]);
+
   return (
     <div className="stack">
       <section className="panel offline-panel">
@@ -4718,10 +4775,46 @@ function InvoicesPage({
 
       {invoiceError && <div className="alert error">{invoiceError}</div>}
       {invoiceNotice && <div className="alert success">{invoiceNotice}</div>}
-      <FocusNotice
-        focusTarget={focusTarget}
-        fallback={focusTarget?.documentType === "customer_payment" ? "Customer payment history is not listed yet; use the payment number to reconcile against the invoice ledger movement." : undefined}
-      />
+      <FocusNotice focusTarget={focusTarget} />
+
+      {customerPayments.length > 0 && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Payment history</p>
+              <h3>{invoiceNumber(customerPaymentsInvoiceId)}</h3>
+              <p>Customer payments loaded from the selected invoice, with drilldown-sourced payments highlighted.</p>
+            </div>
+            <strong>{customerPayments.length}</strong>
+          </div>
+          <section className="table-panel">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment</th>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Amount</th>
+                  <th>Journal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customerPayments.map((payment) => (
+                  <tr key={payment.id} className={focusRowClass(focusTarget, "customer_payment", payment.id)}>
+                    <td>{payment.payment_number}</td>
+                    <td>{payment.payment_date.slice(0, 10)}</td>
+                    <td>{payment.payment_method || "-"}</td>
+                    <td>{payment.reference || "-"}</td>
+                    <td>{formatMinor(payment.amount_minor, payment.currency)}</td>
+                    <td>{payment.journal_transaction_id.slice(0, 8)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </section>
+      )}
 
       <form className="panel form-grid" onSubmit={createCustomer}>
         <input
@@ -5212,13 +5305,22 @@ function InvoicesPage({
                   <td>{formatMinorAsInr(invoice.tax_total_minor)}</td>
                   <td>{formatMinorAsInr(invoice.total_minor)}</td>
                   <td>
-                    <button
-                      className="secondary compact"
-                      disabled={invoice.status !== "draft" || loading === invoice.id}
-                      onClick={() => void postInvoice(invoice.id)}
-                    >
-                      {loading === invoice.id ? "Posting..." : "Post"}
-                    </button>
+                    <div className="button-row compact">
+                      <button
+                        className="secondary compact"
+                        disabled={invoice.status !== "draft" || loading === invoice.id}
+                        onClick={() => void postInvoice(invoice.id)}
+                      >
+                        {loading === invoice.id ? "Posting..." : "Post"}
+                      </button>
+                      <button
+                        className="secondary compact"
+                        disabled={loading === `customer-payments-${invoice.id}`}
+                        onClick={() => void loadCustomerPayments(invoice.id)}
+                      >
+                        {loading === `customer-payments-${invoice.id}` ? "Loading..." : "Payments"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -5264,6 +5366,9 @@ function ExpensesPage({
   const [expenseError, setExpenseError] = useState("");
   const [expenseNotice, setExpenseNotice] = useState("");
   const [loading, setLoading] = useState<"vendors" | "expenses" | "create-vendor" | "create-expense" | string | null>(null);
+  const [vendorPayments, setVendorPayments] = useState<VendorPayment[]>([]);
+  const [vendorPaymentsBillId, setVendorPaymentsBillId] = useState("");
+  const [resolvedVendorPaymentId, setResolvedVendorPaymentId] = useState("");
   const [vendorForm, setVendorForm] = useState({
     display_name: "",
     email: "",
@@ -5562,6 +5667,49 @@ function ExpensesPage({
     }
   }
 
+  async function loadVendorPayments(billId: string) {
+    if (!billId) {
+      return;
+    }
+    setLoading(`vendor-payments-${billId}`);
+    setExpenseError("");
+    try {
+      const payments = await api.listVendorPayments(billId);
+      setVendorPayments(payments);
+      setVendorPaymentsBillId(billId);
+      setExpenseNotice(`Loaded ${payments.length} payment(s) for bill ${billNumber(billId)}.`);
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function loadFocusedVendorPaymentHistory(paymentId: string) {
+    if (!paymentId || resolvedVendorPaymentId === paymentId) {
+      return;
+    }
+    setLoading(`vendor-payment-focus-${paymentId}`);
+    setExpenseError("");
+    try {
+      for (const bill of bills) {
+        const payments = await api.listVendorPayments(bill.id);
+        if (payments.some((payment) => payment.id === paymentId)) {
+          setVendorPayments(payments);
+          setVendorPaymentsBillId(bill.id);
+          setResolvedVendorPaymentId(paymentId);
+          setExpenseNotice(`Loaded payment history for bill ${bill.bill_number}.`);
+          return;
+        }
+      }
+      setExpenseNotice("Focused vendor payment was not found in the currently cached bill payment histories.");
+    } catch (error) {
+      setExpenseError(errorMessage(error));
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function convertPurchaseOrderToBill(purchaseOrder: PurchaseOrder) {
     const accountsPayable = defaultAccountsPayableAccount(accounts);
     if (!accountsPayable) {
@@ -5614,6 +5762,17 @@ function ExpensesPage({
     return vendors.find((vendor) => vendor.id === vendorId)?.display_name ?? vendorId ?? "";
   }
 
+  function billNumber(billId?: string) {
+    return bills.find((bill) => bill.id === billId)?.bill_number ?? billId ?? "";
+  }
+
+  useEffect(() => {
+    if (focusTarget?.documentType !== "vendor_payment") {
+      return;
+    }
+    void loadFocusedVendorPaymentHistory(focusTarget.documentId);
+  }, [focusTarget, bills, resolvedVendorPaymentId]);
+
   return (
     <div className="stack">
       <section className="panel offline-panel">
@@ -5644,10 +5803,46 @@ function ExpensesPage({
 
       {expenseError && <div className="alert error">{expenseError}</div>}
       {expenseNotice && <div className="alert success">{expenseNotice}</div>}
-      <FocusNotice
-        focusTarget={focusTarget}
-        fallback={focusTarget?.documentType === "vendor_payment" ? "Vendor payment history is not listed yet; use the payment number to reconcile against the bill ledger movement." : undefined}
-      />
+      <FocusNotice focusTarget={focusTarget} />
+
+      {vendorPayments.length > 0 && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">Payment history</p>
+              <h3>{billNumber(vendorPaymentsBillId)}</h3>
+              <p>Vendor payments loaded from the selected bill, with drilldown-sourced payments highlighted.</p>
+            </div>
+            <strong>{vendorPayments.length}</strong>
+          </div>
+          <section className="table-panel">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment</th>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Amount</th>
+                  <th>Journal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vendorPayments.map((payment) => (
+                  <tr key={payment.id} className={focusRowClass(focusTarget, "vendor_payment", payment.id)}>
+                    <td>{payment.payment_number}</td>
+                    <td>{payment.payment_date.slice(0, 10)}</td>
+                    <td>{payment.payment_method || "-"}</td>
+                    <td>{payment.reference || "-"}</td>
+                    <td>{formatMinor(payment.amount_minor, payment.currency)}</td>
+                    <td>{payment.journal_transaction_id.slice(0, 8)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </section>
+      )}
 
       <form className="panel form-grid" onSubmit={createVendor}>
         <input placeholder="Display name" value={vendorForm.display_name} onChange={(event) => setVendorForm({ ...vendorForm, display_name: event.target.value })} required />
@@ -5863,13 +6058,22 @@ function ExpensesPage({
                   <td>{formatMinorAsInr(bill.tax_total_minor)}</td>
                   <td>{formatMinorAsInr(bill.total_minor)}</td>
                   <td>
-                    <button
-                      className="secondary compact"
-                      disabled={bill.status !== "draft" || loading === bill.id}
-                      onClick={() => void postBill(bill.id)}
-                    >
-                      {loading === bill.id ? "Posting..." : "Post"}
-                    </button>
+                    <div className="button-row compact">
+                      <button
+                        className="secondary compact"
+                        disabled={bill.status !== "draft" || loading === bill.id}
+                        onClick={() => void postBill(bill.id)}
+                      >
+                        {loading === bill.id ? "Posting..." : "Post"}
+                      </button>
+                      <button
+                        className="secondary compact"
+                        disabled={loading === `vendor-payments-${bill.id}`}
+                        onClick={() => void loadVendorPayments(bill.id)}
+                      >
+                        {loading === `vendor-payments-${bill.id}` ? "Loading..." : "Payments"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

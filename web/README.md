@@ -30,6 +30,7 @@ The app stores API connection settings in local storage:
 - Manual journal transaction posting plus account register loading with cached running-balance review.
 - Customer master-data create/list plus single-line draft invoice create/review/posting with cached last-known AR data.
 - Vendor master-data create/list plus draft expense and vendor bill create/review/posting with cached last-known AP/spend data.
+- Invoice and bill payment history panels with drilldown-sourced payment highlighting.
 - Documents page for attachment metadata creation, local file upload, download links, and cached attachment catalog review.
 - Budgets page for account-period budget creation, saved budget review, and shared report-runner budget cache.
 - Bank reconciliation page for structured statement-line import, QIF/OFX paste import, cached line review, and explicit ledger split matching.
