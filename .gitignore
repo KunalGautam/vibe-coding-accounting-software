@@ -21,6 +21,7 @@ backend/tmp/
 web/node_modules/
 web/dist/
 web/.vite/
+web/.test-build/
 web/coverage/
 web/*.tsbuildinfo
 web/vite.config.js

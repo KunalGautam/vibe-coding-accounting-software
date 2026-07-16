@@ -13,6 +13,7 @@ npm run dev
 
 ```bash
 npm run build
+npm test
 npm audit
 ```
 
@@ -26,6 +27,7 @@ The app stores API connection settings in local storage:
 
 - Dashboard metrics and offline readiness panel for cached data, queued work, and one-click sync-all.
 - First-admin bootstrap, login, current-user profile/name updates, self-service password change with session revocation, password reset request/confirm with reset-link token detection and password guidance, token refresh/session revocation, organization create/list/select, MFA recovery-code copy/download, organization-user onboarding with role guidance, temporary-password copy/download, role edits, and activate/deactivate controls, and manual token override.
+- Node built-in tests cover account-security helpers used by the account settings and onboarding UI.
 - Chart of accounts list/create.
 - Manual journal transaction posting plus account register loading with cached running-balance review.
 - Customer master-data create/list plus single-line draft invoice/estimate create/review/posting and cached invoice/estimate detail review with last-known AR data.
@@ -52,4 +54,4 @@ The app stores API connection settings in local storage:
 
 This is an initial shell. Richer module screens, generated OpenAPI client, service-worker caching, and IndexedDB-backed conflict-aware offline storage are still pending.
 
-The shell currently builds with Vite 8 and has a clean npm audit baseline.
+The shell currently builds with Vite 8, runs lightweight Node-based frontend tests, and has a clean npm audit baseline.

@@ -1,6 +1,7 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type ChangePasswordInput, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type CurrentUserProfile, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
+import { connectionReadinessChecks, generateTemporaryPassword, passwordChangeChecks, passwordStrengthChecks, roleDescription, safeFilenamePart } from "./accountSecurity";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
 
@@ -653,24 +654,10 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
   const [connectionError, setConnectionError] = useState("");
   const [connectionNotice, setConnectionNotice] = useState("");
   const connectionApi = useMemo(() => new ApiClient(draft), [draft]);
-  const passwordStrengthChecks = [
-    { label: "At least 12 characters", ok: passwordResetNewPassword.length >= 12 },
-    { label: "Contains uppercase and lowercase letters", ok: /[A-Z]/.test(passwordResetNewPassword) && /[a-z]/.test(passwordResetNewPassword) },
-    { label: "Contains a number", ok: /\d/.test(passwordResetNewPassword) },
-    { label: "Contains a symbol", ok: /[^A-Za-z0-9]/.test(passwordResetNewPassword) }
-  ];
-  const connectionChecks = [
-    { label: "API URL saved", ok: Boolean(draft.baseUrl.trim()) },
-    { label: "Access token present", ok: Boolean(draft.accessToken.trim()) },
-    { label: "Refresh token present", ok: Boolean(draft.refreshToken?.trim()) },
-    { label: "Organization selected", ok: Boolean(draft.organizationId.trim()) }
-  ];
-  const passwordReady = passwordStrengthChecks.every((check) => check.ok);
-  const changePasswordChecks = [
-    { label: "Current password entered", ok: Boolean(changePasswordForm.current_password) },
-    { label: "New password has 12+ characters", ok: changePasswordForm.new_password.length >= 12 },
-    { label: "New password differs from current", ok: Boolean(changePasswordForm.new_password && changePasswordForm.new_password !== changePasswordForm.current_password) }
-  ];
+  const passwordResetChecks = passwordStrengthChecks(passwordResetNewPassword);
+  const connectionChecks = connectionReadinessChecks(draft);
+  const passwordReady = passwordResetChecks.every((check) => check.ok);
+  const changePasswordChecks = passwordChangeChecks(changePasswordForm.current_password, changePasswordForm.new_password);
   const canChangePassword = changePasswordChecks.every((check) => check.ok);
 
   useEffect(() => {
@@ -1153,7 +1140,7 @@ function ConnectionPanel({ config, onSave }: { config: ApiConfig; onSave: (confi
           </button>
         </form>
         <div className="security-checklist">
-          {passwordStrengthChecks.map((check) => (
+          {passwordResetChecks.map((check) => (
             <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
               {check.ok ? "OK" : "Need"} · {check.label}
             </span>
@@ -8690,19 +8677,6 @@ function createDraftId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function generateTemporaryPassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_=+";
-  const randomValues = new Uint32Array(18);
-  if ("crypto" in globalThis && "getRandomValues" in crypto) {
-    crypto.getRandomValues(randomValues);
-  } else {
-    for (let index = 0; index < randomValues.length; index += 1) {
-      randomValues[index] = Math.floor(Math.random() * alphabet.length);
-    }
-  }
-  return Array.from(randomValues, (value) => alphabet[value % alphabet.length]).join("");
-}
-
 type SyncableDraft = {
   lastError?: string;
 };
@@ -8825,24 +8799,6 @@ function roleLabel(role: Role) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function roleDescription(role: Role) {
-  switch (role) {
-    case "admin":
-      return "Full organization administration, users, settings, and all accounting workflows.";
-    case "accountant":
-      return "Financial operations, reports, tax, reconciliation, and period-end work without user administration.";
-    case "bookkeeper":
-      return "Daily accounts, ledger, invoices, expenses, bills, and reconciliation entry workflows.";
-    case "payroll_manager":
-      return "Payroll employee records, payroll runs, payslips, and payroll reports.";
-    case "employee_self_service":
-      return "Employee-facing self-service workflows when enabled.";
-    case "viewer":
-    default:
-      return "Read-only review of organization accounting data.";
-  }
 }
 
 function toExchangeRateInput(form: CreateExchangeRateInput): CreateExchangeRateInput {
@@ -9776,10 +9732,6 @@ function titleCase(value: string) {
   return value
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function safeFilenamePart(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "employee";
 }
 
 function downloadCsv(filename: string, headerRows: CsvCell[][], dataRows: CsvCell[][]) {

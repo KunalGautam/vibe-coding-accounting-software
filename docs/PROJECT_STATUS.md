@@ -25,6 +25,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added React organization-user onboarding polish with invite-status summary, role guidance, and temporary-password copy/download controls.
 - Added organization-user account lifecycle controls through REST/OpenAPI/Postman and React: role edits, activate/deactivate, audit logging, RBAC coverage, and last-active-admin protection.
 - Added self-service account settings through REST/OpenAPI/Postman and React: current-user profile loading, display-name updates, and password change with refresh-session revocation.
+- Added lightweight React web test coverage for shared account-security helpers using Node's built-in test runner and wired it into CI.
 - Added Flutter file picker, gallery, and camera receipt capture for attachment uploads, including offline queueing through the existing attachment upload manifest.
 - Added Flutter customer/vendor API transport, SQLite-backed offline party cache, and Sync-page review panel for AR/AP master-data visibility.
 - Added Flutter Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual report transport, prior-period comparison for P&L/Balance Sheet/Cash Flow/AR Aging/AP Aging/Tax Liability/Tax Summary plus selected-vs-previous budget comparison, SQLite-backed report cache with migration support, local CSV export generation plus app-storage/Downloads/share-sheet support, and a Reports page for offline financial/tax/budget snapshot review.
@@ -40,7 +41,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance and Alpha Vantage historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
-- React web: broad admin/control surfaces, self-service profile/password settings, password reset request/confirm with reset-link token detection and password guidance, MFA recovery-code copy/download, organization-user onboarding helper with role guidance, invite-status summary, temporary-password generation/copy/download, role edits, activate/deactivate controls, and invite delivery status, offline draft queues, cached read-only snapshots, report CSV exports, account drilldown review from generated reports with source-document module actions/focused-row highlighting, invoice/estimate/purchase-order/bill detail panels, and invoice/bill payment history tables.
+- React web: broad admin/control surfaces, self-service profile/password settings, password reset request/confirm with reset-link token detection and password guidance, MFA recovery-code copy/download, organization-user onboarding helper with role guidance, invite-status summary, temporary-password generation/copy/download, role edits, activate/deactivate controls, invite delivery status, lightweight account-security helper tests, offline draft queues, cached read-only snapshots, report CSV exports, account drilldown review from generated reports with source-document module actions/focused-row highlighting, invoice/estimate/purchase-order/bill detail panels, and invoice/bill payment history tables.
 - Flutter: offline-ready expense/invoice/investment/report shell with SQLite-backed sync queue/settings/account cache/customer-vendor party cache/tax catalog cache/invoice cache/investment cache/financial, tax, and budget report cache, statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, local CSV export app-storage/Downloads/share-sheet support/attachment metadata cache/downloaded binary cache/queued-attachment upload manifest, typed API transport, file picker/gallery/camera attachment capture, conflict-aware queued writes for expense/invoice creation and draft edits, customer payments, vendor payments, ledger posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank imports, attachment metadata/binary attachment uploads, investment prices, average-cost investment sales, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
@@ -69,6 +70,7 @@ go test ./...
 
 ```bash
 cd web
+npm test
 npm run build
 ```
 

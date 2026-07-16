@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "declaration": false,
+    "module": "ES2022",
+    "noEmit": false,
+    "outDir": ".test-build",
+    "rootDir": "src"
+  },
+  "include": ["src/accountSecurity.ts"]
+}
