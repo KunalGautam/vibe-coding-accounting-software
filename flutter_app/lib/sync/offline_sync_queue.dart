@@ -292,6 +292,98 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueCustomerPayment({
+    required String invoiceId,
+    required String paymentNumber,
+    required DateTime paymentDate,
+    required int amountMinor,
+    required String paymentAccountId,
+    String paymentMethod = '',
+    String reference = '',
+    String currency = 'INR',
+    DateTime? createdAt,
+  }) {
+    return _enqueuePayment(
+      module: 'payments',
+      action: 'record_customer',
+      idPrefix: 'customer-payment',
+      documentKey: 'invoice_id',
+      documentId: invoiceId,
+      paymentNumber: paymentNumber,
+      paymentDate: paymentDate,
+      amountMinor: amountMinor,
+      paymentAccountId: paymentAccountId,
+      paymentMethod: paymentMethod,
+      reference: reference,
+      currency: currency,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation enqueueVendorPayment({
+    required String billId,
+    required String paymentNumber,
+    required DateTime paymentDate,
+    required int amountMinor,
+    required String paymentAccountId,
+    String paymentMethod = '',
+    String reference = '',
+    String currency = 'INR',
+    DateTime? createdAt,
+  }) {
+    return _enqueuePayment(
+      module: 'payments',
+      action: 'record_vendor',
+      idPrefix: 'vendor-payment',
+      documentKey: 'bill_id',
+      documentId: billId,
+      paymentNumber: paymentNumber,
+      paymentDate: paymentDate,
+      amountMinor: amountMinor,
+      paymentAccountId: paymentAccountId,
+      paymentMethod: paymentMethod,
+      reference: reference,
+      currency: currency,
+      createdAt: createdAt,
+    );
+  }
+
+  SyncOperation _enqueuePayment({
+    required String module,
+    required String action,
+    required String idPrefix,
+    required String documentKey,
+    required String documentId,
+    required String paymentNumber,
+    required DateTime paymentDate,
+    required int amountMinor,
+    required String paymentAccountId,
+    required String paymentMethod,
+    required String reference,
+    required String currency,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: '$idPrefix-${timestamp.microsecondsSinceEpoch}',
+      module: module,
+      action: action,
+      createdAt: timestamp,
+      payload: {
+        documentKey: documentId,
+        'payment_number': paymentNumber,
+        'payment_date': dateOnlyString(paymentDate),
+        'payment_method': ?normalizedOptional(paymentMethod),
+        'reference': ?normalizedOptional(reference),
+        'currency': currency,
+        'amount_minor': amountMinor,
+        'payment_account_id': paymentAccountId,
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   void updateExpenseDraft({
     required String id,
     required String merchantName,

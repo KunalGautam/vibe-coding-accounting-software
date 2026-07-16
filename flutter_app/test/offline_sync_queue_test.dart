@@ -277,4 +277,39 @@ void main() {
     expect(operation.payload['price_date'], '2026-07-14');
     expect(operation.payload['source'], 'mobile-offline');
   });
+
+  test('queues customer and vendor payments for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final customerPayment = queue.enqueueCustomerPayment(
+      invoiceId: 'invoice-1',
+      paymentNumber: 'RCPT-MOB-001',
+      paymentDate: DateTime.utc(2026, 7, 15),
+      amountMinor: 118000,
+      paymentAccountId: 'acct-bank',
+      paymentMethod: 'upi',
+      reference: 'UPI123',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+    final vendorPayment = queue.enqueueVendorPayment(
+      billId: 'bill-1',
+      paymentNumber: 'VPAY-MOB-001',
+      paymentDate: DateTime.utc(2026, 7, 16),
+      amountMinor: 59000,
+      paymentAccountId: 'acct-bank',
+      createdAt: DateTime.utc(2026, 7, 15, 10),
+    );
+
+    expect(customerPayment.module, 'payments');
+    expect(customerPayment.action, 'record_customer');
+    expect(customerPayment.payload['invoice_id'], 'invoice-1');
+    expect(customerPayment.payload['payment_date'], '2026-07-15');
+    expect(customerPayment.payload['payment_method'], 'upi');
+    expect(customerPayment.payload['reference'], 'UPI123');
+    expect(vendorPayment.module, 'payments');
+    expect(vendorPayment.action, 'record_vendor');
+    expect(vendorPayment.payload['bill_id'], 'bill-1');
+    expect(vendorPayment.payload['payment_date'], '2026-07-16');
+    expect(vendorPayment.payload['payment_method'], isNull);
+  });
 }

@@ -198,6 +198,46 @@ class AccountingApiClient {
     );
   }
 
+  Future<CustomerPaymentSummary> recordCustomerPayment(
+    String invoiceId,
+    RecordPaymentRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/invoices/$invoiceId/payments',
+      body: request.toJson(),
+    );
+    return CustomerPaymentSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<CustomerPaymentSummary> syncCustomerPayment(SyncOperation operation) {
+    final payload = operation.payload;
+    return recordCustomerPayment(
+      payload['invoice_id']! as String,
+      RecordPaymentRequest.fromSyncOperation(operation),
+    );
+  }
+
+  Future<VendorPaymentSummary> recordVendorPayment(
+    String billId,
+    RecordPaymentRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/bills/$billId/payments',
+      body: request.toJson(),
+    );
+    return VendorPaymentSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<VendorPaymentSummary> syncVendorPayment(SyncOperation operation) {
+    final payload = operation.payload;
+    return recordVendorPayment(
+      payload['bill_id']! as String,
+      RecordPaymentRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<InvestmentValuationReport> getInvestmentValuation({
     required DateTime asOf,
   }) async {
@@ -824,6 +864,133 @@ class InvestmentValuationRow {
       'currency': currency,
       'price_date': _dateOnly(priceDate),
     };
+  }
+}
+
+class CustomerPaymentSummary {
+  const CustomerPaymentSummary({
+    required this.id,
+    required this.invoiceId,
+    required this.paymentNumber,
+    required this.paymentDate,
+    required this.amountMinor,
+    required this.paymentAccountId,
+    required this.journalTransactionId,
+    this.currency = 'INR',
+    this.paymentMethod = '',
+    this.reference = '',
+  });
+
+  final String id;
+  final String invoiceId;
+  final String paymentNumber;
+  final DateTime paymentDate;
+  final int amountMinor;
+  final String paymentAccountId;
+  final String journalTransactionId;
+  final String currency;
+  final String paymentMethod;
+  final String reference;
+
+  factory CustomerPaymentSummary.fromJson(Map<String, Object?> json) {
+    return CustomerPaymentSummary(
+      id: json['id']! as String,
+      invoiceId: json['invoice_id']! as String,
+      paymentNumber: json['payment_number']! as String,
+      paymentDate: DateTime.parse(json['payment_date']! as String),
+      amountMinor: json['amount_minor']! as int,
+      paymentAccountId: json['payment_account_id']! as String,
+      journalTransactionId: json['journal_transaction_id']! as String,
+      currency: json['currency'] as String? ?? 'INR',
+      paymentMethod: json['payment_method'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+    );
+  }
+}
+
+class VendorPaymentSummary {
+  const VendorPaymentSummary({
+    required this.id,
+    required this.billId,
+    required this.paymentNumber,
+    required this.paymentDate,
+    required this.amountMinor,
+    required this.paymentAccountId,
+    required this.journalTransactionId,
+    this.currency = 'INR',
+    this.paymentMethod = '',
+    this.reference = '',
+  });
+
+  final String id;
+  final String billId;
+  final String paymentNumber;
+  final DateTime paymentDate;
+  final int amountMinor;
+  final String paymentAccountId;
+  final String journalTransactionId;
+  final String currency;
+  final String paymentMethod;
+  final String reference;
+
+  factory VendorPaymentSummary.fromJson(Map<String, Object?> json) {
+    return VendorPaymentSummary(
+      id: json['id']! as String,
+      billId: json['bill_id']! as String,
+      paymentNumber: json['payment_number']! as String,
+      paymentDate: DateTime.parse(json['payment_date']! as String),
+      amountMinor: json['amount_minor']! as int,
+      paymentAccountId: json['payment_account_id']! as String,
+      journalTransactionId: json['journal_transaction_id']! as String,
+      currency: json['currency'] as String? ?? 'INR',
+      paymentMethod: json['payment_method'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+    );
+  }
+}
+
+class RecordPaymentRequest {
+  const RecordPaymentRequest({
+    required this.paymentNumber,
+    required this.paymentDate,
+    required this.amountMinor,
+    required this.paymentAccountId,
+    this.paymentMethod = '',
+    this.reference = '',
+    this.currency = 'INR',
+  });
+
+  final String paymentNumber;
+  final DateTime paymentDate;
+  final int amountMinor;
+  final String paymentAccountId;
+  final String paymentMethod;
+  final String reference;
+  final String currency;
+
+  factory RecordPaymentRequest.fromSyncOperation(SyncOperation operation) {
+    final payload = operation.payload;
+    return RecordPaymentRequest(
+      paymentNumber: payload['payment_number']! as String,
+      paymentDate: DateTime.parse(payload['payment_date']! as String),
+      amountMinor: payload['amount_minor']! as int,
+      paymentAccountId: payload['payment_account_id']! as String,
+      paymentMethod: payload['payment_method'] as String? ?? '',
+      reference: payload['reference'] as String? ?? '',
+      currency: payload['currency'] as String? ?? 'INR',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'payment_number': paymentNumber,
+      'payment_date': _dateOnly(paymentDate),
+      'payment_method': paymentMethod.isEmpty ? null : paymentMethod,
+      'reference': reference.isEmpty ? null : reference,
+      'currency': currency,
+      'amount_minor': amountMinor,
+      'payment_account_id': paymentAccountId,
+    }..removeWhere((_, value) => value == null);
   }
 }
 

@@ -392,4 +392,103 @@ void main() {
     expect(queue.pendingCount, 0);
     expect(requestedPaths, ['/api/v1/organizations/org-1/attachments/upload']);
   });
+
+  test('syncs queued customer and vendor payments', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'customer-payment-local-1',
+        module: 'payments',
+        action: 'record_customer',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'invoice_id': 'invoice-1',
+          'payment_number': 'RCPT-MOB-001',
+          'payment_date': '2026-07-15',
+          'payment_method': 'upi',
+          'reference': 'UPI123',
+          'currency': 'INR',
+          'amount_minor': 118000,
+          'payment_account_id': 'acct-bank',
+        },
+      ),
+      SyncOperation(
+        id: 'vendor-payment-local-1',
+        module: 'payments',
+        action: 'record_vendor',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'bill_id': 'bill-1',
+          'payment_number': 'VPAY-MOB-001',
+          'payment_date': '2026-07-16',
+          'currency': 'INR',
+          'amount_minor': 59000,
+          'payment_account_id': 'acct-bank',
+        },
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+
+        if (request.url.path.endsWith('/invoices/invoice-1/payments')) {
+          expect(body['payment_number'], 'RCPT-MOB-001');
+          expect(body['payment_method'], 'upi');
+          expect(body['reference'], 'UPI123');
+          return http.Response(
+            jsonEncode({
+              'id': 'customer-payment-1',
+              'organization_id': 'org-1',
+              'invoice_id': 'invoice-1',
+              'payment_number': 'RCPT-MOB-001',
+              'payment_date': '2026-07-15T00:00:00Z',
+              'payment_method': 'upi',
+              'reference': 'UPI123',
+              'currency': 'INR',
+              'amount_minor': 118000,
+              'payment_account_id': 'acct-bank',
+              'journal_transaction_id': 'journal-1',
+            }),
+            201,
+          );
+        }
+
+        if (request.url.path.endsWith('/bills/bill-1/payments')) {
+          expect(body['payment_number'], 'VPAY-MOB-001');
+          expect(body.containsKey('payment_method'), false);
+          return http.Response(
+            jsonEncode({
+              'id': 'vendor-payment-1',
+              'organization_id': 'org-1',
+              'bill_id': 'bill-1',
+              'payment_number': 'VPAY-MOB-001',
+              'payment_date': '2026-07-16T00:00:00Z',
+              'currency': 'INR',
+              'amount_minor': 59000,
+              'payment_account_id': 'acct-bank',
+              'journal_transaction_id': 'journal-2',
+            }),
+            201,
+          );
+        }
+
+        fail('unexpected path: ${request.url.path}');
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 2);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, [
+      '/api/v1/organizations/org-1/invoices/invoice-1/payments',
+      '/api/v1/organizations/org-1/bills/bill-1/payments',
+    ]);
+  });
 }
