@@ -13,6 +13,7 @@ import 'investments/investment_cache_repository.dart';
 import 'parties/party_cache_repository.dart';
 import 'reports/report_csv_exporter.dart';
 import 'reports/report_cache_repository.dart';
+import 'reports/report_export_repository.dart';
 import 'settings/sync_settings.dart';
 import 'sync/offline_sync_queue.dart';
 import 'sync/sync_coordinator.dart';
@@ -114,6 +115,7 @@ Future<void> main() async {
       await createDefaultInvestmentCacheRepository();
   final partyCacheRepository = await createDefaultPartyCacheRepository();
   final reportCacheRepository = await createDefaultReportCacheRepository();
+  final reportExportRepository = await createDefaultReportExportRepository();
   final attachmentCacheRepository =
       await createDefaultAttachmentCacheRepository();
   final attachmentBinaryCacheRepository =
@@ -131,6 +133,7 @@ Future<void> main() async {
       investmentCacheRepository: investmentCacheRepository,
       partyCacheRepository: partyCacheRepository,
       reportCacheRepository: reportCacheRepository,
+      reportExportRepository: reportExportRepository,
       attachmentCacheRepository: attachmentCacheRepository,
       attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
       attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -148,6 +151,7 @@ class AccountingApp extends StatelessWidget {
     this.investmentCacheRepository,
     this.partyCacheRepository,
     this.reportCacheRepository,
+    this.reportExportRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -186,6 +190,7 @@ class AccountingApp extends StatelessWidget {
   final InvestmentCacheRepository? investmentCacheRepository;
   final PartyCacheRepository? partyCacheRepository;
   final ReportCacheRepository? reportCacheRepository;
+  final ReportExportRepository? reportExportRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -236,6 +241,7 @@ class AccountingApp extends StatelessWidget {
         investmentCacheRepository: investmentCacheRepository,
         partyCacheRepository: partyCacheRepository,
         reportCacheRepository: reportCacheRepository,
+        reportExportRepository: reportExportRepository,
         attachmentCacheRepository: attachmentCacheRepository,
         attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
         attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -278,6 +284,7 @@ class MobileDeskShell extends StatefulWidget {
     this.investmentCacheRepository,
     this.partyCacheRepository,
     this.reportCacheRepository,
+    this.reportExportRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -316,6 +323,7 @@ class MobileDeskShell extends StatefulWidget {
   final InvestmentCacheRepository? investmentCacheRepository;
   final PartyCacheRepository? partyCacheRepository;
   final ReportCacheRepository? reportCacheRepository;
+  final ReportExportRepository? reportExportRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -357,6 +365,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   late final InvestmentCacheRepository investmentCacheRepository;
   late final PartyCacheRepository partyCacheRepository;
   late final ReportCacheRepository reportCacheRepository;
+  late final ReportExportRepository reportExportRepository;
   late final AttachmentCacheRepository attachmentCacheRepository;
   late final AttachmentBinaryCacheRepository attachmentBinaryCacheRepository;
   late final AttachmentUploadManifestRepository
@@ -402,6 +411,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   TaxSummaryReport? cachedTaxSummaryReport;
   List<BudgetSummary> cachedBudgets = const [];
   BudgetVsActualReport? cachedBudgetVsActualReport;
+  String? lastReportExportDirectory;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -434,6 +444,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         widget.partyCacheRepository ?? MemoryPartyCacheRepository();
     reportCacheRepository =
         widget.reportCacheRepository ?? MemoryReportCacheRepository();
+    reportExportRepository =
+        widget.reportExportRepository ?? MemoryReportExportRepository();
     attachmentCacheRepository =
         widget.attachmentCacheRepository ?? MemoryAttachmentCacheRepository();
     attachmentBinaryCacheRepository =
@@ -1245,6 +1257,39 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     }
   }
 
+  Future<void> saveReportCsvExports(List<ReportCsvExport> exports) async {
+    if (exports.isEmpty) {
+      setState(() {
+        syncNotice = 'No cached reports available for CSV export yet.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final result = await reportExportRepository.saveExports(exports);
+      setState(() {
+        lastReportExportDirectory = result.directoryPath;
+        syncNotice =
+            'Saved ${result.fileCount} report CSV files to ${result.directoryPath}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Report CSV export failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
+        });
+      }
+    }
+  }
+
   Future<void> fetchTaxCatalog() async {
     if (!settings.canFetchAccounts) {
       setState(() {
@@ -1799,6 +1844,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         budgetVsActual: cachedBudgetVsActualReport,
         isLoading: isLoadingReports,
         notice: syncNotice,
+        lastExportDirectory: lastReportExportDirectory,
         onFetchTrialBalance: fetchTrialBalance,
         onFetchProfitAndLoss: fetchProfitAndLoss,
         onFetchBalanceSheet: fetchBalanceSheet,
@@ -1809,6 +1855,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchTaxSummary: fetchTaxSummaryReport,
         onFetchBudgets: fetchBudgets,
         onFetchBudgetVsActual: fetchBudgetVsActual,
+        onSaveCsvExports: saveReportCsvExports,
       ),
       SyncPage(
         settings: settings,
@@ -3179,7 +3226,9 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchTaxSummary,
     required this.onFetchBudgets,
     required this.onFetchBudgetVsActual,
+    required this.onSaveCsvExports,
     this.notice,
+    this.lastExportDirectory,
     super.key,
   });
 
@@ -3195,6 +3244,7 @@ class ReportsPage extends StatelessWidget {
   final BudgetVsActualReport? budgetVsActual;
   final bool isLoading;
   final String? notice;
+  final String? lastExportDirectory;
   final Future<void> Function(DateTime asOf) onFetchTrialBalance;
   final Future<void> Function(DateTime from, DateTime to) onFetchProfitAndLoss;
   final Future<void> Function(DateTime asOf) onFetchBalanceSheet;
@@ -3205,6 +3255,7 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxSummary;
   final Future<void> Function() onFetchBudgets;
   final Future<void> Function(String budgetId) onFetchBudgetVsActual;
+  final Future<void> Function(List<ReportCsvExport> exports) onSaveCsvExports;
 
   @override
   Widget build(BuildContext context) {
@@ -3490,13 +3541,18 @@ class ReportsPage extends StatelessWidget {
             ],
           ],
         ),
-        _ReportExportCard(exports: exports),
+        _ReportExportCard(
+          exports: exports,
+          isLoading: isLoading,
+          lastExportDirectory: lastExportDirectory,
+          onSave: () => onSaveCsvExports(exports),
+        ),
         if (notice != null) Text(notice!),
         const InfoList(
           items: [
             'Target APIs: financial statements, aging, tax liability, and tax summary reports',
             'Latest financial report snapshots are cached locally for offline review',
-            'CSV export payloads are generated locally from cached reports',
+            'CSV export files can be saved locally from cached reports',
             'Comparative periods remain the next reporting parity target',
           ],
         ),
@@ -3551,9 +3607,17 @@ class _ReportCard extends StatelessWidget {
 }
 
 class _ReportExportCard extends StatelessWidget {
-  const _ReportExportCard({required this.exports});
+  const _ReportExportCard({
+    required this.exports,
+    required this.isLoading,
+    required this.onSave,
+    this.lastExportDirectory,
+  });
 
   final List<ReportCsvExport> exports;
+  final bool isLoading;
+  final VoidCallback onSave;
+  final String? lastExportDirectory;
 
   @override
   Widget build(BuildContext context) {
@@ -3571,13 +3635,25 @@ class _ReportExportCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Generated locally from the offline report cache. File-save/share wiring can reuse these payloads.',
+              'Generated locally from the offline report cache and saveable to app storage.',
             ),
             const SizedBox(height: 12),
             if (exports.isEmpty)
               const Text('No cached reports available for CSV export yet.')
             else ...[
               Text('${exports.length} CSV exports ready from cache.'),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: isLoading ? null : onSave,
+                icon: const Icon(Icons.save_alt_outlined),
+                label: Text(
+                  isLoading ? 'Saving CSV files...' : 'Save CSV files',
+                ),
+              ),
+              if (lastExportDirectory != null) ...[
+                const SizedBox(height: 8),
+                Text('Last saved to $lastExportDirectory'),
+              ],
               const SizedBox(height: 8),
               for (final export in exports.take(8))
                 Padding(

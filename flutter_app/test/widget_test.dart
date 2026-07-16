@@ -12,6 +12,7 @@ import 'package:accounting_app/investments/investment_cache_repository.dart';
 import 'package:accounting_app/main.dart';
 import 'package:accounting_app/parties/party_cache_repository.dart';
 import 'package:accounting_app/reports/report_cache_repository.dart';
+import 'package:accounting_app/reports/report_export_repository.dart';
 import 'package:accounting_app/settings/sync_settings.dart';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
 import 'package:accounting_app/sync/sync_operation_repository.dart';
@@ -1227,11 +1228,13 @@ void main() {
       const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
     );
     final reportCacheRepository = MemoryReportCacheRepository();
+    final reportExportRepository = MemoryReportExportRepository();
 
     await tester.pumpWidget(
       AccountingApp(
         settingsRepository: settingsRepository,
         reportCacheRepository: reportCacheRepository,
+        reportExportRepository: reportExportRepository,
         trialBalanceLoader: (_, asOf) async => TrialBalanceReport(
           asOfDate: asOf,
           rows: const [
@@ -1518,6 +1521,14 @@ void main() {
     );
     expect(find.text('10 CSV exports ready from cache.'), findsOneWidget);
     expect(find.textContaining('trial_balance_'), findsWidgets);
+    await tester.ensureVisible(find.text('Save CSV files'));
+    await tester.tap(find.text('Save CSV files'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Saved 10 report CSV files to memory://report-exports.'),
+      findsOneWidget,
+    );
+    expect(reportExportRepository.savedFiles, contains('budgets.csv'));
   });
 
   testWidgets('fetches and caches investment valuation reports', (
