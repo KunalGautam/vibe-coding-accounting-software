@@ -159,6 +159,8 @@ The convenience paths `/swagger` and `/swagger/` redirect to `/swagger/index.htm
 
 Starter Prometheus alert rules and a Grafana dashboard are available under `../ops/`. They use the built-in `accounting_*` metrics emitted by `/metrics` and assume a Prometheus scrape job named `accounting-api`.
 
+For managed-cloud deployment, migration, rollback, backup, monitoring, and incident-response guidance, see `../docs/MANAGED_CLOUD_RUNBOOK.md`.
+
 ## Auth Status
 
 Implemented:

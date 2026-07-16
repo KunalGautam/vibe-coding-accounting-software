@@ -43,7 +43,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 ## Highest-Value Work Left
 - Investment depth: AMFI, BSE/NSE-style equity CSV, Yahoo Finance historical CSV, Alpha Vantage daily CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
 - Offline sync depth: Flutter queued writes, sync settings, downloaded attachment bytes, and read caches now persist in SQLite, surface conflict review state, track queued attachment upload blob metadata in a SQLite manifest, cache accounts and tax catalog snapshots in SQLite, and replay expense drafts, invoice drafts, draft invoice/expense edits via `PUT` update endpoints, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales.
-- Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
+- Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, Grafana datasource/dashboard provisioning, and managed-cloud deployment/rollback/backup/incident runbook are implemented.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
 - Export/reporting polish: expanded core report PDFs, backend Excel-compatible CSV downloads, account-level report drilldown with React report-row actions, source-document references, focused-row highlighting, and payment history panels, scheduled report SMTP delivery, Flutter statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, and Flutter cached-report CSV generation with app-storage/Downloads/share-sheet support are implemented.
@@ -51,10 +51,9 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 
 ## Suggested Next Build Order
 1. Additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
-2. Deeper operational monitoring runbooks and managed-cloud deployment notes.
-3. Security hardening polish: broader auth UX and account recovery flows.
-4. Richer onboarding flows, frontend account-management polish, and broader frontend test coverage.
-5. Broader Flutter parity and mobile/desktop workflow polish.
+2. Security hardening polish: broader auth UX and account recovery flows.
+3. Richer onboarding flows, frontend account-management polish, and broader frontend test coverage.
+4. Broader Flutter parity and mobile/desktop workflow polish.
 
 ## Validation Commands
 Run these before handing off changes:

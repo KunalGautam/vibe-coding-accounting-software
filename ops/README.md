@@ -60,3 +60,6 @@ built-in accounting API metrics.
 
 These assets can still be copied into a managed Prometheus, Alertmanager, and
 Grafana deployment if you do not use Docker Compose in production.
+
+For the full managed-cloud deployment, migration, rollback, backup, monitoring,
+and incident-response playbook, see `../docs/MANAGED_CLOUD_RUNBOOK.md`.

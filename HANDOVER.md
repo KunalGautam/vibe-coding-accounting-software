@@ -117,15 +117,15 @@ Current API coverage: `151` OpenAPI route/method pairs, matched to Gin handlers 
 - Structured logging is implemented with `LOG_FORMAT=text|json` and `LOG_LEVEL=debug|info|warn|error`; Compose defaults to JSON logs.
 - Basic Prometheus metrics are exposed at `/metrics` when `METRICS_ENABLED=true`.
 - Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are in `ops/` and wired through the optional Compose `monitoring` profile.
+- Managed-cloud deployment, migration, rollback, backup, monitoring, and incident-response guidance is in `docs/MANAGED_CLOUD_RUNBOOK.md`.
 
 ## Highest-Value Remaining Work
 1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
-2. Production readiness: deeper operational monitoring runbooks and managed-cloud deployment notes.
-3. Security hardening polish: broader auth UX and account recovery flows.
-4. Email/account flows: richer onboarding and account-management polish.
-5. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.
-6. Export/reporting polish: core drilldown, source-document focus, and payment history panels are implemented; remaining work is deeper document detail pages and broader frontend polish.
-7. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
+2. Security hardening polish: broader auth UX and account recovery flows.
+3. Email/account flows: richer onboarding and account-management polish.
+4. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.
+5. Export/reporting polish: core drilldown, source-document focus, and payment history panels are implemented; remaining work is deeper document detail pages and broader frontend polish.
+6. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
 
 ## Recommended Next Step
 Continue with additional broker/provider-specific market-data adapters or deeper document detail pages, then continue toward full mobile/desktop parity. `SyncOperationRepository`, `SyncSettingsRepository`, `AccountCacheRepository`, `PartyCacheRepository`, `TaxCatalogCacheRepository`, `InvoiceCacheRepository`, `InvestmentCacheRepository`, `ReportCacheRepository`, `AttachmentCacheRepository`, `AttachmentBinaryCacheRepository`, and `AttachmentUploadManifestRepository` now default to SQLite. Keep the current operation keys (`expenses.create_draft`, `expenses.update_draft`, `invoices.create_draft`, `invoices.update_draft`, `payments.record_customer`, `payments.record_vendor`, `ledger.post_invoice`, `ledger.post_expense`, `ledger.post_bill`, `ledger.post_credit_note`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `commercial_documents.convert_estimate_to_invoice`, `commercial_documents.convert_purchase_order_to_bill`, `imports.bank_statement_structured`, `imports.bank_statement_qif`, `imports.bank_statement_ofx`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`, `investments.sell_average_cost`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract.
