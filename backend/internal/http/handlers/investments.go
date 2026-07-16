@@ -116,6 +116,7 @@ func (h InvestmentHandler) RegisterWriteRoutes(router gin.IRoutes) {
 	router.POST("/investments/prices/import/bse", h.ImportBSEEquityCSV)
 	router.POST("/investments/prices/import/yahoo", h.ImportYahooFinanceCSV)
 	router.POST("/investments/prices/import/alphavantage", h.ImportAlphaVantageCSV)
+	router.POST("/investments/prices/import/broker-holdings", h.ImportBrokerHoldingsCSV)
 	router.POST("/investments/dividends", h.CreateDividend)
 	router.POST("/investments/corporate-actions", h.CreateCorporateAction)
 }
@@ -293,6 +294,26 @@ func (h InvestmentHandler) ImportAlphaVantageCSV(c *gin.Context) {
 		CSV:            request.CSV,
 		Source:         request.Source,
 		Symbol:         request.Symbol,
+	})
+	if err != nil {
+		status, code := investmentErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h InvestmentHandler) ImportBrokerHoldingsCSV(c *gin.Context) {
+	var request importInvestmentPricesRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	result, err := h.investments.ImportBrokerHoldingsCSV(c.Request.Context(), services.ImportInvestmentPricesInput{
+		OrganizationID: c.Param("organizationId"),
+		CSV:            request.CSV,
+		Source:         request.Source,
 	})
 	if err != nil {
 		status, code := investmentErrorStatus(err)

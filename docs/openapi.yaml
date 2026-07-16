@@ -2653,6 +2653,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/broker-holdings:
+    post:
+      tags: [Investments]
+      summary: Import broker holdings price CSV
+      description: Parses broker holdings exports with symbol/ticker/trading-symbol or ISIN columns plus LTP/current/last-traded price columns. If no date column is present, the import uses the current UTC date.
+      operationId: importBrokerHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported broker holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]
@@ -6688,7 +6711,7 @@ components:
       properties:
         csv:
           type: string
-          description: CSV text with optional header. Columns are symbol, price_date, price_minor, currency, source.
+          description: CSV text with optional header. Generic imports use symbol, price_date, price_minor, currency, source; provider imports accept their documented provider columns.
           example: "symbol,price_date,price_minor,currency\nNIFTYBEES,2026-07-31,7200,INR"
         source:
           type: string

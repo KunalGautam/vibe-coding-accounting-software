@@ -284,6 +284,34 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Alpha Vantage price: %+v", alphaPrice)
 	}
 
+	brokerResult, err := service.ImportBrokerHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		Source:         "zerodha_holdings_csv",
+		CSV: "Symbol,ISIN,As of Date,Last Traded Price,Quantity\n" +
+			"TCS,INE467B01029,31-Jul-2026,\"₹3,450.75\",10\n" +
+			",INF204K01UN5,31-Jul-2026,123.45,20\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportBrokerHoldingsCSV() error = %v", err)
+	}
+	if brokerResult.Imported != 2 || brokerResult.Skipped != 0 {
+		t.Fatalf("unexpected broker holdings import result: %+v", brokerResult)
+	}
+	var brokerPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "TCS", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&brokerPrice).Error; err != nil {
+		t.Fatalf("load broker price: %v", err)
+	}
+	if brokerPrice.PriceMinor != 345075 || brokerPrice.Source != "zerodha_holdings_csv" {
+		t.Fatalf("unexpected broker price: %+v", brokerPrice)
+	}
+	var isinFallbackPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "INF204K01UN5", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&isinFallbackPrice).Error; err != nil {
+		t.Fatalf("load broker ISIN fallback price: %v", err)
+	}
+	if isinFallbackPrice.PriceMinor != 12345 || isinFallbackPrice.Source != "zerodha_holdings_csv" {
+		t.Fatalf("unexpected broker ISIN fallback price: %+v", isinFallbackPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

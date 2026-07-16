@@ -740,6 +740,71 @@ func (s InvestmentService) ImportAlphaVantageCSV(ctx context.Context, input Impo
 	return result, nil
 }
 
+func (s InvestmentService) ImportBrokerHoldingsCSV(ctx context.Context, input ImportInvestmentPricesInput) (InvestmentPriceImportResult, error) {
+	if strings.TrimSpace(input.CSV) == "" {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+	source := strings.TrimSpace(input.Source)
+	if source == "" {
+		source = "broker_holdings_csv"
+	}
+
+	reader := csv.NewReader(strings.NewReader(input.CSV))
+	reader.TrimLeadingSpace = true
+	reader.FieldsPerRecord = -1
+	header, err := reader.Read()
+	if err != nil {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+	columns := nseEquityColumnMap(header)
+	symbolIndex, okSymbol := firstColumn(columns, "SYMBOL", "TRADING_SYMBOL", "TRADINGSYMBOL", "TICKER", "INSTRUMENT", "STOCK", "SCRIP")
+	isinIndex, hasISIN := firstColumn(columns, "ISIN", "ISIN_CODE")
+	dateIndex, hasDate := firstColumn(columns, "PRICE_DATE", "AS_OF_DATE", "DATE", "HOLDING_DATE", "TRADE_DATE")
+	priceIndex, okPrice := firstColumn(columns, "LAST_TRADED_PRICE", "LAST_TRADED_PRICE_LTP", "LTP", "LAST_PRICE", "CURRENT_PRICE", "MARKET_PRICE", "CLOSE", "CLOSING_PRICE")
+	if !okSymbol && !hasISIN {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+	if !okPrice {
+		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
+	}
+
+	defaultDate := time.Now().UTC().Truncate(24 * time.Hour)
+	result := InvestmentPriceImportResult{Errors: []string{}, Prices: []domain.InvestmentPrice{}}
+	rowNumber := 1
+	for {
+		record, err := reader.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		rowNumber++
+		if err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		if isBlankCSVRecord(record) {
+			continue
+		}
+		price, err := parseBrokerHoldingPriceRecord(input.OrganizationID, record, symbolIndex, okSymbol, isinIndex, hasISIN, dateIndex, hasDate, priceIndex, source, defaultDate)
+		if err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		if err := s.upsertPrice(ctx, price); err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, "row "+strconv.Itoa(rowNumber)+": "+err.Error())
+			continue
+		}
+		result.Imported++
+		result.Prices = append(result.Prices, price)
+	}
+	if result.Imported == 0 && result.Skipped == 0 {
+		return result, ErrInvestmentPriceImportInvalid
+	}
+	return result, nil
+}
+
 func (s InvestmentService) ImportBSEEquityCSV(ctx context.Context, input ImportInvestmentPricesInput) (InvestmentPriceImportResult, error) {
 	if strings.TrimSpace(input.CSV) == "" {
 		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid
@@ -1510,6 +1575,39 @@ func parseBSEEquityPriceRecord(organizationID string, record []string, symbolInd
 	}, nil
 }
 
+func parseBrokerHoldingPriceRecord(organizationID string, record []string, symbolIndex int, hasSymbol bool, isinIndex int, hasISIN bool, dateIndex int, hasDate bool, priceIndex int, source string, defaultDate time.Time) (domain.InvestmentPrice, error) {
+	symbol := ""
+	if hasSymbol {
+		symbol = strings.ToUpper(strings.TrimSpace(csvValue(record, symbolIndex)))
+	}
+	if symbol == "" && hasISIN {
+		symbol = strings.ToUpper(strings.TrimSpace(csvValue(record, isinIndex)))
+	}
+	if symbol == "" {
+		return domain.InvestmentPrice{}, errors.New("missing symbol")
+	}
+	priceDate := defaultDate
+	if hasDate && strings.TrimSpace(csvValue(record, dateIndex)) != "" {
+		parsedDate, err := parseNSEMarketDate(csvValue(record, dateIndex))
+		if err != nil {
+			return domain.InvestmentPrice{}, err
+		}
+		priceDate = parsedDate
+	}
+	priceMinor, err := parseDecimalMinor(csvValue(record, priceIndex))
+	if err != nil || priceMinor <= 0 {
+		return domain.InvestmentPrice{}, errors.New("invalid broker price")
+	}
+	return domain.InvestmentPrice{
+		OrganizationID: organizationID,
+		Symbol:         symbol,
+		PriceDate:      priceDate,
+		PriceMinor:     priceMinor,
+		Currency:       "INR",
+		Source:         source,
+	}, nil
+}
+
 func shouldSkipBSESeries(value string) bool {
 	series := strings.ToUpper(strings.TrimSpace(value))
 	if series == "" {
@@ -1568,7 +1666,13 @@ func parseNSEMarketDate(value string) (time.Time, error) {
 }
 
 func parseDecimalMinor(value string) (int64, error) {
-	amount, err := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(value), ",", ""), 64)
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	normalized = strings.ReplaceAll(normalized, "₹", "")
+	normalized = strings.ReplaceAll(normalized, "INR", "")
+	normalized = strings.ReplaceAll(normalized, "RS.", "")
+	normalized = strings.ReplaceAll(normalized, "RS", "")
+	normalized = strings.ReplaceAll(normalized, ",", "")
+	amount, err := strconv.ParseFloat(strings.TrimSpace(normalized), 64)
 	if err != nil {
 		return 0, err
 	}

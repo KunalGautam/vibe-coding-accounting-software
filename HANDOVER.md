@@ -33,7 +33,7 @@ Major backend modules are implemented and tested for:
 - Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, account drilldown with source-document references, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
 - Bank imports: structured lines, browser CSV mapper, QIF, OFX, duplicate candidate detection, conservative matching-rule suggestions, reconciliation summaries, matching, reconciliation.
 - Budgeting, fiscal close, exchange rates, unrealized FX revaluation.
-- Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance historical CSV imports, Alpha Vantage daily CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
+- Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, BSE/NSE-style equity CSV imports, Yahoo Finance historical CSV imports, Alpha Vantage daily CSV imports, broker holdings CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
 - Attachment metadata, local binary upload/download, organization JSON export, local backup snapshots.
 - Swagger UI and OpenAPI/Postman validation in CI.
 
@@ -96,7 +96,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `155` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `156` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.
@@ -121,7 +121,7 @@ Current API coverage: `155` OpenAPI route/method pairs, matched to Gin handlers 
 - Managed-cloud deployment, migration, rollback, backup, monitoring, and incident-response guidance is in `docs/MANAGED_CLOUD_RUNBOOK.md`.
 
 ## Highest-Value Remaining Work
-1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, and Alpha Vantage CSV.
+1. Investment depth: additional broker/provider-specific market-data adapters beyond AMFI, BSE/NSE-style CSV, Yahoo Finance CSV, Alpha Vantage CSV, and common broker holdings CSV.
 2. Security hardening polish: broader account-management UX, remaining recovery edge cases, and account lifecycle polish.
 3. Email/account flows: richer onboarding journeys and account-management tests.
 4. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.

@@ -1980,8 +1980,22 @@ export class ApiClient {
     });
   }
 
+  async importYahooFinancePrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/yahoo`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
   async importAlphaVantagePrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
     return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/alphavantage`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async importBrokerHoldingsPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/broker-holdings`, {
       method: "POST",
       body: JSON.stringify(input)
     });

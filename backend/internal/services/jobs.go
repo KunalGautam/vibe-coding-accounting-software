@@ -127,6 +127,16 @@ func (s JobService) ImportScheduledMarketData(ctx context.Context, input MarketD
 				Source:         source,
 				Symbol:         input.Symbol,
 			})
+		case "broker_holdings_csv":
+			source := input.Source
+			if source == "" {
+				source = "broker_holdings_csv"
+			}
+			importResult, err = investments.ImportBrokerHoldingsCSV(ctx, ImportInvestmentPricesInput{
+				OrganizationID: organization.ID,
+				CSV:            string(payload),
+				Source:         source,
+			})
 		case "nse_equity_csv":
 			source := input.Source
 			if source == "" {

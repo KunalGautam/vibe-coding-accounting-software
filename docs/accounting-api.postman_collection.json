@@ -659,6 +659,23 @@
           }
         },
         {
+          "name": "Import Broker Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/broker-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"broker_holdings_csv\",\n  \"csv\": \"Symbol,ISIN,As of Date,Last Traded Price,Quantity\\nTCS,INE467B01029,31-Jul-2026,3450.75,10\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

@@ -35,7 +35,7 @@ The app stores API connection settings in local storage:
 - Invoice, estimate, purchase-order, and bill detail panels plus invoice/bill payment history panels with drilldown-sourced payment highlighting.
 - Documents page for attachment metadata creation, local file upload, download links, and cached attachment catalog review.
 - Budgets page for account-period budget creation, saved budget review, and shared report-runner budget cache.
-- Investments page supports generic CSV, AMFI NAV, NSE equity CSV, BSE equity CSV, and Alpha Vantage CSV price imports.
+- Investments page supports generic CSV, AMFI NAV, NSE equity CSV, BSE equity CSV, Yahoo Finance CSV, Alpha Vantage CSV, and broker holdings CSV price imports.
 - Bank reconciliation page for structured statement-line import, browser CSV mapping, QIF/OFX paste import, cached line review, conservative match suggestions, and explicit ledger split matching.
 - Admin operations page for exchange-rate maintenance, fiscal year close, organization users with temporary-password generation/invite delivery status, and audit log review.
 - Payroll employee master-data create/list plus single-employee run create/review/posting with cached last-known payroll data.
