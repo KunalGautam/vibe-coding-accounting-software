@@ -1633,6 +1633,24 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/trial-balance.csv:
+    get:
+      tags: [Reports]
+      summary: Download trial balance CSV
+      operationId: downloadTrialBalanceCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Trial balance CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/profit-and-loss:
     get:
       tags: [Reports]
@@ -1670,6 +1688,25 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/profit-and-loss.csv:
+    get:
+      tags: [Reports]
+      summary: Download profit and loss CSV
+      operationId: downloadProfitAndLossCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Profit and loss CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/balance-sheet:
     get:
       tags: [Reports]
@@ -1700,6 +1737,24 @@ paths:
           description: Balance sheet PDF
           content:
             application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/balance-sheet.csv:
+    get:
+      tags: [Reports]
+      summary: Download balance sheet CSV
+      operationId: downloadBalanceSheetCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Balance sheet CSV
+          content:
+            text/csv:
               schema:
                 type: string
                 format: binary
@@ -1742,6 +1797,25 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/cash-flow.csv:
+    get:
+      tags: [Reports]
+      summary: Download cash flow CSV
+      operationId: downloadCashFlowCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Cash flow CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/ar-aging:
     get:
       tags: [Reports, Invoices]
@@ -1777,6 +1851,24 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ar-aging.csv:
+    get:
+      tags: [Reports, Invoices]
+      summary: Download accounts receivable aging CSV
+      operationId: downloadARAgingCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts receivable aging CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/ap-aging:
     get:
       tags: [Reports, Expenses]
@@ -1807,6 +1899,24 @@ paths:
           description: Accounts payable aging PDF
           content:
             application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ap-aging.csv:
+    get:
+      tags: [Reports, Expenses]
+      summary: Download accounts payable aging CSV
+      operationId: downloadAPAgingCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts payable aging CSV
+          content:
+            text/csv:
               schema:
                 type: string
                 format: binary
@@ -1849,6 +1959,25 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-liability.csv:
+    get:
+      tags: [Reports, Tax]
+      summary: Download tax liability CSV
+      operationId: downloadTaxLiabilityCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax liability CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/tax-summary:
     get:
       tags: [Reports, Tax]
@@ -1881,6 +2010,25 @@ paths:
           description: Tax summary PDF
           content:
             application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-summary.csv:
+    get:
+      tags: [Reports, Tax]
+      summary: Download tax summary CSV
+      operationId: downloadTaxSummaryCSV
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax summary CSV
+          content:
+            text/csv:
               schema:
                 type: string
                 format: binary

@@ -24,20 +24,28 @@ func (h ReportHandler) RegisterRoutes(router gin.IRoutes) {
 
 func (h ReportHandler) RegisterReadRoutes(router gin.IRoutes) {
 	router.GET("/reports/trial-balance", h.TrialBalance)
+	router.GET("/reports/trial-balance.csv", h.TrialBalanceCSV)
 	router.GET("/reports/trial-balance.pdf", h.TrialBalancePDF)
 	router.GET("/reports/profit-and-loss", h.ProfitAndLoss)
+	router.GET("/reports/profit-and-loss.csv", h.ProfitAndLossCSV)
 	router.GET("/reports/profit-and-loss.pdf", h.ProfitAndLossPDF)
 	router.GET("/reports/balance-sheet", h.BalanceSheet)
+	router.GET("/reports/balance-sheet.csv", h.BalanceSheetCSV)
 	router.GET("/reports/balance-sheet.pdf", h.BalanceSheetPDF)
 	router.GET("/reports/cash-flow", h.CashFlow)
+	router.GET("/reports/cash-flow.csv", h.CashFlowCSV)
 	router.GET("/reports/cash-flow.pdf", h.CashFlowPDF)
 	router.GET("/reports/ar-aging", h.ARAging)
+	router.GET("/reports/ar-aging.csv", h.ARAgingCSV)
 	router.GET("/reports/ar-aging.pdf", h.ARAgingPDF)
 	router.GET("/reports/ap-aging", h.APAging)
+	router.GET("/reports/ap-aging.csv", h.APAgingCSV)
 	router.GET("/reports/ap-aging.pdf", h.APAgingPDF)
 	router.GET("/reports/tax-liability", h.TaxLiability)
+	router.GET("/reports/tax-liability.csv", h.TaxLiabilityCSV)
 	router.GET("/reports/tax-liability.pdf", h.TaxLiabilityPDF)
 	router.GET("/reports/tax-summary", h.TaxSummary)
+	router.GET("/reports/tax-summary.csv", h.TaxSummaryCSV)
 	router.GET("/reports/tax-summary.pdf", h.TaxSummaryPDF)
 	router.GET("/reports/payroll-summary", h.PayrollSummary)
 	router.GET("/reports/payroll-summary.csv", h.PayrollSummaryCSV)
@@ -88,6 +96,20 @@ func (h ReportHandler) TrialBalancePDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) TrialBalanceCSV(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.TrialBalanceCSV(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "trial_balance_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) ProfitAndLoss(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -127,6 +149,25 @@ func (h ReportHandler) ProfitAndLossPDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) ProfitAndLossCSV(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.ProfitAndLossCSV(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "profit_and_loss_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) BalanceSheet(c *gin.Context) {
 	asOf, err := requiredDateQuery(c, "as_of")
 	if err != nil {
@@ -154,6 +195,20 @@ func (h ReportHandler) BalanceSheetPDF(c *gin.Context) {
 		return
 	}
 	respondPDF(c, filename, payload)
+}
+
+func (h ReportHandler) BalanceSheetCSV(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.BalanceSheetCSV(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "balance_sheet_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
 }
 
 func (h ReportHandler) CashFlow(c *gin.Context) {
@@ -196,6 +251,25 @@ func (h ReportHandler) CashFlowPDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) CashFlowCSV(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.CashFlowCSV(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "cash_flow_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) ARAging(c *gin.Context) {
 	asOf, err := requiredDateQuery(c, "as_of")
 	if err != nil {
@@ -226,6 +300,20 @@ func (h ReportHandler) ARAgingPDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) ARAgingCSV(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.ARAgingCSV(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "ar_aging_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) APAging(c *gin.Context) {
 	asOf, err := requiredDateQuery(c, "as_of")
 	if err != nil {
@@ -254,6 +342,20 @@ func (h ReportHandler) APAgingPDF(c *gin.Context) {
 		return
 	}
 	respondPDF(c, filename, payload)
+}
+
+func (h ReportHandler) APAgingCSV(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.APAgingCSV(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "ap_aging_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
 }
 
 func (h ReportHandler) TaxLiability(c *gin.Context) {
@@ -296,6 +398,25 @@ func (h ReportHandler) TaxLiabilityPDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) TaxLiabilityCSV(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.TaxLiabilityCSV(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "tax_liability_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) TaxSummary(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -336,6 +457,25 @@ func (h ReportHandler) TaxSummaryPDF(c *gin.Context) {
 	respondPDF(c, filename, payload)
 }
 
+func (h ReportHandler) TaxSummaryCSV(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+	payload, filename, err := h.reports.TaxSummaryCSV(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "tax_summary_csv_failed", err.Error())
+		return
+	}
+	respondCSV(c, filename, payload)
+}
+
 func (h ReportHandler) PayrollSummary(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -362,6 +502,12 @@ func respondPDF(c *gin.Context, filename string, payload []byte) {
 	c.Data(http.StatusOK, "application/pdf", payload)
 }
 
+func respondCSV(c *gin.Context, filename string, payload []byte) {
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", payload)
+}
+
 func (h ReportHandler) PayrollSummaryCSV(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -379,9 +525,7 @@ func (h ReportHandler) PayrollSummaryCSV(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "payroll_summary_csv_failed", err.Error())
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
-	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "text/csv; charset=utf-8", payload)
+	respondCSV(c, filename, payload)
 }
 
 func (h ReportHandler) PayrollStatutoryComponentCSV(c *gin.Context) {
@@ -401,9 +545,7 @@ func (h ReportHandler) PayrollStatutoryComponentCSV(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "payroll_statutory_component_csv_failed", err.Error())
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
-	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "text/csv; charset=utf-8", payload)
+	respondCSV(c, filename, payload)
 }
 
 func (h ReportHandler) ListScheduledReports(c *gin.Context) {

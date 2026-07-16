@@ -89,10 +89,16 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 
 	pdf, filename, err := service.TrialBalancePDF(ctx, org.ID, asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err := service.TrialBalanceCSV(ctx, org.ID, asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Code,Account,Type")
 	pdf, filename, err = service.ProfitAndLossPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.ProfitAndLossCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Net income")
 	pdf, filename, err = service.BalanceSheetPDF(ctx, org.ID, asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.BalanceSheetCSV(ctx, org.ID, asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Total assets")
 
 	cashFlow, err := service.CashFlow(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	if err != nil {
@@ -115,6 +121,8 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	}
 	pdf, filename, err = service.CashFlowPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.CashFlowCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Closing cash")
 
 	agingInvoices := []domain.Invoice{
 		{OrganizationID: org.ID, CustomerID: customer.ID, InvoiceNumber: "AR-CURRENT", IssueDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), DueDate: time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), Status: domain.InvoiceStatusPosted, Currency: "INR", TotalMinor: 1000, AccountsReceivableID: bank.ID},
@@ -163,6 +171,8 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	}
 	pdf, filename, err = service.ARAgingPDF(ctx, org.ID, asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.ARAgingCSV(ctx, org.ID, asOf)
+	assertReportCSV(t, csvPayload, filename, err, "AR-OLD")
 
 	ap := mustAccountByCode(t, db, org.ID, "2000")
 	agingBills := []domain.Bill{
@@ -202,10 +212,16 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	}
 	pdf, filename, err = service.APAgingPDF(ctx, org.ID, asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.APAgingCSV(ctx, org.ID, asOf)
+	assertReportCSV(t, csvPayload, filename, err, "AP-OLD")
 	pdf, filename, err = service.TaxLiabilityPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.TaxLiabilityCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Tax,Output tax minor")
 	pdf, filename, err = service.TaxSummaryPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	assertReportPDF(t, pdf, filename, err)
+	csvPayload, filename, err = service.TaxSummaryCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportCSV(t, csvPayload, filename, err, "Tax,Output tax minor")
 }
 
 func TestReportServicePayrollSummary(t *testing.T) {
@@ -412,5 +428,18 @@ func assertReportPDF(t *testing.T, payload []byte, filename string, err error) {
 	}
 	if !strings.HasSuffix(filename, ".pdf") {
 		t.Fatalf("filename = %q, want .pdf suffix", filename)
+	}
+}
+
+func assertReportCSV(t *testing.T, payload []byte, filename string, err error, expected string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("report CSV error = %v", err)
+	}
+	if !strings.HasSuffix(filename, ".csv") {
+		t.Fatalf("filename = %q, want .csv suffix", filename)
+	}
+	if csvText := string(payload); !strings.Contains(csvText, expected) {
+		t.Fatalf("CSV does not contain %q:\n%s", expected, csvText)
 	}
 }

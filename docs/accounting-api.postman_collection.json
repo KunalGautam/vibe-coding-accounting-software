@@ -1467,6 +1467,13 @@
           }
         },
         {
+          "name": "Trial Balance CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/trial-balance.csv?as_of=2026-07-11"
+          }
+        },
+        {
           "name": "Profit And Loss",
           "request": {
             "method": "GET",
@@ -1478,6 +1485,13 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/profit-and-loss.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Profit And Loss CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/profit-and-loss.csv?from=2026-01-01&to=2026-12-31"
           }
         },
         {
@@ -1495,6 +1509,13 @@
           }
         },
         {
+          "name": "Balance Sheet CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/balance-sheet.csv?as_of=2026-12-31"
+          }
+        },
+        {
           "name": "Cash Flow",
           "request": {
             "method": "GET",
@@ -1506,6 +1527,13 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/cash-flow.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Cash Flow CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/cash-flow.csv?from=2026-01-01&to=2026-12-31"
           }
         },
         {
@@ -1523,6 +1551,13 @@
           }
         },
         {
+          "name": "AR Aging CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ar-aging.csv?as_of=2026-12-31"
+          }
+        },
+        {
           "name": "AP Aging",
           "request": {
             "method": "GET",
@@ -1534,6 +1569,13 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/ap-aging.pdf?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "AP Aging CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ap-aging.csv?as_of=2026-12-31"
           }
         },
         {
@@ -1551,6 +1593,13 @@
           }
         },
         {
+          "name": "Tax Liability CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-liability.csv?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "Tax Summary",
           "request": {
             "method": "GET",
@@ -1562,6 +1611,13 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-summary.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Tax Summary CSV",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-summary.csv?from=2026-01-01&to=2026-12-31"
           }
         },
         {
