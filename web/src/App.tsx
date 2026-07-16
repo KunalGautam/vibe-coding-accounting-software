@@ -7308,6 +7308,12 @@ function AdminPage({
   const canPostRevaluation = Boolean(revaluationForm.as_of_date && revaluationForm.gain_loss_account_id && revaluationPreview && revaluationPreview.rows.length > 0);
   const canCreateUser = Boolean(userForm.name.trim() && userForm.email.trim() && userForm.password.length >= 12 && userForm.role);
 
+  function generateUserTemporaryPassword() {
+    const password = generateTemporaryPassword();
+    setUserForm({ ...userForm, password });
+    setAdminNotice("Generated a temporary password locally. Share it securely, or ask the user to use password reset after invitation.");
+  }
+
   async function loadAdminData() {
     setLoading("refresh-admin");
     setAdminError("");
@@ -7543,6 +7549,10 @@ function AdminPage({
       />
 
       <form className="panel form-grid" onSubmit={createOrganizationUser}>
+        <div className="full-span">
+          <p className="eyebrow">User onboarding</p>
+          <p>Invitation email delivery depends on SMTP settings. A temporary password is still required; users can also recover access through the password reset flow.</p>
+        </div>
         <input placeholder="Name" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} />
         <input placeholder="Email" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} />
         <input placeholder="Temporary password" type="password" value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} />
@@ -7552,12 +7562,13 @@ function AdminPage({
             {roleOptions.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
           </select>
         </label>
+        <button className="secondary" type="button" onClick={generateUserTemporaryPassword}>Generate temporary password</button>
         <button disabled={!canCreateUser || loading === "create-user"}>{loading === "create-user" ? "Creating..." : "Create user"}</button>
       </form>
 
       <DataTable
         headers={["Name", "Email", "Role", "Active", "Invite email"]}
-        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No", user.invite_email_sent ? "Sent" : user.invite_email_error ? "Failed" : "-"])}
+        rows={organizationUsers.map((user) => [user.name, user.email, roleLabel(user.role), user.is_active ? "Yes" : "No", user.invite_email_sent ? "Sent" : user.invite_email_error ? `Failed: ${user.invite_email_error}` : "-"])}
       />
 
       <section className="panel queue-panel">
@@ -8123,6 +8134,19 @@ function createDraftId(prefix: string) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function generateTemporaryPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_=+";
+  const randomValues = new Uint32Array(18);
+  if ("crypto" in globalThis && "getRandomValues" in crypto) {
+    crypto.getRandomValues(randomValues);
+  } else {
+    for (let index = 0; index < randomValues.length; index += 1) {
+      randomValues[index] = Math.floor(Math.random() * alphabet.length);
+    }
+  }
+  return Array.from(randomValues, (value) => alphabet[value % alphabet.length]).join("");
 }
 
 type SyncableDraft = {

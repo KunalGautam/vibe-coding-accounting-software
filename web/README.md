@@ -35,7 +35,7 @@ The app stores API connection settings in local storage:
 - Budgets page for account-period budget creation, saved budget review, and shared report-runner budget cache.
 - Investments page supports generic CSV, AMFI NAV, NSE equity CSV, BSE equity CSV, and Alpha Vantage CSV price imports.
 - Bank reconciliation page for structured statement-line import, QIF/OFX paste import, cached line review, and explicit ledger split matching.
-- Admin operations page for exchange-rate maintenance, fiscal year close, organization users, and audit log review.
+- Admin operations page for exchange-rate maintenance, fiscal year close, organization users with temporary-password generation/invite delivery status, and audit log review.
 - Payroll employee master-data create/list plus single-employee run create/review/posting with cached last-known payroll data.
 - Core financial statement runners for trial balance, profit and loss, balance sheet, cash flow, and AR/AP aging.
 - GST liability and summary report runners for filing-oriented tax review.
