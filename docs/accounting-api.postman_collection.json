@@ -1502,10 +1502,24 @@
           }
         },
         {
+          "name": "Cash Flow PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/cash-flow.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "AR Aging",
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/ar-aging?as_of=2026-12-31"
+          }
+        },
+        {
+          "name": "AR Aging PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ar-aging.pdf?as_of=2026-12-31"
           }
         },
         {
@@ -1516,6 +1530,13 @@
           }
         },
         {
+          "name": "AP Aging PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/ap-aging.pdf?as_of=2026-12-31"
+          }
+        },
+        {
           "name": "Tax Liability",
           "request": {
             "method": "GET",
@@ -1523,10 +1544,24 @@
           }
         },
         {
+          "name": "Tax Liability PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-liability.pdf?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "Tax Summary",
           "request": {
             "method": "GET",
             "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-summary?from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
+          "name": "Tax Summary PDF",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/tax-summary.pdf?from=2026-01-01&to=2026-12-31"
           }
         },
         {

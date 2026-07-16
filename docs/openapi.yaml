@@ -1723,6 +1723,25 @@ paths:
                 $ref: '#/components/schemas/CashFlowReport'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/cash-flow.pdf:
+    get:
+      tags: [Reports]
+      summary: Download cash flow PDF
+      operationId: downloadCashFlowPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Cash flow PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/ar-aging:
     get:
       tags: [Reports, Invoices]
@@ -1740,6 +1759,24 @@ paths:
                 $ref: '#/components/schemas/ARAgingReport'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ar-aging.pdf:
+    get:
+      tags: [Reports, Invoices]
+      summary: Download accounts receivable aging PDF
+      operationId: downloadARAgingPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts receivable aging PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/ap-aging:
     get:
       tags: [Reports, Expenses]
@@ -1755,6 +1792,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/APAgingReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/ap-aging.pdf:
+    get:
+      tags: [Reports, Expenses]
+      summary: Download accounts payable aging PDF
+      operationId: downloadAPAgingPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/AsOfDate'
+      responses:
+        '200':
+          description: Accounts payable aging PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/tax-liability:
@@ -1775,6 +1830,25 @@ paths:
                 $ref: '#/components/schemas/TaxLiabilityReport'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-liability.pdf:
+    get:
+      tags: [Reports, Tax]
+      summary: Download tax liability PDF
+      operationId: downloadTaxLiabilityPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax liability PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/tax-summary:
     get:
       tags: [Reports, Tax]
@@ -1791,6 +1865,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaxSummaryReport'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/tax-summary.pdf:
+    get:
+      tags: [Reports, Tax]
+      summary: Download tax summary PDF
+      operationId: downloadTaxSummaryPDF
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Tax summary PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/reports/payroll-summary:

@@ -75,6 +75,124 @@ func (s ReportService) BalanceSheetPDF(ctx context.Context, organizationID strin
 	return renderReportPDF(lines), "balance-sheet-" + report.AsOfDate.Format("2006-01-02") + ".pdf", nil
 }
 
+func (s ReportService) CashFlowPDF(ctx context.Context, organizationID string, from time.Time, to time.Time) ([]byte, string, error) {
+	report, err := s.CashFlow(ctx, organizationID, from, to)
+	if err != nil {
+		return nil, "", err
+	}
+	lines := []string{
+		"Cash Flow",
+		formatPDFDate(report.FromDate) + " to " + formatPDFDate(report.ToDate),
+		fmt.Sprintf("Opening cash: %s | Inflows: %s | Outflows: %s | Net: %s | Closing cash: %s", formatPDFMinor(report.OpeningCashMinor), formatPDFMinor(report.TotalInflowsMinor), formatPDFMinor(report.TotalOutflowsMinor), formatPDFMinor(report.NetCashFlowMinor), formatPDFMinor(report.ClosingCashMinor)),
+		"",
+		"Code | Account | Source | Inflow | Outflow | Net",
+	}
+	for _, row := range report.Rows {
+		lines = append(lines, fmt.Sprintf("%s | %s | %s | %s | %s | %s", row.AccountCode, row.AccountName, row.SourceModule, formatPDFMinor(row.InflowMinor), formatPDFMinor(row.OutflowMinor), formatPDFMinor(row.NetCashFlowMinor)))
+	}
+	return renderReportPDF(lines), "cash-flow-" + report.FromDate.Format("2006-01-02") + "-to-" + report.ToDate.Format("2006-01-02") + ".pdf", nil
+}
+
+func (s ReportService) ARAgingPDF(ctx context.Context, organizationID string, asOf time.Time) ([]byte, string, error) {
+	report, err := s.ARAging(ctx, organizationID, asOf)
+	if err != nil {
+		return nil, "", err
+	}
+	lines := agingPDFLines(
+		"Accounts Receivable Aging",
+		report.AsOfDate,
+		report.TotalCurrentMinor,
+		report.TotalOneToThirtyMinor,
+		report.TotalThirtyOneToSixtyMinor,
+		report.TotalSixtyOneToNinetyMinor,
+		report.TotalOverNinetyMinor,
+		report.TotalOutstandingMinor,
+	)
+	lines = append(lines, "Invoice | Customer | Due | Days overdue | Outstanding")
+	for _, row := range report.Rows {
+		lines = append(lines, fmt.Sprintf("%s | %s | %s | %d | %s", row.InvoiceNumber, row.CustomerName, formatPDFDate(row.DueDate), row.DaysOverdue, formatPDFMinor(row.OutstandingMinor)))
+	}
+	return renderReportPDF(lines), "ar-aging-" + report.AsOfDate.Format("2006-01-02") + ".pdf", nil
+}
+
+func (s ReportService) APAgingPDF(ctx context.Context, organizationID string, asOf time.Time) ([]byte, string, error) {
+	report, err := s.APAging(ctx, organizationID, asOf)
+	if err != nil {
+		return nil, "", err
+	}
+	lines := agingPDFLines(
+		"Accounts Payable Aging",
+		report.AsOfDate,
+		report.TotalCurrentMinor,
+		report.TotalOneToThirtyMinor,
+		report.TotalThirtyOneToSixtyMinor,
+		report.TotalSixtyOneToNinetyMinor,
+		report.TotalOverNinetyMinor,
+		report.TotalOutstandingMinor,
+	)
+	lines = append(lines, "Bill | Vendor | Due | Days overdue | Outstanding")
+	for _, row := range report.Rows {
+		lines = append(lines, fmt.Sprintf("%s | %s | %s | %d | %s", row.BillNumber, row.VendorName, formatPDFDate(row.DueDate), row.DaysOverdue, formatPDFMinor(row.OutstandingMinor)))
+	}
+	return renderReportPDF(lines), "ap-aging-" + report.AsOfDate.Format("2006-01-02") + ".pdf", nil
+}
+
+func (s ReportService) TaxLiabilityPDF(ctx context.Context, organizationID string, from time.Time, to time.Time) ([]byte, string, error) {
+	report, err := s.TaxLiability(ctx, organizationID, from, to)
+	if err != nil {
+		return nil, "", err
+	}
+	lines := []string{
+		"Tax Liability",
+		formatPDFDate(report.FromDate) + " to " + formatPDFDate(report.ToDate),
+		fmt.Sprintf("Output tax: %s | Input tax: %s | Net payable: %s", formatPDFMinor(report.OutputTaxMinor), formatPDFMinor(report.InputTaxMinor), formatPDFMinor(report.NetPayableMinor)),
+		"",
+		"Rate/group | Output | Input | Net payable",
+	}
+	for _, row := range report.Rows {
+		lines = append(lines, fmt.Sprintf("%s | %s | %s | %s", row.Name, formatPDFMinor(row.OutputTaxMinor), formatPDFMinor(row.InputTaxMinor), formatPDFMinor(row.NetPayableMinor)))
+	}
+	return renderReportPDF(lines), "tax-liability-" + report.FromDate.Format("2006-01-02") + "-to-" + report.ToDate.Format("2006-01-02") + ".pdf", nil
+}
+
+func (s ReportService) TaxSummaryPDF(ctx context.Context, organizationID string, from time.Time, to time.Time) ([]byte, string, error) {
+	report, err := s.TaxSummary(ctx, organizationID, from, to)
+	if err != nil {
+		return nil, "", err
+	}
+	outputTaxMinor, inputTaxMinor, netPayableMinor := taxReportTotals(report.Rows)
+	lines := []string{
+		"Tax Summary",
+		formatPDFDate(report.FromDate) + " to " + formatPDFDate(report.ToDate),
+		fmt.Sprintf("Output tax: %s | Input tax: %s | Net payable: %s", formatPDFMinor(outputTaxMinor), formatPDFMinor(inputTaxMinor), formatPDFMinor(netPayableMinor)),
+		"",
+		"Rate/group | Output | Input | Net payable",
+	}
+	for _, row := range report.Rows {
+		lines = append(lines, fmt.Sprintf("%s | %s | %s | %s", row.Name, formatPDFMinor(row.OutputTaxMinor), formatPDFMinor(row.InputTaxMinor), formatPDFMinor(row.NetPayableMinor)))
+	}
+	return renderReportPDF(lines), "tax-summary-" + report.FromDate.Format("2006-01-02") + "-to-" + report.ToDate.Format("2006-01-02") + ".pdf", nil
+}
+
+func agingPDFLines(title string, asOf time.Time, currentMinor int64, oneToThirtyMinor int64, thirtyOneToSixtyMinor int64, sixtyOneToNinetyMinor int64, overNinetyMinor int64, outstandingMinor int64) []string {
+	return []string{
+		title,
+		"As of " + formatPDFDate(asOf),
+		fmt.Sprintf("Outstanding: %s | Current: %s | 1-30: %s | 31-60: %s | 61-90: %s | 90+: %s", formatPDFMinor(outstandingMinor), formatPDFMinor(currentMinor), formatPDFMinor(oneToThirtyMinor), formatPDFMinor(thirtyOneToSixtyMinor), formatPDFMinor(sixtyOneToNinetyMinor), formatPDFMinor(overNinetyMinor)),
+		"",
+	}
+}
+
+func taxReportTotals(rows []TaxReportRow) (int64, int64, int64) {
+	var outputTaxMinor, inputTaxMinor, netPayableMinor int64
+	for _, row := range rows {
+		outputTaxMinor += row.OutputTaxMinor
+		inputTaxMinor += row.InputTaxMinor
+		netPayableMinor += row.NetPayableMinor
+	}
+	return outputTaxMinor, inputTaxMinor, netPayableMinor
+}
+
 func renderReportPDF(lines []string) []byte {
 	var content bytes.Buffer
 	y := 780

@@ -30,10 +30,15 @@ func (h ReportHandler) RegisterReadRoutes(router gin.IRoutes) {
 	router.GET("/reports/balance-sheet", h.BalanceSheet)
 	router.GET("/reports/balance-sheet.pdf", h.BalanceSheetPDF)
 	router.GET("/reports/cash-flow", h.CashFlow)
+	router.GET("/reports/cash-flow.pdf", h.CashFlowPDF)
 	router.GET("/reports/ar-aging", h.ARAging)
+	router.GET("/reports/ar-aging.pdf", h.ARAgingPDF)
 	router.GET("/reports/ap-aging", h.APAging)
+	router.GET("/reports/ap-aging.pdf", h.APAgingPDF)
 	router.GET("/reports/tax-liability", h.TaxLiability)
+	router.GET("/reports/tax-liability.pdf", h.TaxLiabilityPDF)
 	router.GET("/reports/tax-summary", h.TaxSummary)
+	router.GET("/reports/tax-summary.pdf", h.TaxSummaryPDF)
 	router.GET("/reports/payroll-summary", h.PayrollSummary)
 	router.GET("/reports/payroll-summary.csv", h.PayrollSummaryCSV)
 	router.GET("/reports/payroll-statutory-components.csv", h.PayrollStatutoryComponentCSV)
@@ -80,9 +85,7 @@ func (h ReportHandler) TrialBalancePDF(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "trial_balance_pdf_failed", err.Error())
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
-	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "application/pdf", payload)
+	respondPDF(c, filename, payload)
 }
 
 func (h ReportHandler) ProfitAndLoss(c *gin.Context) {
@@ -121,9 +124,7 @@ func (h ReportHandler) ProfitAndLossPDF(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "profit_and_loss_pdf_failed", err.Error())
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
-	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "application/pdf", payload)
+	respondPDF(c, filename, payload)
 }
 
 func (h ReportHandler) BalanceSheet(c *gin.Context) {
@@ -152,9 +153,7 @@ func (h ReportHandler) BalanceSheetPDF(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "balance_sheet_pdf_failed", err.Error())
 		return
 	}
-	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
-	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "application/pdf", payload)
+	respondPDF(c, filename, payload)
 }
 
 func (h ReportHandler) CashFlow(c *gin.Context) {
@@ -177,6 +176,26 @@ func (h ReportHandler) CashFlow(c *gin.Context) {
 	c.JSON(http.StatusOK, report)
 }
 
+func (h ReportHandler) CashFlowPDF(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+
+	payload, filename, err := h.reports.CashFlowPDF(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "cash_flow_pdf_failed", err.Error())
+		return
+	}
+	respondPDF(c, filename, payload)
+}
+
 func (h ReportHandler) ARAging(c *gin.Context) {
 	asOf, err := requiredDateQuery(c, "as_of")
 	if err != nil {
@@ -192,6 +211,21 @@ func (h ReportHandler) ARAging(c *gin.Context) {
 	c.JSON(http.StatusOK, report)
 }
 
+func (h ReportHandler) ARAgingPDF(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+
+	payload, filename, err := h.reports.ARAgingPDF(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "ar_aging_pdf_failed", err.Error())
+		return
+	}
+	respondPDF(c, filename, payload)
+}
+
 func (h ReportHandler) APAging(c *gin.Context) {
 	asOf, err := requiredDateQuery(c, "as_of")
 	if err != nil {
@@ -205,6 +239,21 @@ func (h ReportHandler) APAging(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, report)
+}
+
+func (h ReportHandler) APAgingPDF(c *gin.Context) {
+	asOf, err := requiredDateQuery(c, "as_of")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_as_of", err.Error())
+		return
+	}
+
+	payload, filename, err := h.reports.APAgingPDF(c.Request.Context(), c.Param("organizationId"), asOf)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "ap_aging_pdf_failed", err.Error())
+		return
+	}
+	respondPDF(c, filename, payload)
 }
 
 func (h ReportHandler) TaxLiability(c *gin.Context) {
@@ -227,6 +276,26 @@ func (h ReportHandler) TaxLiability(c *gin.Context) {
 	c.JSON(http.StatusOK, report)
 }
 
+func (h ReportHandler) TaxLiabilityPDF(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+
+	payload, filename, err := h.reports.TaxLiabilityPDF(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "tax_liability_pdf_failed", err.Error())
+		return
+	}
+	respondPDF(c, filename, payload)
+}
+
 func (h ReportHandler) TaxSummary(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -247,6 +316,26 @@ func (h ReportHandler) TaxSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, report)
 }
 
+func (h ReportHandler) TaxSummaryPDF(c *gin.Context) {
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+
+	payload, filename, err := h.reports.TaxSummaryPDF(c.Request.Context(), c.Param("organizationId"), from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "tax_summary_pdf_failed", err.Error())
+		return
+	}
+	respondPDF(c, filename, payload)
+}
+
 func (h ReportHandler) PayrollSummary(c *gin.Context) {
 	from, err := requiredDateQuery(c, "from")
 	if err != nil {
@@ -265,6 +354,12 @@ func (h ReportHandler) PayrollSummary(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, report)
+}
+
+func respondPDF(c *gin.Context, filename string, payload []byte) {
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "application/pdf", payload)
 }
 
 func (h ReportHandler) PayrollSummaryCSV(c *gin.Context) {

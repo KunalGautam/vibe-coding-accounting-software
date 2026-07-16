@@ -113,6 +113,8 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	if cashFlow.ClosingCashMinor != 140000 {
 		t.Fatalf("closing cash = %d, want 140000", cashFlow.ClosingCashMinor)
 	}
+	pdf, filename, err = service.CashFlowPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportPDF(t, pdf, filename, err)
 
 	agingInvoices := []domain.Invoice{
 		{OrganizationID: org.ID, CustomerID: customer.ID, InvoiceNumber: "AR-CURRENT", IssueDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), DueDate: time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC), Status: domain.InvoiceStatusPosted, Currency: "INR", TotalMinor: 1000, AccountsReceivableID: bank.ID},
@@ -159,6 +161,8 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	if arAging.TotalOutstandingMinor != 15000 {
 		t.Fatalf("outstanding = %d, want 15000", arAging.TotalOutstandingMinor)
 	}
+	pdf, filename, err = service.ARAgingPDF(ctx, org.ID, asOf)
+	assertReportPDF(t, pdf, filename, err)
 
 	ap := mustAccountByCode(t, db, org.ID, "2000")
 	agingBills := []domain.Bill{
@@ -196,6 +200,12 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 		apAging.TotalOutstandingMinor != 16500 {
 		t.Fatalf("unexpected AP aging totals: %+v", apAging)
 	}
+	pdf, filename, err = service.APAgingPDF(ctx, org.ID, asOf)
+	assertReportPDF(t, pdf, filename, err)
+	pdf, filename, err = service.TaxLiabilityPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportPDF(t, pdf, filename, err)
+	pdf, filename, err = service.TaxSummaryPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
+	assertReportPDF(t, pdf, filename, err)
 }
 
 func TestReportServicePayrollSummary(t *testing.T) {
