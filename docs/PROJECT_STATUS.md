@@ -13,7 +13,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added conflict-aware Flutter sync metadata for queued offline writes, including retry count, last error, last attempt time, and conflict review state.
 - Added production monitoring provisioning through the optional Compose `monitoring` profile: Prometheus scrape/rules, Alertmanager email routing template, and Grafana datasource/dashboard provisioning.
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
-- Added BSE-style equity CSV investment price imports for API, React, and scheduled worker flows, with OpenAPI/Postman coverage aligned at 149 route/method pairs.
+- Exposed NSE-style equity CSV imports through REST, React, OpenAPI, and Postman; BSE-style equity CSV imports are also available through API, React, and scheduled worker flows, with OpenAPI/Postman coverage aligned at 150 route/method pairs.
 - Added managed scheduled report SMTP delivery with configurable recipients.
 - Added PDF downloads for trial balance, profit and loss, and balance sheet.
 - Added account-level report drilldown for posted ledger activity with opening/running balances.

@@ -2530,6 +2530,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/nse:
+    post:
+      tags: [Investments]
+      summary: Import NSE equity price CSV
+      description: Parses NSE-style equity bhavcopy/security CSV rows with symbol, trade date, close price, and optional series columns. Supported column aliases include `SYMBOL`, `TckrSymb`, `DATE1`, `TradDt`, `CLOSE_PRICE`, and `ClsPric`; non-`EQ` series rows are ignored when a series column is present.
+      operationId: importNSEEquityPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported NSE equity prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/prices/import/yahoo:
     post:
       tags: [Investments]

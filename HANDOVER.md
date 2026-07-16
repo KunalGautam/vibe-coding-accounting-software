@@ -95,7 +95,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `149` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `150` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.

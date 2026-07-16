@@ -1927,6 +1927,13 @@ export class ApiClient {
     });
   }
 
+  async importNSEEquityPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/nse`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
   async importBSEEquityPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
     return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/bse`, {
       method: "POST",

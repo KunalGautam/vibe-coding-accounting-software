@@ -601,6 +601,23 @@
           }
         },
         {
+          "name": "Import NSE Equity Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/nse",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"nse_bhavcopy\",\n  \"csv\": \"SYMBOL,SERIES,DATE1,CLOSE_PRICE\\nINFY,EQ,31-Jul-2026,1720.35\"\n}"
+            }
+          }
+        },
+        {
           "name": "List Investment Dividends",
           "request": {
             "method": "GET",
