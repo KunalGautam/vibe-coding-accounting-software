@@ -4,8 +4,11 @@ import 'dart:typed_data';
 import 'package:accounting_app/api/accounting_api_client.dart';
 import 'package:accounting_app/attachments/attachment_cache_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  setUpAll(sqfliteFfiInit);
+
   const attachments = [
     AttachmentSummary(
       id: 'attachment-1',
@@ -146,5 +149,85 @@ void main() {
     expect(pending.single.localFilePath, '/tmp/receipt.txt');
     expect(pending.single.createdAt, DateTime.utc(2026, 7, 16, 9));
     expect(pending.single.contentType, 'text/plain');
+  });
+
+  test(
+    'sqlite attachment upload manifest persists and orders queued blobs',
+    () async {
+      final database = await databaseFactoryFfi.openDatabase(
+        inMemoryDatabasePath,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (database, _) =>
+              createAttachmentUploadManifestTables(database),
+        ),
+      );
+      addTearDown(database.close);
+      final repository = SqliteAttachmentUploadManifestRepository(database);
+
+      await repository.savePending([
+        AttachmentUploadManifestEntry(
+          operationId: 'attachment-upload-2',
+          fileName: 'later.txt',
+          localFilePath: '/tmp/later.txt',
+          sizeBytes: 256,
+          createdAt: DateTime.utc(2026, 7, 16, 10),
+        ),
+        AttachmentUploadManifestEntry(
+          operationId: 'attachment-upload-1',
+          fileName: 'receipt.txt',
+          localFilePath: '/tmp/receipt.txt',
+          sizeBytes: 128,
+          createdAt: DateTime.utc(2026, 7, 16, 9),
+          contentType: 'text/plain',
+        ),
+      ]);
+
+      final pending = await repository.loadPending();
+      expect(pending.map((entry) => entry.operationId), [
+        'attachment-upload-1',
+        'attachment-upload-2',
+      ]);
+      expect(pending.first.fileName, 'receipt.txt');
+      expect(pending.first.contentType, 'text/plain');
+    },
+  );
+
+  test('sqlite attachment upload manifest upserts queued blobs', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) =>
+            createAttachmentUploadManifestTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteAttachmentUploadManifestRepository(database);
+
+    await repository.upsert(
+      AttachmentUploadManifestEntry(
+        operationId: 'attachment-upload-1',
+        fileName: 'receipt.txt',
+        localFilePath: '/tmp/receipt.txt',
+        sizeBytes: 128,
+        createdAt: DateTime.utc(2026, 7, 16, 9),
+      ),
+    );
+    await repository.upsert(
+      AttachmentUploadManifestEntry(
+        operationId: 'attachment-upload-1',
+        fileName: 'receipt-updated.txt',
+        localFilePath: '/tmp/receipt-updated.txt',
+        sizeBytes: 256,
+        createdAt: DateTime.utc(2026, 7, 16, 9, 5),
+      ),
+    );
+
+    final pending = await repository.loadPending();
+    expect(pending, hasLength(1));
+    expect(pending.single.fileName, 'receipt-updated.txt');
+    expect(pending.single.localFilePath, '/tmp/receipt-updated.txt');
+    expect(pending.single.sizeBytes, 256);
   });
 }

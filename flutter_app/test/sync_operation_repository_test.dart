@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
 import 'package:accounting_app/sync/sync_operation_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  setUpAll(sqfliteFfiInit);
+
   test(
     'file repository returns an empty list before the file exists',
     () async {
@@ -101,5 +104,73 @@ void main() {
     final pending = await repository.loadPending();
     expect(pending, hasLength(1));
     expect(pending.single.id, 'new');
+  });
+
+  test('sqlite repository persists and orders pending operations', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createOfflineSyncTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteSyncOperationRepository(database);
+
+    await repository.savePending([
+      SyncOperation(
+        id: 'invoice-2',
+        module: 'invoices',
+        action: 'create_draft',
+        createdAt: DateTime.utc(2026, 7, 12, 10),
+        payload: const {'invoice_number': 'INV-002'},
+      ),
+      SyncOperation(
+        id: 'expense-1',
+        module: 'expenses',
+        action: 'create_draft',
+        createdAt: DateTime.utc(2026, 7, 12, 9),
+        payload: const {'expense_number': 'EXP-001'},
+      ),
+    ]);
+
+    final pending = await repository.loadPending();
+    expect(pending.map((operation) => operation.id), [
+      'expense-1',
+      'invoice-2',
+    ]);
+    expect(pending.first.payload['expense_number'], 'EXP-001');
+  });
+
+  test('sqlite repository persists retry and conflict metadata', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createOfflineSyncTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteSyncOperationRepository(database);
+
+    await repository.savePending([
+      SyncOperation(
+        id: 'payment-conflict',
+        module: 'payments',
+        action: 'record_customer',
+        createdAt: DateTime.utc(2026, 7, 12, 9),
+        retryCount: 3,
+        lastAttemptAt: DateTime.utc(2026, 7, 12, 10),
+        lastError: 'invoice already paid',
+        conflictReason: 'invoice already paid',
+      ),
+    ]);
+
+    final pending = await repository.loadPending();
+    expect(pending.single.retryCount, 3);
+    expect(pending.single.lastAttemptAt, DateTime.utc(2026, 7, 12, 10));
+    expect(pending.single.lastError, 'invoice already paid');
+    expect(pending.single.conflictReason, 'invoice already paid');
+    expect(pending.single.hasConflict, true);
   });
 }

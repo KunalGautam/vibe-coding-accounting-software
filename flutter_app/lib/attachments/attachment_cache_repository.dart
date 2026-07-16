@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../api/accounting_api_client.dart';
+import '../storage/offline_sqlite.dart';
 
 Future<AttachmentCacheRepository>
 createDefaultAttachmentCacheRepository() async {
@@ -23,10 +25,12 @@ createDefaultAttachmentBinaryCacheRepository() async {
 
 Future<AttachmentUploadManifestRepository>
 createDefaultAttachmentUploadManifestRepository() async {
-  final directory = await getApplicationSupportDirectory();
-  return FileAttachmentUploadManifestRepository(
-    File('${directory.path}/queued-attachment-uploads.json'),
+  final database = await openOfflineDatabase(
+    fileName: 'offline-attachments.sqlite',
+    version: 1,
+    onCreate: (database, _) => createAttachmentUploadManifestTables(database),
   );
+  return SqliteAttachmentUploadManifestRepository(database);
 }
 
 abstract interface class AttachmentCacheRepository {
@@ -323,4 +327,84 @@ class FileAttachmentUploadManifestRepository
     }
     await savePending(next);
   }
+}
+
+class SqliteAttachmentUploadManifestRepository
+    implements AttachmentUploadManifestRepository {
+  const SqliteAttachmentUploadManifestRepository(this.database);
+
+  final Database database;
+
+  @override
+  Future<List<AttachmentUploadManifestEntry>> loadPending() async {
+    final rows = await database.query(
+      'queued_attachment_uploads',
+      orderBy: 'created_at ASC, operation_id ASC',
+    );
+    return rows.map(_manifestEntryFromRow).toList(growable: false);
+  }
+
+  @override
+  Future<void> savePending(List<AttachmentUploadManifestEntry> entries) async {
+    await database.transaction((transaction) async {
+      await transaction.delete('queued_attachment_uploads');
+      for (final entry in entries) {
+        await transaction.insert(
+          'queued_attachment_uploads',
+          _manifestEntryToRow(entry),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
+  @override
+  Future<void> upsert(AttachmentUploadManifestEntry entry) async {
+    await database.insert(
+      'queued_attachment_uploads',
+      _manifestEntryToRow(entry),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+}
+
+Future<void> createAttachmentUploadManifestTables(
+  DatabaseExecutor database,
+) async {
+  await database.execute('''
+CREATE TABLE IF NOT EXISTS queued_attachment_uploads (
+  operation_id TEXT PRIMARY KEY,
+  file_name TEXT NOT NULL,
+  local_file_path TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  content_type TEXT
+)
+''');
+  await database.execute('''
+CREATE INDEX IF NOT EXISTS idx_queued_attachment_uploads_created_at
+ON queued_attachment_uploads (created_at, operation_id)
+''');
+}
+
+Map<String, Object?> _manifestEntryToRow(AttachmentUploadManifestEntry entry) {
+  return {
+    'operation_id': entry.operationId,
+    'file_name': entry.fileName,
+    'local_file_path': entry.localFilePath,
+    'size_bytes': entry.sizeBytes,
+    'created_at': entry.createdAt.toIso8601String(),
+    'content_type': entry.contentType,
+  };
+}
+
+AttachmentUploadManifestEntry _manifestEntryFromRow(Map<String, Object?> row) {
+  return AttachmentUploadManifestEntry(
+    operationId: row['operation_id']! as String,
+    fileName: row['file_name']! as String,
+    localFilePath: row['local_file_path']! as String,
+    sizeBytes: row['size_bytes'] as int? ?? 0,
+    createdAt: DateTime.parse(row['created_at']! as String),
+    contentType: row['content_type'] as String?,
+  );
 }
