@@ -38,6 +38,7 @@ The app stores API connection settings in local storage:
 - Core financial statement runners for trial balance, profit and loss, balance sheet, cash flow, and AR/AP aging.
 - GST liability and summary report runners for filing-oriented tax review.
 - Budget-vs-actual report runner with CSV export and offline last-run cache.
+- Account drilldown actions from generated report rows with an inline ledger movement panel.
 - Client-side CSV export for generated financial, cash flow, AR/AP aging, and GST reports.
 - Cached and clearable last-run financial/cash flow/AR/AP aging/GST reports for offline review/export after refresh.
 - GST tax catalog authority/rate/group creation, backend-backed calculation preview, and one-click India default chart/GST seeding.

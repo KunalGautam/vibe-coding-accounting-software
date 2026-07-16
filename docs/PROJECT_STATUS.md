@@ -16,6 +16,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added managed scheduled report SMTP delivery with configurable recipients.
 - Added PDF downloads for trial balance, profit and loss, and balance sheet.
 - Added account-level report drilldown for posted ledger activity with opening/running balances, keeping OpenAPI/Postman coverage aligned at 148 documented route/method pairs.
+- Added React report-row drilldown actions and an inline account movement panel for trial balance, P&L, balance sheet, cash flow, and budget-vs-actual reports.
 - Added Flutter file picker, gallery, and camera receipt capture for attachment uploads, including offline queueing through the existing attachment upload manifest.
 - Added Flutter customer/vendor API transport, SQLite-backed offline party cache, and Sync-page review panel for AR/AP master-data visibility.
 - Added Flutter Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual report transport, prior-period comparison for P&L/Balance Sheet/Cash Flow/AR Aging/AP Aging/Tax Liability/Tax Summary plus selected-vs-previous budget comparison, SQLite-backed report cache with migration support, local CSV export generation plus app-storage/Downloads/share-sheet support, and a Reports page for offline financial/tax/budget snapshot review.
@@ -31,7 +32,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
-- React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports.
+- React web: broad admin/control surfaces, offline draft queues, cached read-only snapshots, report CSV exports, and account drilldown review from generated reports.
 - Flutter: offline-ready expense/invoice/investment/report shell with SQLite-backed sync queue/settings/account cache/customer-vendor party cache/tax catalog cache/invoice cache/investment cache/financial, tax, and budget report cache, statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, local CSV export app-storage/Downloads/share-sheet support/attachment metadata cache/downloaded binary cache/queued-attachment upload manifest, typed API transport, file picker/gallery/camera attachment capture, conflict-aware queued writes for expense/invoice creation and draft edits, customer payments, vendor payments, ledger posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank imports, attachment metadata/binary attachment uploads, investment prices, average-cost investment sales, and cached read models.
 - Documentation: OpenAPI, Postman, Swagger UI, API documentation workflow, route/collection validators in CI.
 
@@ -41,11 +42,11 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
-- Export/reporting polish: expanded core report PDFs, backend Excel-compatible CSV downloads, account-level report drilldown, scheduled report SMTP delivery, Flutter statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, and Flutter cached-report CSV generation with app-storage/Downloads/share-sheet support are implemented; source-document deep links and richer frontend drilldown UX remain.
+- Export/reporting polish: expanded core report PDFs, backend Excel-compatible CSV downloads, account-level report drilldown with React report-row actions, scheduled report SMTP delivery, Flutter statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, and Flutter cached-report CSV generation with app-storage/Downloads/share-sheet support are implemented; source-document deep links remain.
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Source-document deep links and richer frontend drilldown UX.
+1. Source-document deep links from account drilldowns to invoices, bills, payroll runs, expenses, payments, and journal entries.
 2. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 3. Deeper operational monitoring runbooks and managed-cloud deployment notes.
 4. Security hardening polish: broader auth UX and account recovery flows.

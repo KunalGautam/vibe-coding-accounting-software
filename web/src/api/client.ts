@@ -92,6 +92,33 @@ export type CashFlowReport = {
   generated_from_subtypes: string[];
 };
 
+export type AccountDrilldownRow = {
+  transaction_id: string;
+  transaction_date: string;
+  source_module: string;
+  transaction_memo?: string;
+  split_memo?: string;
+  debit_minor: number;
+  credit_minor: number;
+  balance_minor: number;
+  cleared: boolean;
+  reconciled: boolean;
+};
+
+export type AccountDrilldownReport = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: Account["type"];
+  from_date: string;
+  to_date: string;
+  opening_balance_minor: number;
+  closing_balance_minor: number;
+  total_debit_minor: number;
+  total_credit_minor: number;
+  rows: AccountDrilldownRow[];
+};
+
 export type ARAgingRow = {
   customer_id: string;
   customer_name: string;
@@ -1728,6 +1755,11 @@ export class ApiClient {
   async getCashFlow(from: string, to: string): Promise<CashFlowReport> {
     const params = new URLSearchParams({ from, to });
     return this.request(`/organizations/${this.config.organizationId}/reports/cash-flow?${params.toString()}`);
+  }
+
+  async getAccountDrilldown(accountId: string, from: string, to: string): Promise<AccountDrilldownReport> {
+    const params = new URLSearchParams({ account_id: accountId, from, to });
+    return this.request(`/organizations/${this.config.organizationId}/reports/account-drilldown?${params.toString()}`);
   }
 
   async getARAging(asOf: string): Promise<ARAgingReport> {

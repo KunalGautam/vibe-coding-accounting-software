@@ -1,5 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
+import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type Employee, type EmployeeInput, type Estimate, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -1464,6 +1464,8 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
   const [taxSummary, setTaxSummary] = useState<TaxSummaryReport | null>(() => cachedReports?.taxSummary ?? null);
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummaryReport | null>(() => cachedReports?.payrollSummary ?? null);
   const [budgetVsActual, setBudgetVsActual] = useState<BudgetVsActualReport | null>(() => cachedReports?.budgetVsActual ?? null);
+  const [accountDrilldown, setAccountDrilldown] = useState<AccountDrilldownReport | null>(null);
+  const [accountDrilldownLabel, setAccountDrilldownLabel] = useState("");
   const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
   const [scheduledReportRuns, setScheduledReportRuns] = useState<ScheduledReportRun[]>([]);
   const [selectedScheduledReportId, setSelectedScheduledReportId] = useState("");
@@ -1475,7 +1477,7 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     email_recipients: "",
     next_run_at: today
   });
-  const [loadingReport, setLoadingReport] = useState<"trial-balance" | "profit-and-loss" | "balance-sheet" | "cash-flow" | "ar-aging" | "ap-aging" | "tax-liability" | "tax-summary" | "payroll-summary" | "budgets" | "budget-vs-actual" | "scheduled-reports" | "scheduled-runs" | "report-pdf" | null>(null);
+  const [loadingReport, setLoadingReport] = useState<"trial-balance" | "profit-and-loss" | "balance-sheet" | "cash-flow" | "account-drilldown" | "ar-aging" | "ap-aging" | "tax-liability" | "tax-summary" | "payroll-summary" | "budgets" | "budget-vs-actual" | "scheduled-reports" | "scheduled-runs" | "report-pdf" | null>(null);
   const [reportError, setReportError] = useState("");
 
   async function loadTrialBalance(event?: FormEvent) {
@@ -1540,6 +1542,35 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     } finally {
       setLoadingReport(null);
     }
+  }
+
+  async function loadAccountDrilldown(row: Pick<ReportRow, "account_id" | "account_code" | "account_name">, from: string, to: string) {
+    setLoadingReport("account-drilldown");
+    setReportError("");
+    try {
+      const report = await api.getAccountDrilldown(row.account_id, from, to);
+      setAccountDrilldown(report);
+      setAccountDrilldownLabel(`${row.account_code} · ${row.account_name}`);
+    } catch (error) {
+      setReportError(errorMessage(error));
+    } finally {
+      setLoadingReport(null);
+    }
+  }
+
+  function fiscalYearStartFor(date: string) {
+    const year = Number(date.slice(0, 4));
+    const month = Number(date.slice(5, 7));
+    const fiscalYear = month >= 4 ? year : year - 1;
+    return `${fiscalYear}-04-01`;
+  }
+
+  function drilldownButton(row: Pick<ReportRow, "account_id" | "account_code" | "account_name">, from: string, to: string) {
+    return (
+      <button className="secondary compact" type="button" disabled={loadingReport === "account-drilldown"} onClick={() => void loadAccountDrilldown(row, from, to)}>
+        {loadingReport === "account-drilldown" ? "Loading..." : "Drill down"}
+      </button>
+    );
   }
 
   async function loadARAging(event?: FormEvent) {
@@ -1796,6 +1827,8 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
     setTaxSummary(null);
     setPayrollSummary(null);
     setBudgetVsActual(null);
+    setAccountDrilldown(null);
+    setAccountDrilldownLabel("");
     setReportError("");
   }
 
@@ -2016,14 +2049,15 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             </button>
           </div>
           <DataTable
-            headers={["Code", "Account", "Type", "Debit", "Credit", "Balance"]}
+            headers={["Code", "Account", "Type", "Debit", "Credit", "Balance", "Detail"]}
             rows={trialBalance.rows.map((row) => [
               row.account_code,
               row.account_name,
               row.account_type,
               formatMinorAsInr(row.debit_minor),
               formatMinorAsInr(row.credit_minor),
-              formatMinorAsInr(row.balance_minor)
+              formatMinorAsInr(row.balance_minor),
+              drilldownButton(row, fiscalYearStartFor(trialBalance.as_of_date.slice(0, 10)), trialBalance.as_of_date.slice(0, 10))
             ])}
           />
         </section>
@@ -2049,10 +2083,22 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             </button>
           </div>
           <DataTable
-            headers={["Section", "Code", "Account", "Amount"]}
+            headers={["Section", "Code", "Account", "Amount", "Detail"]}
             rows={[
-              ...profitAndLoss.income_rows.map((row) => ["Income", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
-              ...profitAndLoss.expense_rows.map((row) => ["Expense", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)])
+              ...profitAndLoss.income_rows.map((row) => [
+                "Income",
+                row.account_code,
+                row.account_name,
+                formatMinorAsInr(row.balance_minor),
+                drilldownButton(row, profitAndLoss.from_date.slice(0, 10), profitAndLoss.to_date.slice(0, 10))
+              ]),
+              ...profitAndLoss.expense_rows.map((row) => [
+                "Expense",
+                row.account_code,
+                row.account_name,
+                formatMinorAsInr(row.balance_minor),
+                drilldownButton(row, profitAndLoss.from_date.slice(0, 10), profitAndLoss.to_date.slice(0, 10))
+              ])
             ]}
           />
         </section>
@@ -2077,11 +2123,29 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             </button>
           </div>
           <DataTable
-            headers={["Section", "Code", "Account", "Balance"]}
+            headers={["Section", "Code", "Account", "Balance", "Detail"]}
             rows={[
-              ...balanceSheet.asset_rows.map((row) => ["Assets", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
-              ...balanceSheet.liability_rows.map((row) => ["Liabilities", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)]),
-              ...balanceSheet.equity_rows.map((row) => ["Equity", row.account_code, row.account_name, formatMinorAsInr(row.balance_minor)])
+              ...balanceSheet.asset_rows.map((row) => [
+                "Assets",
+                row.account_code,
+                row.account_name,
+                formatMinorAsInr(row.balance_minor),
+                drilldownButton(row, fiscalYearStartFor(balanceSheet.as_of_date.slice(0, 10)), balanceSheet.as_of_date.slice(0, 10))
+              ]),
+              ...balanceSheet.liability_rows.map((row) => [
+                "Liabilities",
+                row.account_code,
+                row.account_name,
+                formatMinorAsInr(row.balance_minor),
+                drilldownButton(row, fiscalYearStartFor(balanceSheet.as_of_date.slice(0, 10)), balanceSheet.as_of_date.slice(0, 10))
+              ]),
+              ...balanceSheet.equity_rows.map((row) => [
+                "Equity",
+                row.account_code,
+                row.account_name,
+                formatMinorAsInr(row.balance_minor),
+                drilldownButton(row, fiscalYearStartFor(balanceSheet.as_of_date.slice(0, 10)), balanceSheet.as_of_date.slice(0, 10))
+              ])
             ]}
           />
         </section>
@@ -2105,14 +2169,15 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             <button className="secondary" onClick={() => exportCashFlow(cashFlow)}>Export CSV</button>
           </div>
           <DataTable
-            headers={["Code", "Cash account", "Source", "Inflows", "Outflows", "Net"]}
+            headers={["Code", "Cash account", "Source", "Inflows", "Outflows", "Net", "Detail"]}
             rows={cashFlow.rows.map((row) => [
               row.account_code,
               row.account_name,
               titleCase(row.source_module),
               formatMinorAsInr(row.inflow_minor),
               formatMinorAsInr(row.outflow_minor),
-              formatMinorAsInr(row.net_cash_flow_minor)
+              formatMinorAsInr(row.net_cash_flow_minor),
+              drilldownButton(row, cashFlow.from_date.slice(0, 10), cashFlow.to_date.slice(0, 10))
             ])}
           />
         </section>
@@ -2294,7 +2359,7 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
             <button className="secondary" onClick={() => exportBudgetVsActual(budgetVsActual)}>Export CSV</button>
           </div>
           <DataTable
-            headers={["Code", "Account", "Period", "Budget", "Actual", "Variance", "Variance %"]}
+            headers={["Code", "Account", "Period", "Budget", "Actual", "Variance", "Variance %", "Detail"]}
             rows={budgetVsActual.rows.map((row) => [
               row.account_code,
               row.account_name,
@@ -2302,7 +2367,46 @@ function ReportsPage({ api, budgets, onBudgetsChanged }: { api: ApiClient; budge
               formatMinorAsInr(row.budget_minor),
               formatMinorAsInr(row.actual_minor),
               formatMinorAsInr(row.variance_minor),
-              formatBasisPercent(row.variance_percent_basis)
+              formatBasisPercent(row.variance_percent_basis),
+              drilldownButton(row, row.period_start.slice(0, 10), row.period_end.slice(0, 10))
+            ])}
+          />
+        </section>
+      )}
+      {accountDrilldown && (
+        <section className="panel queue-panel">
+          <div className="queue-heading">
+            <div>
+              <p className="eyebrow">
+                {accountDrilldown.from_date.slice(0, 10)} to {accountDrilldown.to_date.slice(0, 10)}
+              </p>
+              <h3>{accountDrilldownLabel || `${accountDrilldown.account_code} · ${accountDrilldown.account_name}`}</h3>
+              <p>
+                Opening {formatMinorAsInr(accountDrilldown.opening_balance_minor)}, debits {formatMinorAsInr(accountDrilldown.total_debit_minor)},
+                {" "}credits {formatMinorAsInr(accountDrilldown.total_credit_minor)}, closing {formatMinorAsInr(accountDrilldown.closing_balance_minor)}.
+              </p>
+            </div>
+            <strong>{accountDrilldown.rows.length}</strong>
+          </div>
+          <div className="button-row">
+            <button className="secondary" type="button" onClick={() => {
+              setAccountDrilldown(null);
+              setAccountDrilldownLabel("");
+            }}>
+              Clear drilldown
+            </button>
+          </div>
+          <DataTable
+            headers={["Date", "Source", "Transaction memo", "Split memo", "Debit", "Credit", "Running balance", "Status"]}
+            rows={accountDrilldown.rows.map((row) => [
+              row.transaction_date.slice(0, 10),
+              titleCase(row.source_module),
+              row.transaction_memo || "-",
+              row.split_memo || "-",
+              formatMinorAsInr(row.debit_minor),
+              formatMinorAsInr(row.credit_minor),
+              formatMinorAsInr(row.balance_minor),
+              row.reconciled ? "Reconciled" : row.cleared ? "Cleared" : "Open"
             ])}
           />
         </section>
@@ -7541,7 +7645,7 @@ function AccountSelect({ label, accounts, value, onChange }: { label: string; ac
   );
 }
 
-function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+function DataTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
   return (
     <section className="panel table-panel">
       <table>
