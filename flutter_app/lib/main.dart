@@ -675,6 +675,32 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvestmentLot({
+    required String accountId,
+    required String symbol,
+    required String securityName,
+    required DateTime acquisitionDate,
+    required int quantityMillis,
+    required int costBasisMinor,
+    required String costMethod,
+    required String notes,
+  }) async {
+    final operation = syncQueue.enqueueInvestmentLot(
+      accountId: accountId,
+      symbol: symbol,
+      securityName: securityName,
+      acquisitionDate: acquisitionDate,
+      quantityMillis: quantityMillis,
+      costBasisMinor: costBasisMinor,
+      costMethod: costMethod,
+      notes: notes,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Investment lot queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> queueAverageCostSale({
     required String accountId,
     required String symbol,
@@ -2383,6 +2409,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchLots: fetchInvestmentLots,
         onFetchRealizedGains: fetchRealizedGains,
         onFetchValuation: fetchInvestmentValuation,
+        onQueueInvestmentLot: queueInvestmentLot,
         onQueueInvestmentPrice: queueInvestmentPrice,
         onQueueAverageCostSale: queueAverageCostSale,
         onQueueInvestmentDividend: queueInvestmentDividend,
@@ -3629,6 +3656,7 @@ class InvestmentsPage extends StatelessWidget {
     required this.onFetchLots,
     required this.onFetchRealizedGains,
     required this.onFetchValuation,
+    required this.onQueueInvestmentLot,
     required this.onQueueInvestmentPrice,
     required this.onQueueAverageCostSale,
     required this.onQueueInvestmentDividend,
@@ -3646,6 +3674,17 @@ class InvestmentsPage extends StatelessWidget {
   final Future<void> Function() onFetchLots;
   final Future<void> Function(DateTime from, DateTime to) onFetchRealizedGains;
   final Future<void> Function(DateTime asOf) onFetchValuation;
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required String securityName,
+    required DateTime acquisitionDate,
+    required int quantityMillis,
+    required int costBasisMinor,
+    required String costMethod,
+    required String notes,
+  })
+  onQueueInvestmentLot;
   final Future<void> Function({
     required String symbol,
     required DateTime priceDate,
@@ -3705,6 +3744,7 @@ class InvestmentsPage extends StatelessWidget {
           actionLabel: isLoading ? 'Refreshing investments...' : 'Refresh lots',
           onPressed: isLoading ? null : () => onFetchLots(),
         ),
+        InvestmentLotCreateCard(onQueueLot: onQueueInvestmentLot),
         ManualInvestmentPriceCard(onQueuePrice: onQueueInvestmentPrice),
         InvestmentDividendCard(onQueueDividend: onQueueInvestmentDividend),
         InvestmentCorporateActionCard(
@@ -3862,11 +3902,251 @@ class InvestmentsPage extends StatelessWidget {
         const InfoList(
           items: [
             'Target APIs: GET /investments/lots, POST /investments/prices/import/broker-holdings, GET /reports/realized-gains, and GET /reports/investment-valuation',
-            'Manual market prices, dividends, corporate actions, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
-            'Create lot and specific-lot sale workflows are currently available in the web app/API',
+            'Lots, manual market prices, dividends, corporate actions, average-cost sales, and broker holdings CSV imports queue offline and replay through the shared sync coordinator',
+            'Specific-lot sale workflows are currently available in the web app/API',
           ],
         ),
       ],
+    );
+  }
+}
+
+class InvestmentLotCreateCard extends StatefulWidget {
+  const InvestmentLotCreateCard({required this.onQueueLot, super.key});
+
+  final Future<void> Function({
+    required String accountId,
+    required String symbol,
+    required String securityName,
+    required DateTime acquisitionDate,
+    required int quantityMillis,
+    required int costBasisMinor,
+    required String costMethod,
+    required String notes,
+  })
+  onQueueLot;
+
+  @override
+  State<InvestmentLotCreateCard> createState() =>
+      _InvestmentLotCreateCardState();
+}
+
+class _InvestmentLotCreateCardState extends State<InvestmentLotCreateCard> {
+  late final TextEditingController accountIdController;
+  late final TextEditingController symbolController;
+  late final TextEditingController securityNameController;
+  late final TextEditingController acquisitionDateController;
+  late final TextEditingController quantityMillisController;
+  late final TextEditingController costBasisMinorController;
+  late final TextEditingController notesController;
+  String costMethod = 'specific_lot';
+  bool isQueueing = false;
+  String? validationError;
+
+  @override
+  void initState() {
+    super.initState();
+    accountIdController = TextEditingController(text: 'brokerage-account-id');
+    symbolController = TextEditingController(text: 'NIFTYBEES');
+    securityNameController = TextEditingController(text: 'Nifty BeES');
+    acquisitionDateController = TextEditingController(
+      text: formatDateOnly(DateTime.now()),
+    );
+    quantityMillisController = TextEditingController(text: '1000');
+    costBasisMinorController = TextEditingController(text: '14000');
+    notesController = TextEditingController(text: 'Offline lot capture');
+  }
+
+  @override
+  void dispose() {
+    accountIdController.dispose();
+    symbolController.dispose();
+    securityNameController.dispose();
+    acquisitionDateController.dispose();
+    quantityMillisController.dispose();
+    costBasisMinorController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> queueLot() async {
+    if (isQueueing) {
+      return;
+    }
+    final accountId = accountIdController.text.trim();
+    final symbol = symbolController.text.trim().toUpperCase();
+    final acquisitionDate = parseIsoDateOnlyUtc(
+      acquisitionDateController.text.trim(),
+    );
+    final quantityMillis = int.tryParse(quantityMillisController.text.trim());
+    final costBasisMinor = int.tryParse(costBasisMinorController.text.trim());
+
+    if (accountId.isEmpty ||
+        symbol.isEmpty ||
+        acquisitionDate == null ||
+        quantityMillis == null ||
+        costBasisMinor == null) {
+      setState(() {
+        validationError =
+            'Enter account ID, symbol, ISO date, quantity millis, and cost basis minor.';
+      });
+      return;
+    }
+    if (quantityMillis <= 0 || costBasisMinor <= 0) {
+      setState(() {
+        validationError =
+            'Quantity millis and cost basis minor must be greater than zero.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationError = null;
+    });
+    try {
+      await widget.onQueueLot(
+        accountId: accountId,
+        symbol: symbol,
+        securityName: securityNameController.text.trim(),
+        acquisitionDate: acquisitionDate,
+        quantityMillis: quantityMillis,
+        costBasisMinor: costBasisMinor,
+        costMethod: costMethod,
+        notes: notesController.text.trim(),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Investment lot',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Create a holding lot while offline. Quantity uses millis, so 2.5 units is entered as 2500.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: accountIdController,
+              decoration: const InputDecoration(
+                labelText: 'Lot account ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: symbolController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Lot symbol',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: securityNameController,
+              decoration: const InputDecoration(
+                labelText: 'Lot security name optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: acquisitionDateController,
+              decoration: const InputDecoration(
+                labelText: 'Lot acquisition date',
+                hintText: '2026-07-31',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: quantityMillisController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Lot quantity millis',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: costBasisMinorController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Lot cost basis minor',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: costMethod,
+              decoration: const InputDecoration(
+                labelText: 'Lot cost method',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'specific_lot',
+                  child: Text('Specific lot'),
+                ),
+                DropdownMenuItem(
+                  value: 'average_cost',
+                  child: Text('Average cost'),
+                ),
+              ],
+              onChanged: isQueueing
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() {
+                          costMethod = value;
+                        });
+                      }
+                    },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                labelText: 'Lot notes optional',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                validationError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueLot,
+              icon: const Icon(Icons.add_chart_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing investment lot...'
+                    : 'Queue investment lot',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

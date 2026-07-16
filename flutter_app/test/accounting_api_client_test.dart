@@ -633,6 +633,26 @@ void main() {
       final client = AccountingApiClient(
         config: config,
         httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/investments/lots')) {
+            expect(request.method, 'POST');
+            final body = jsonDecode(request.body) as Map<String, Object?>;
+            expect(body['account_id'], 'brokerage-1');
+            expect(body['symbol'], 'LIQUIDFUND');
+            expect(body['acquisition_date'], '2026-04-01');
+            expect(body['quantity_millis'], 150000);
+            expect(body['cost_basis_minor'], 2250000);
+            expect(body['cost_method'], 'average_cost');
+            return http.Response(
+              jsonEncode({
+                'id': 'lot-created-1',
+                ...body,
+                'acquisition_date': '2026-04-01T00:00:00Z',
+                'remaining_quantity_millis': body['quantity_millis'],
+              }),
+              201,
+            );
+          }
+
           if (request.url.path.endsWith('/investments/prices')) {
             if (request.method == 'GET') {
               return http.Response(
@@ -766,6 +786,16 @@ void main() {
         }),
       );
 
+      final createdLot = await client.createInvestmentLot(
+        CreateInvestmentLotRequest(
+          accountId: 'brokerage-1',
+          symbol: 'LIQUIDFUND',
+          acquisitionDate: DateTime.utc(2026, 4),
+          quantityMillis: 150000,
+          costBasisMinor: 2250000,
+          costMethod: 'average_cost',
+        ),
+      );
       final prices = await client.listInvestmentPrices();
       final createdPrice = await client.createInvestmentPrice(
         CreateInvestmentPriceRequest(
@@ -807,6 +837,8 @@ void main() {
         ),
       );
 
+      expect(createdLot.id, 'lot-created-1');
+      expect(createdLot.costMethod, 'average_cost');
       expect(prices.single.priceMinor, 14000);
       expect(createdPrice.id, 'price-2');
       expect(valuation.totalUnrealizedGainLossMinor, 150000);

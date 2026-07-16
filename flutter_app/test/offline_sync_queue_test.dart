@@ -338,6 +338,33 @@ void main() {
     expect(operation.payload['source'], 'mobile-offline');
   });
 
+  test('queues investment lots for later API creation', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueInvestmentLot(
+      accountId: 'acct-invest',
+      symbol: 'INFY',
+      securityName: 'Infosys',
+      acquisitionDate: DateTime.utc(2026, 7, 31),
+      quantityMillis: 2500,
+      costBasisMinor: 375000,
+      costMethod: 'average_cost',
+      notes: 'Initial mobile lot',
+      createdAt: DateTime.utc(2026, 7, 31, 9),
+    );
+
+    expect(operation.module, 'investments');
+    expect(operation.action, 'create_lot');
+    expect(operation.payload['account_id'], 'acct-invest');
+    expect(operation.payload['symbol'], 'INFY');
+    expect(operation.payload['security_name'], 'Infosys');
+    expect(operation.payload['acquisition_date'], '2026-07-31');
+    expect(operation.payload['quantity_millis'], 2500);
+    expect(operation.payload['cost_basis_minor'], 375000);
+    expect(operation.payload['cost_method'], 'average_cost');
+    expect(operation.payload['notes'], 'Initial mobile lot');
+  });
+
   test('queues broker holdings price imports for later replay', () {
     final queue = OfflineSyncQueue();
 

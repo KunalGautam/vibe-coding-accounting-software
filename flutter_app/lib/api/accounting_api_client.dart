@@ -241,6 +241,23 @@ class AccountingApiClient {
     return _decodeList(response, InvestmentLotSummary.fromJson);
   }
 
+  Future<InvestmentLotSummary> createInvestmentLot(
+    CreateInvestmentLotRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/lots',
+      body: request.toJson(),
+    );
+    return InvestmentLotSummary.fromJson(_decodeObject(response));
+  }
+
+  Future<InvestmentLotSummary> syncInvestmentLot(SyncOperation operation) {
+    return createInvestmentLot(
+      CreateInvestmentLotRequest.fromSyncOperation(operation),
+    );
+  }
+
   Future<RealizedGainsReport> getRealizedGains({
     required DateTime from,
     required DateTime to,
@@ -1197,6 +1214,63 @@ class InvestmentLotSummary {
       'currency': currency,
       'cost_method': costMethod,
       'notes': notes,
+    };
+  }
+}
+
+class CreateInvestmentLotRequest {
+  const CreateInvestmentLotRequest({
+    required this.accountId,
+    required this.symbol,
+    required this.acquisitionDate,
+    required this.quantityMillis,
+    required this.costBasisMinor,
+    this.securityName = '',
+    this.currency = 'INR',
+    this.costMethod = 'specific_lot',
+    this.notes = '',
+  });
+
+  final String accountId;
+  final String symbol;
+  final String securityName;
+  final DateTime acquisitionDate;
+  final int quantityMillis;
+  final int costBasisMinor;
+  final String currency;
+  final String costMethod;
+  final String notes;
+
+  factory CreateInvestmentLotRequest.fromSyncOperation(
+    SyncOperation operation,
+  ) {
+    final payload = operation.payload;
+    return CreateInvestmentLotRequest(
+      accountId: payload['account_id']! as String,
+      symbol: payload['symbol']! as String,
+      securityName: payload['security_name'] as String? ?? '',
+      acquisitionDate: _parseDateOnlyUtc(
+        payload['acquisition_date']! as String,
+      ),
+      quantityMillis: payload['quantity_millis']! as int,
+      costBasisMinor: payload['cost_basis_minor']! as int,
+      currency: payload['currency'] as String? ?? 'INR',
+      costMethod: payload['cost_method'] as String? ?? 'specific_lot',
+      notes: payload['notes'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'symbol': symbol,
+      if (securityName.isNotEmpty) 'security_name': securityName,
+      'acquisition_date': _dateOnly(acquisitionDate),
+      'quantity_millis': quantityMillis,
+      'cost_basis_minor': costBasisMinor,
+      'currency': currency,
+      'cost_method': costMethod,
+      if (notes.isNotEmpty) 'notes': notes,
     };
   }
 }

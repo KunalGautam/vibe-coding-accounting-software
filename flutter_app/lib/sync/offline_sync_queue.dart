@@ -336,6 +336,40 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueInvestmentLot({
+    required String accountId,
+    required String symbol,
+    required DateTime acquisitionDate,
+    required int quantityMillis,
+    required int costBasisMinor,
+    String securityName = '',
+    String currency = 'INR',
+    String costMethod = 'specific_lot',
+    String notes = '',
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'investment-lot-${timestamp.microsecondsSinceEpoch}',
+      module: 'investments',
+      action: 'create_lot',
+      createdAt: timestamp,
+      payload: {
+        'account_id': accountId,
+        'symbol': symbol,
+        'security_name': ?normalizedOptional(securityName),
+        'acquisition_date': dateOnlyString(acquisitionDate),
+        'quantity_millis': quantityMillis,
+        'cost_basis_minor': costBasisMinor,
+        'currency': currency,
+        'cost_method': costMethod,
+        'notes': ?normalizedOptional(notes),
+      },
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueBrokerHoldingsPriceImport({
     required String csv,
     String source = 'broker_holdings_csv',

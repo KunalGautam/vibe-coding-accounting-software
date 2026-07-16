@@ -1024,6 +1024,68 @@ void main() {
     ]);
   });
 
+  test('syncs queued investment lots', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'investment-lot-local-1',
+        module: 'investments',
+        action: 'create_lot',
+        createdAt: DateTime.utc(2026, 7, 31),
+        payload: const {
+          'account_id': 'acct-invest',
+          'symbol': 'INFY',
+          'security_name': 'Infosys',
+          'acquisition_date': '2026-07-31',
+          'quantity_millis': 2500,
+          'cost_basis_minor': 375000,
+          'currency': 'INR',
+          'cost_method': 'average_cost',
+          'notes': 'Initial mobile lot',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/lots',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['account_id'], 'acct-invest');
+        expect(body['symbol'], 'INFY');
+        expect(body['security_name'], 'Infosys');
+        expect(body['acquisition_date'], '2026-07-31');
+        expect(body['quantity_millis'], 2500);
+        expect(body['cost_basis_minor'], 375000);
+        expect(body['cost_method'], 'average_cost');
+        return http.Response(
+          jsonEncode({
+            'id': 'lot-1',
+            ...body,
+            'acquisition_date': '2026-07-31T00:00:00Z',
+            'remaining_quantity_millis': 2500,
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(
+      result.failed,
+      isEmpty,
+      reason: result.failed.map((failure) => failure.error).join('\n'),
+    );
+    expect(result.skipped, 0);
+    expect(result.synced, 1);
+    expect(queue.pendingCount, 0);
+  });
+
   test('syncs queued average-cost investment sales', () async {
     final queue = OfflineSyncQueue([
       SyncOperation(

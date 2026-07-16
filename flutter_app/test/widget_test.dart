@@ -1742,6 +1742,63 @@ void main() {
     );
   });
 
+  testWidgets('queues investment lots from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Queue investment lot'));
+    await tester.enterText(
+      find.bySemanticsLabel('Lot account ID'),
+      'acct-invest',
+    );
+    await tester.enterText(find.bySemanticsLabel('Lot symbol'), 'infy');
+    await tester.enterText(
+      find.bySemanticsLabel('Lot security name optional'),
+      'Infosys',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Lot acquisition date'),
+      '2026-07-31',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Lot quantity millis'),
+      '2500',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Lot cost basis minor'),
+      '375000',
+    );
+    await tester.enterText(
+      find.bySemanticsLabel('Lot notes optional'),
+      'Initial mobile lot',
+    );
+    await tester.ensureVisible(find.text('Queue investment lot'));
+    await tester.tap(find.text('Queue investment lot'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'create_lot');
+    expect(pending.last.payload['account_id'], 'acct-invest');
+    expect(pending.last.payload['symbol'], 'INFY');
+    expect(pending.last.payload['security_name'], 'Infosys');
+    expect(pending.last.payload['acquisition_date'], '2026-07-31');
+    expect(pending.last.payload['quantity_millis'], 2500);
+    expect(pending.last.payload['cost_basis_minor'], 375000);
+    expect(pending.last.payload['cost_method'], 'specific_lot');
+    expect(pending.last.payload['notes'], 'Initial mobile lot');
+    expect(
+      find.textContaining('Investment lot queued for sync'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('queues manual investment prices from the investments page', (
     tester,
   ) async {
