@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 147 route/method pairs.
+- API route/Postman coverage validators for 148 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation

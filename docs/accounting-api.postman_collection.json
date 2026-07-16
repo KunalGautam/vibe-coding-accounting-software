@@ -1453,6 +1453,13 @@
       "name": "Reports",
       "item": [
         {
+          "name": "Account Drilldown",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/organizations/{{organization_id}}/reports/account-drilldown?account_id={{account_id}}&from=2026-01-01&to=2026-12-31"
+          }
+        },
+        {
           "name": "Trial Balance",
           "request": {
             "method": "GET",

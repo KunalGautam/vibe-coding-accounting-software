@@ -27,6 +27,33 @@ type ReportRow struct {
 	BalanceMinor int64              `json:"balance_minor"`
 }
 
+type AccountDrilldownReport struct {
+	AccountID           string                `json:"account_id"`
+	AccountCode         string                `json:"account_code"`
+	AccountName         string                `json:"account_name"`
+	AccountType         domain.AccountType    `json:"account_type"`
+	FromDate            time.Time             `json:"from_date"`
+	ToDate              time.Time             `json:"to_date"`
+	OpeningBalanceMinor int64                 `json:"opening_balance_minor"`
+	ClosingBalanceMinor int64                 `json:"closing_balance_minor"`
+	Rows                []AccountDrilldownRow `json:"rows"`
+}
+
+type AccountDrilldownRow struct {
+	LedgerSplitID        string              `json:"ledger_split_id"`
+	JournalTransactionID string              `json:"journal_transaction_id"`
+	TransactionDate      time.Time           `json:"transaction_date"`
+	SourceModule         domain.SourceModule `json:"source_module"`
+	TransactionMemo      string              `json:"transaction_memo"`
+	SplitMemo            string              `json:"split_memo"`
+	DebitMinor           int64               `json:"debit_minor"`
+	CreditMinor          int64               `json:"credit_minor"`
+	BalanceMinor         int64               `json:"balance_minor"`
+	Currency             string              `json:"currency"`
+	Cleared              bool                `json:"cleared"`
+	Reconciled           bool                `json:"reconciled"`
+}
+
 type TrialBalanceReport struct {
 	AsOfDate         time.Time   `json:"as_of_date"`
 	Rows             []ReportRow `json:"rows"`
@@ -198,6 +225,89 @@ func NewReportService(db *gorm.DB) ReportService {
 
 func NewReportServiceWithEmail(db *gorm.DB, emailSender EmailSender) ReportService {
 	return ReportService{db: db, emailSender: emailSender}
+}
+
+func (s ReportService) AccountDrilldown(ctx context.Context, organizationID string, accountID string, from time.Time, to time.Time) (AccountDrilldownReport, error) {
+	var account domain.Account
+	if err := s.db.WithContext(ctx).
+		Where("organization_id = ? AND id = ?", organizationID, accountID).
+		First(&account).Error; err != nil {
+		return AccountDrilldownReport{}, err
+	}
+
+	openingBalance, err := s.accountNormalBalance(ctx, organizationID, account, nil, &from, true)
+	if err != nil {
+		return AccountDrilldownReport{}, err
+	}
+
+	type drilldownActivity struct {
+		LedgerSplitID        string
+		JournalTransactionID string
+		TransactionDate      time.Time
+		SourceModule         domain.SourceModule
+		TransactionMemo      string
+		SplitMemo            string
+		DebitMinor           int64
+		CreditMinor          int64
+		Currency             string
+		Cleared              bool
+		Reconciled           bool
+		CreatedAt            time.Time
+	}
+	var activities []drilldownActivity
+	if err := s.db.WithContext(ctx).
+		Table("ledger_splits").
+		Select(`ledger_splits.id AS ledger_split_id,
+			ledger_splits.journal_transaction_id AS journal_transaction_id,
+			journal_transactions.transaction_date AS transaction_date,
+			journal_transactions.source_module AS source_module,
+			journal_transactions.memo AS transaction_memo,
+			ledger_splits.memo AS split_memo,
+			CASE WHEN ledger_splits.base_debit_minor != 0 OR ledger_splits.base_credit_minor != 0 THEN ledger_splits.base_debit_minor ELSE ledger_splits.debit_minor END AS debit_minor,
+			CASE WHEN ledger_splits.base_debit_minor != 0 OR ledger_splits.base_credit_minor != 0 THEN ledger_splits.base_credit_minor ELSE ledger_splits.credit_minor END AS credit_minor,
+			ledger_splits.currency AS currency,
+			ledger_splits.cleared AS cleared,
+			ledger_splits.reconciled AS reconciled,
+			ledger_splits.created_at AS created_at`).
+		Joins("JOIN journal_transactions ON journal_transactions.id = ledger_splits.journal_transaction_id").
+		Where("ledger_splits.organization_id = ? AND ledger_splits.account_id = ?", organizationID, account.ID).
+		Where("journal_transactions.organization_id = ? AND journal_transactions.status = ?", organizationID, domain.JournalStatusPosted).
+		Where("journal_transactions.transaction_date >= ? AND journal_transactions.transaction_date <= ?", from, to).
+		Order("journal_transactions.transaction_date ASC, ledger_splits.created_at ASC").
+		Scan(&activities).Error; err != nil {
+		return AccountDrilldownReport{}, err
+	}
+
+	report := AccountDrilldownReport{
+		AccountID:           account.ID,
+		AccountCode:         account.Code,
+		AccountName:         account.Name,
+		AccountType:         account.Type,
+		FromDate:            from,
+		ToDate:              to,
+		OpeningBalanceMinor: openingBalance,
+		Rows:                make([]AccountDrilldownRow, 0, len(activities)),
+	}
+	runningBalance := openingBalance
+	for _, activity := range activities {
+		runningBalance += normalBalanceDelta(account.Type, activity.DebitMinor, activity.CreditMinor)
+		report.Rows = append(report.Rows, AccountDrilldownRow{
+			LedgerSplitID:        activity.LedgerSplitID,
+			JournalTransactionID: activity.JournalTransactionID,
+			TransactionDate:      activity.TransactionDate,
+			SourceModule:         activity.SourceModule,
+			TransactionMemo:      activity.TransactionMemo,
+			SplitMemo:            activity.SplitMemo,
+			DebitMinor:           activity.DebitMinor,
+			CreditMinor:          activity.CreditMinor,
+			BalanceMinor:         runningBalance,
+			Currency:             activity.Currency,
+			Cleared:              activity.Cleared,
+			Reconciled:           activity.Reconciled,
+		})
+	}
+	report.ClosingBalanceMinor = runningBalance
+	return report, nil
 }
 
 func (s ReportService) TrialBalance(ctx context.Context, organizationID string, asOf time.Time) (TrialBalanceReport, error) {
@@ -651,6 +761,41 @@ func (s ReportService) cashBalance(ctx context.Context, organizationID string, b
 	return balance.DebitMinor - balance.CreditMinor, nil
 }
 
+func (s ReportService) accountNormalBalance(ctx context.Context, organizationID string, account domain.Account, from *time.Time, to *time.Time, exclusiveTo bool) (int64, error) {
+	var balance struct {
+		DebitMinor  int64
+		CreditMinor int64
+	}
+	query := s.db.WithContext(ctx).
+		Table("ledger_splits").
+		Select(`COALESCE(SUM(CASE WHEN ledger_splits.base_debit_minor != 0 OR ledger_splits.base_credit_minor != 0 THEN ledger_splits.base_debit_minor ELSE ledger_splits.debit_minor END), 0) AS debit_minor,
+			COALESCE(SUM(CASE WHEN ledger_splits.base_debit_minor != 0 OR ledger_splits.base_credit_minor != 0 THEN ledger_splits.base_credit_minor ELSE ledger_splits.credit_minor END), 0) AS credit_minor`).
+		Joins("JOIN journal_transactions ON journal_transactions.id = ledger_splits.journal_transaction_id").
+		Where("ledger_splits.organization_id = ? AND ledger_splits.account_id = ?", organizationID, account.ID).
+		Where("journal_transactions.organization_id = ? AND journal_transactions.status = ?", organizationID, domain.JournalStatusPosted)
+	if from != nil {
+		query = query.Where("journal_transactions.transaction_date >= ?", *from)
+	}
+	if to != nil {
+		if exclusiveTo {
+			query = query.Where("journal_transactions.transaction_date < ?", *to)
+		} else {
+			query = query.Where("journal_transactions.transaction_date <= ?", *to)
+		}
+	}
+	if err := query.Scan(&balance).Error; err != nil {
+		return 0, err
+	}
+	return normalBalanceDelta(account.Type, balance.DebitMinor, balance.CreditMinor), nil
+}
+
+func normalBalanceDelta(accountType domain.AccountType, debitMinor int64, creditMinor int64) int64 {
+	if accountType == domain.AccountTypeLiability || accountType == domain.AccountTypeEquity || accountType == domain.AccountTypeIncome {
+		return creditMinor - debitMinor
+	}
+	return debitMinor - creditMinor
+}
+
 func cashAccountSubtypes() []string {
 	return []string{"bank", "cash"}
 }
@@ -887,11 +1032,6 @@ func effectiveCreditMinor(split domain.LedgerSplit) int64 {
 }
 
 func (a accountActivity) toReportRow() ReportRow {
-	balance := a.DebitMinor - a.CreditMinor
-	if a.AccountType == domain.AccountTypeLiability || a.AccountType == domain.AccountTypeEquity || a.AccountType == domain.AccountTypeIncome {
-		balance = a.CreditMinor - a.DebitMinor
-	}
-
 	return ReportRow{
 		AccountID:    a.AccountID,
 		AccountCode:  a.AccountCode,
@@ -899,6 +1039,6 @@ func (a accountActivity) toReportRow() ReportRow {
 		AccountType:  a.AccountType,
 		DebitMinor:   a.DebitMinor,
 		CreditMinor:  a.CreditMinor,
-		BalanceMinor: balance,
+		BalanceMinor: normalBalanceDelta(a.AccountType, a.DebitMinor, a.CreditMinor),
 	}
 }

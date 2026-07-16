@@ -119,6 +119,22 @@ func TestReportServiceFinancialStatements(t *testing.T) {
 	if cashFlow.ClosingCashMinor != 140000 {
 		t.Fatalf("closing cash = %d, want 140000", cashFlow.ClosingCashMinor)
 	}
+	drilldown, err := service.AccountDrilldown(ctx, org.ID, bank.ID, time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC), asOf)
+	if err != nil {
+		t.Fatalf("AccountDrilldown() error = %v", err)
+	}
+	if drilldown.OpeningBalanceMinor != 100000 {
+		t.Fatalf("opening drilldown balance = %d, want 100000", drilldown.OpeningBalanceMinor)
+	}
+	if drilldown.ClosingBalanceMinor != 140000 {
+		t.Fatalf("closing drilldown balance = %d, want 140000", drilldown.ClosingBalanceMinor)
+	}
+	if len(drilldown.Rows) != 2 {
+		t.Fatalf("drilldown rows = %d, want 2", len(drilldown.Rows))
+	}
+	if drilldown.Rows[0].BalanceMinor != 150000 || drilldown.Rows[1].BalanceMinor != 140000 {
+		t.Fatalf("unexpected running balances: %+v", drilldown.Rows)
+	}
 	pdf, filename, err = service.CashFlowPDF(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)
 	assertReportPDF(t, pdf, filename, err)
 	csvPayload, filename, err = service.CashFlowCSV(ctx, org.ID, time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), asOf)

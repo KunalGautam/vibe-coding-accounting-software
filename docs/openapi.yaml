@@ -411,6 +411,31 @@ paths:
                   $ref: '#/components/schemas/LedgerSplit'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/reports/account-drilldown:
+    get:
+      tags: [Reports, Ledger]
+      summary: Drill into posted ledger activity for a report account row
+      description: Returns period ledger splits for one account with opening and running balances using the account's normal balance convention.
+      operationId: getAccountDrilldown
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: account_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Account report drilldown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDrilldownReport'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/customers:
     get:
       tags: [Invoices]
@@ -3484,6 +3509,71 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LedgerSplit'
+    AccountDrilldownReport:
+      type: object
+      required: [account_id, account_code, account_name, account_type, from_date, to_date, opening_balance_minor, closing_balance_minor, rows]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        account_code:
+          type: string
+        account_name:
+          type: string
+        account_type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        from_date:
+          type: string
+          format: date
+        to_date:
+          type: string
+          format: date
+        opening_balance_minor:
+          type: integer
+          format: int64
+        closing_balance_minor:
+          type: integer
+          format: int64
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountDrilldownRow'
+    AccountDrilldownRow:
+      type: object
+      required: [ledger_split_id, journal_transaction_id, transaction_date, source_module, debit_minor, credit_minor, balance_minor, currency, cleared, reconciled]
+      properties:
+        ledger_split_id:
+          type: string
+          format: uuid
+        journal_transaction_id:
+          type: string
+          format: uuid
+        transaction_date:
+          type: string
+          format: date
+        source_module:
+          type: string
+          enum: [manual, invoice, credit_note, bill, expense, payroll, import, closing, payment]
+        transaction_memo:
+          type: string
+        split_memo:
+          type: string
+        debit_minor:
+          type: integer
+          format: int64
+        credit_minor:
+          type: integer
+          format: int64
+        balance_minor:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        cleared:
+          type: boolean
+        reconciled:
+          type: boolean
     LedgerSplit:
       type: object
       required: [id, account_id, debit, credit]

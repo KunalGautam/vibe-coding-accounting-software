@@ -15,7 +15,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
 - Added managed scheduled report SMTP delivery with configurable recipients.
 - Added PDF downloads for trial balance, profit and loss, and balance sheet.
-- Added expanded core report PDF exports and Excel-compatible CSV downloads for cash flow, AR/AP aging, tax liability, and tax summary, keeping OpenAPI/Postman coverage aligned at 147 documented route/method pairs.
+- Added account-level report drilldown for posted ledger activity with opening/running balances, keeping OpenAPI/Postman coverage aligned at 148 documented route/method pairs.
 - Added Flutter file picker, gallery, and camera receipt capture for attachment uploads, including offline queueing through the existing attachment upload manifest.
 - Added Flutter customer/vendor API transport, SQLite-backed offline party cache, and Sync-page review panel for AR/AP master-data visibility.
 - Added Flutter Trial Balance, P&L, Balance Sheet, Cash Flow, AR Aging, AP Aging, Tax Liability, Tax Summary, and Budget vs Actual report transport, prior-period comparison for P&L/Balance Sheet/Cash Flow/AR Aging/AP Aging/Tax Liability/Tax Summary plus selected-vs-previous budget comparison, SQLite-backed report cache with migration support, local CSV export generation plus app-storage/Downloads/share-sheet support, and a Reports page for offline financial/tax/budget snapshot review.
@@ -27,7 +27,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Expenses/AP: vendors, expenses with draft replacement updates, bills, purchase orders, vendor payments.
 - Tax: configurable authorities/rates/groups, India GST seed data, calculation preview, tax liability and summary reports.
 - Payroll: employees, payroll runs, componentized earnings/deductions, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS, employer contribution cost, GL posting including optional employer contribution expense/liability splits, payroll summary report plus PF/ESI/PT/TDS statutory component CSV downloads, payslip preview, payslip CSV export, payslip PDF download.
-- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
+- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, account drilldown, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
 - Advanced accounting: budgeting, fiscal close, exchange rates, unrealized FX revaluation, investment lots, dividends, stock split/bonus corporate actions, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, average-cost sales, market prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth.
 - Imports/reconciliation: structured bank import, QIF/OFX import, statement line matching, split reconciliation.
 - Attachments/backups: metadata, local binary upload/download, organization JSON export, manual/scheduled local backup snapshots.
@@ -41,11 +41,11 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
-- Export/reporting polish: expanded core report PDFs, backend Excel-compatible CSV downloads, scheduled report SMTP delivery, Flutter statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, and Flutter cached-report CSV generation with app-storage/Downloads/share-sheet support are implemented; richer report drilldowns remain.
+- Export/reporting polish: expanded core report PDFs, backend Excel-compatible CSV downloads, account-level report drilldown, scheduled report SMTP delivery, Flutter statement/aging/tax prior-period comparison, selected-vs-previous budget comparison, and Flutter cached-report CSV generation with app-storage/Downloads/share-sheet support are implemented; source-document deep links and richer frontend drilldown UX remain.
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Richer report drilldowns from summary rows into ledger/source documents.
+1. Source-document deep links and richer frontend drilldown UX.
 2. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 3. Deeper operational monitoring runbooks and managed-cloud deployment notes.
 4. Security hardening polish: broader auth UX and account recovery flows.

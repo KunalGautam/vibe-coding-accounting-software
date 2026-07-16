@@ -24,6 +24,7 @@ func (h ReportHandler) RegisterRoutes(router gin.IRoutes) {
 
 func (h ReportHandler) RegisterReadRoutes(router gin.IRoutes) {
 	router.GET("/reports/trial-balance", h.TrialBalance)
+	router.GET("/reports/account-drilldown", h.AccountDrilldown)
 	router.GET("/reports/trial-balance.csv", h.TrialBalanceCSV)
 	router.GET("/reports/trial-balance.pdf", h.TrialBalancePDF)
 	router.GET("/reports/profit-and-loss", h.ProfitAndLoss)
@@ -65,6 +66,31 @@ type createScheduledReportRequest struct {
 	ParametersJSON  string                          `json:"parameters_json"`
 	EmailRecipients string                          `json:"email_recipients"`
 	NextRunAt       string                          `json:"next_run_at" binding:"required"`
+}
+
+func (h ReportHandler) AccountDrilldown(c *gin.Context) {
+	accountID := c.Query("account_id")
+	if accountID == "" {
+		respondError(c, http.StatusBadRequest, "missing_account_id", "account_id query parameter is required")
+		return
+	}
+	from, err := requiredDateQuery(c, "from")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_from", err.Error())
+		return
+	}
+	to, err := requiredDateQuery(c, "to")
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_to", err.Error())
+		return
+	}
+
+	report, err := h.reports.AccountDrilldown(c.Request.Context(), c.Param("organizationId"), accountID, from, to)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "account_drilldown_failed", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, report)
 }
 
 func (h ReportHandler) TrialBalance(c *gin.Context) {

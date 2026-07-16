@@ -9,7 +9,7 @@ The generated/importable Postman collection is maintained at:
 docs/accounting-api.postman_collection.json
 ```
 
-Current API coverage is 147 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
+Current API coverage is 148 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
 
 Keep the OpenAPI file updated in the same change as any handler, request payload, response payload, or authorization behavior change.
 
@@ -77,7 +77,7 @@ The current OpenAPI groups are:
 - `Attachments`: Tenant-scoped attachment metadata and local binary upload/download.
 - `Payroll`: Employees, payroll runs, payroll posting with optional employer contribution splits, payslip previews/PDF downloads, configurable India payroll component previews, professional-tax starter presets, and PF/ESI/PT/TDS statutory component CSV exports.
 - `Tax`: Config-driven GST/VAT tax catalog, groups, calculation, and India seed data.
-- `Reports`: Financial, tax, payroll, budget, AR/AP aging, and investment reports.
+- `Reports`: Financial, tax, payroll, budget, AR/AP aging, account drilldown, and investment reports.
 - `Imports`: Bank statement import and matching.
 - `Investments`: Lots, disposals, average-cost sales, dividends, corporate actions, tax lots, tax-adjustment candidates, prices, CSV/AMFI NAV imports, valuation, and CSV report exports.
 - `System`: Bootstrap, audit logs, backups, exports, and health checks.

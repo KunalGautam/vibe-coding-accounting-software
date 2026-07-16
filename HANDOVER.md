@@ -30,7 +30,7 @@ Major backend modules are implemented and tested for:
 - Vendors, expenses, bills, purchase orders, vendor payments.
 - Config-driven GST/VAT tax catalog, India GST seed data, tax calculation, tax reports.
 - Payroll employees, payroll runs, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS and employer PF/ESI contribution cost, payroll summary report plus PF/ESI/PT/TDS statutory component CSV export, payslip preview, payslip CSV/PDF export in React, payroll GL posting including optional employer contribution expense/liability splits.
-- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
+- Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, account drilldown, realized gains, investment dividends, investment tax lots, investment valuation, expanded core report PDF/CSV exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
 - Bank imports: structured lines, browser CSV mapper, QIF, OFX, duplicate candidate detection, conservative matching-rule suggestions, reconciliation summaries, matching, reconciliation.
 - Budgeting, fiscal close, exchange rates, unrealized FX revaluation.
 - Investment lots, dividends, stock split/bonus corporate actions, corporate-action reporting/export, specific-lot sales, average-cost sales, realized gains, tax-lot reporting, configurable loss-repurchase tax-adjustment reporting, prices, CSV price imports, India AMFI NAV feed-text imports, NSE-style equity CSV imports, Yahoo Finance historical CSV imports, scheduled worker market-data file imports, generic provider URL imports with optional bearer auth, valuation.
@@ -95,7 +95,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `147` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `148` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.
@@ -124,11 +124,11 @@ Current API coverage: `147` OpenAPI route/method pairs, matched to Gin handlers 
 3. Security hardening polish: broader auth UX and account recovery flows.
 4. Email/account flows: richer onboarding and account-management polish.
 5. Offline sync depth: backend draft-edit endpoints and Flutter edit replay for draft invoice/expense updates are implemented; remaining work is mainly UI breadth and conflict-resolution polish.
-6. Export/reporting polish: richer report drilldowns.
+6. Export/reporting polish: source-document deep links and richer frontend drilldown UX.
 7. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
 
 ## Recommended Next Step
-Continue by broadening report export formats and drilldowns, then continue toward full mobile/desktop parity. `SyncOperationRepository`, `SyncSettingsRepository`, `AccountCacheRepository`, `PartyCacheRepository`, `TaxCatalogCacheRepository`, `InvoiceCacheRepository`, `InvestmentCacheRepository`, `ReportCacheRepository`, `AttachmentCacheRepository`, `AttachmentBinaryCacheRepository`, and `AttachmentUploadManifestRepository` now default to SQLite. Keep the current operation keys (`expenses.create_draft`, `expenses.update_draft`, `invoices.create_draft`, `invoices.update_draft`, `payments.record_customer`, `payments.record_vendor`, `ledger.post_invoice`, `ledger.post_expense`, `ledger.post_bill`, `ledger.post_credit_note`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `commercial_documents.convert_estimate_to_invoice`, `commercial_documents.convert_purchase_order_to_bill`, `imports.bank_statement_structured`, `imports.bank_statement_qif`, `imports.bank_statement_ofx`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`, `investments.sell_average_cost`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract.
+Continue by adding source-document deep links and richer frontend drilldown UX, then continue toward full mobile/desktop parity. `SyncOperationRepository`, `SyncSettingsRepository`, `AccountCacheRepository`, `PartyCacheRepository`, `TaxCatalogCacheRepository`, `InvoiceCacheRepository`, `InvestmentCacheRepository`, `ReportCacheRepository`, `AttachmentCacheRepository`, `AttachmentBinaryCacheRepository`, and `AttachmentUploadManifestRepository` now default to SQLite. Keep the current operation keys (`expenses.create_draft`, `expenses.update_draft`, `invoices.create_draft`, `invoices.update_draft`, `payments.record_customer`, `payments.record_vendor`, `ledger.post_invoice`, `ledger.post_expense`, `ledger.post_bill`, `ledger.post_credit_note`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `commercial_documents.convert_estimate_to_invoice`, `commercial_documents.convert_purchase_order_to_bill`, `imports.bank_statement_structured`, `imports.bank_statement_qif`, `imports.bank_statement_ofx`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`, `investments.sell_average_cost`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract.
 
 ## Files To Read First
 1. `PROJECT_CONTEXT.md`
