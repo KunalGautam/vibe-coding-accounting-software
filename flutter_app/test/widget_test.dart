@@ -21,7 +21,7 @@ import 'package:accounting_app/tax/tax_catalog_cache_repository.dart';
 
 void main() {
   void useTallTestViewport(WidgetTester tester) {
-    tester.view.physicalSize = const Size(1000, 5200);
+    tester.view.physicalSize = const Size(1000, 7600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -1117,6 +1117,7 @@ void main() {
   testWidgets('hydrates cached invoices into the invoices page', (
     tester,
   ) async {
+    useTallTestViewport(tester);
     final invoiceCacheRepository = MemoryInvoiceCacheRepository([
       const InvoiceSummary(
         id: 'inv-1',
@@ -1170,6 +1171,7 @@ void main() {
   testWidgets('fetches invoices and saves them for offline viewing', (
     tester,
   ) async {
+    useTallTestViewport(tester);
     final settingsRepository = MemorySyncSettingsRepository(
       const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
     );
@@ -1223,6 +1225,119 @@ void main() {
     expect(find.text('Invoice PDF: not downloaded'), findsOneWidget);
     expect(find.text('Annual support'), findsOneWidget);
     expect(find.text('Tax config: gst-rate-18'), findsOneWidget);
+  });
+
+  testWidgets('queues draft invoices from the invoices page', (tester) async {
+    useTallTestViewport(tester);
+    final repository = MemorySyncOperationRepository();
+    final partyCacheRepository = MemoryPartyCacheRepository(
+      const PartySnapshot(
+        customers: [
+          CustomerSummary(
+            id: 'customer-1',
+            organizationId: 'org-1',
+            displayName: 'Acme Pvt Ltd',
+            isActive: true,
+          ),
+        ],
+        vendors: [],
+      ),
+    );
+    final attachmentCacheRepository = MemoryAttachmentCacheRepository([
+      const AttachmentSummary(
+        id: 'pdf-1',
+        fileName: 'INV-MOB-TEST.pdf',
+        contentType: 'application/pdf',
+        storageDriver: 'local',
+        storageKey: 'org-1/pdf-1/INV-MOB-TEST.pdf',
+        sizeBytes: 2048,
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      AccountingApp(
+        syncRepository: repository,
+        partyCacheRepository: partyCacheRepository,
+        attachmentCacheRepository: attachmentCacheRepository,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Invoices'));
+    await tester.pump();
+
+    await tester.tap(find.text('Acme Pvt Ltd · customer-1'));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Invoice number'),
+      'INV-MOB-TEST',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Issue date'),
+      '2026-07-16',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Due date'),
+      '2026-08-15',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Accounts receivable account ID'),
+      'acct-ar',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Line description'),
+      'Field implementation',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Quantity millis'),
+      '2500',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Unit price in INR'),
+      '1200.50',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Income account ID'),
+      'acct-income',
+    );
+    await tester.tap(find.text('INV-MOB-TEST.pdf · pdf-1'));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Tax group ID'),
+      'gst-group-18',
+    );
+    await tester.tap(find.text('Tax inclusive invoice line'));
+    await tester.pump();
+    await tester.tap(find.text('Queue invoice draft'));
+    await tester.pumpAndSettle();
+
+    final pending = await repository.loadPending();
+    final invoiceDrafts = pending
+        .where(
+          (operation) =>
+              operation.module == 'invoices' &&
+              operation.action == 'create_draft',
+        )
+        .toList(growable: false);
+    expect(invoiceDrafts, hasLength(1));
+    final operation = invoiceDrafts.single;
+    expect(operation.module, 'invoices');
+    expect(operation.action, 'create_draft');
+    expect(operation.payload['customer_id'], 'customer-1');
+    expect(operation.payload['invoice_number'], 'INV-MOB-TEST');
+    expect(operation.payload['issue_date'], '2026-07-16');
+    expect(operation.payload['due_date'], '2026-08-15');
+    expect(operation.payload['accounts_receivable_id'], 'acct-ar');
+    expect(operation.payload['pdf_attachment_id'], 'pdf-1');
+    expect(operation.payload['tax_inclusive'], true);
+    final lines = operation.payload['lines']! as List<Map<String, Object?>>;
+    expect(lines.single['description'], 'Field implementation');
+    expect(lines.single['quantity_millis'], 2500);
+    expect(lines.single['unit_price_minor'], 120050);
+    expect(lines.single['income_account_id'], 'acct-income');
+    expect(lines.single['tax_group_id'], 'gst-group-18');
+    expect(
+      find.textContaining('Draft invoice queued for sync:'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('downloads invoice PDF attachments from invoice rows', (

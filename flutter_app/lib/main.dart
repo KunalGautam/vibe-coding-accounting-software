@@ -649,6 +649,42 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvoiceDraft(InvoiceDraftInput input) async {
+    final operation = syncQueue.enqueueInvoiceDraft(
+      customerId: input.customerId.trim(),
+      invoiceNumber: input.invoiceNumber.trim().isEmpty
+          ? 'INV-MOB-${DateTime.now().millisecondsSinceEpoch}'
+          : input.invoiceNumber.trim(),
+      accountsReceivableId: input.accountsReceivableId.trim(),
+      description: input.description.trim().isEmpty
+          ? 'Mobile invoice line'
+          : input.description.trim(),
+      unitPriceMinor: input.unitPriceMinor,
+      incomeAccountId: input.incomeAccountId.trim(),
+      issueDate: input.issueDate,
+      dueDate: input.dueDate,
+      quantityMillis: input.quantityMillis,
+      pdfAttachmentId: input.pdfAttachmentId.trim().isEmpty
+          ? null
+          : input.pdfAttachmentId.trim(),
+      taxRateId: input.taxRateId.trim().isEmpty
+          ? settings.defaultTaxRateId.trim().isEmpty
+                ? null
+                : settings.defaultTaxRateId.trim()
+          : input.taxRateId.trim(),
+      taxGroupId: input.taxGroupId.trim().isEmpty
+          ? settings.defaultTaxGroupId.trim().isEmpty
+                ? null
+                : settings.defaultTaxGroupId.trim()
+          : input.taxGroupId.trim(),
+      taxInclusive: input.taxInclusive,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Draft invoice queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> queueBrokerHoldingsImport(String csv) async {
     final operation = syncQueue.enqueueBrokerHoldingsPriceImport(csv: csv);
     await repository.savePending(syncQueue.pending);
@@ -2420,11 +2456,13 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       ),
       InvoicesPage(
         invoices: cachedInvoices,
+        customers: cachedCustomers,
         attachments: discoveredAttachments,
         cachedBinaryAttachmentIds: cachedAttachmentBinaryIds,
         isLoading: isLoadingInvoices,
         notice: syncNotice,
         onFetchInvoices: fetchInvoices,
+        onQueueInvoiceDraft: queueInvoiceDraft,
         onDownloadAttachment: downloadAttachment,
         onInspectCachedAttachment: inspectCachedAttachment,
       ),
@@ -2844,6 +2882,38 @@ class DraftExpenseInput {
   final String taxGroupId;
   final bool taxInclusive;
   final bool reimbursable;
+}
+
+class InvoiceDraftInput {
+  const InvoiceDraftInput({
+    required this.customerId,
+    required this.invoiceNumber,
+    required this.issueDate,
+    required this.dueDate,
+    required this.accountsReceivableId,
+    required this.description,
+    required this.quantityMillis,
+    required this.unitPriceMinor,
+    required this.incomeAccountId,
+    this.pdfAttachmentId = '',
+    this.taxRateId = '',
+    this.taxGroupId = '',
+    this.taxInclusive = false,
+  });
+
+  final String customerId;
+  final String invoiceNumber;
+  final DateTime issueDate;
+  final DateTime dueDate;
+  final String accountsReceivableId;
+  final String description;
+  final int quantityMillis;
+  final int unitPriceMinor;
+  final String incomeAccountId;
+  final String pdfAttachmentId;
+  final String taxRateId;
+  final String taxGroupId;
+  final bool taxInclusive;
 }
 
 class ExpensesPage extends StatelessWidget {
@@ -3525,22 +3595,26 @@ class TaxPreviewPanel extends StatelessWidget {
 class InvoicesPage extends StatelessWidget {
   const InvoicesPage({
     required this.invoices,
+    required this.customers,
     required this.attachments,
     required this.cachedBinaryAttachmentIds,
     required this.isLoading,
     required this.notice,
     required this.onFetchInvoices,
+    required this.onQueueInvoiceDraft,
     required this.onDownloadAttachment,
     required this.onInspectCachedAttachment,
     super.key,
   });
 
   final List<InvoiceSummary> invoices;
+  final List<CustomerSummary> customers;
   final List<AttachmentSummary> attachments;
   final Set<String> cachedBinaryAttachmentIds;
   final bool isLoading;
   final String? notice;
   final Future<void> Function() onFetchInvoices;
+  final Future<void> Function(InvoiceDraftInput input) onQueueInvoiceDraft;
   final Future<void> Function(AttachmentSummary attachment)
   onDownloadAttachment;
   final Future<void> Function(AttachmentSummary attachment)
@@ -3559,6 +3633,11 @@ class InvoicesPage extends StatelessWidget {
           actionLabel: isLoading ? 'Refreshing invoices...' : 'Refresh cache',
           onPressed: isLoading ? null : () => onFetchInvoices(),
         ),
+        InvoiceDraftForm(
+          customers: customers,
+          attachments: attachments,
+          onSubmit: onQueueInvoiceDraft,
+        ),
         InvoiceCachePanel(
           invoices: invoices,
           attachments: attachments,
@@ -3571,10 +3650,334 @@ class InvoicesPage extends StatelessWidget {
           items: [
             'Target API: GET /invoices',
             'Cached locally for read-only offline review',
+            'New one-line invoice drafts queue offline through invoices.create_draft',
             'PDF attachment bytes can be downloaded and inspected from the invoice row when attachment metadata is present',
           ],
         ),
       ],
+    );
+  }
+}
+
+class InvoiceDraftForm extends StatefulWidget {
+  const InvoiceDraftForm({
+    required this.customers,
+    required this.attachments,
+    required this.onSubmit,
+    super.key,
+  });
+
+  final List<CustomerSummary> customers;
+  final List<AttachmentSummary> attachments;
+  final Future<void> Function(InvoiceDraftInput input) onSubmit;
+
+  @override
+  State<InvoiceDraftForm> createState() => _InvoiceDraftFormState();
+}
+
+class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
+  late final TextEditingController customerIdController;
+  late final TextEditingController invoiceNumberController;
+  late final TextEditingController issueDateController;
+  late final TextEditingController dueDateController;
+  late final TextEditingController accountsReceivableController;
+  late final TextEditingController descriptionController;
+  late final TextEditingController quantityMillisController;
+  late final TextEditingController unitPriceController;
+  late final TextEditingController incomeAccountController;
+  late final TextEditingController pdfAttachmentController;
+  late final TextEditingController taxRateController;
+  late final TextEditingController taxGroupController;
+  bool taxInclusive = false;
+  bool isQueueing = false;
+  String? validationMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    customerIdController = TextEditingController();
+    invoiceNumberController = TextEditingController(
+      text: 'INV-MOB-${now.millisecondsSinceEpoch}',
+    );
+    issueDateController = TextEditingController(text: formatDateOnly(now));
+    dueDateController = TextEditingController(
+      text: formatDateOnly(now.add(const Duration(days: 30))),
+    );
+    accountsReceivableController = TextEditingController();
+    descriptionController = TextEditingController(text: 'Mobile invoice line');
+    quantityMillisController = TextEditingController(text: '1000');
+    unitPriceController = TextEditingController(text: '0.00');
+    incomeAccountController = TextEditingController();
+    pdfAttachmentController = TextEditingController();
+    taxRateController = TextEditingController();
+    taxGroupController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    customerIdController.dispose();
+    invoiceNumberController.dispose();
+    issueDateController.dispose();
+    dueDateController.dispose();
+    accountsReceivableController.dispose();
+    descriptionController.dispose();
+    quantityMillisController.dispose();
+    unitPriceController.dispose();
+    incomeAccountController.dispose();
+    pdfAttachmentController.dispose();
+    taxRateController.dispose();
+    taxGroupController.dispose();
+    super.dispose();
+  }
+
+  int parseRupeesToPaise(String value) {
+    final normalized = value.trim().replaceAll(',', '');
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    final rupees = double.tryParse(normalized) ?? 0;
+    return (rupees * 100).round();
+  }
+
+  void onTaxRateChanged(String value) {
+    if (value.trim().isEmpty || taxGroupController.text.isEmpty) {
+      return;
+    }
+    taxGroupController.clear();
+    setState(() {
+      validationMessage = 'Using tax rate; tax group cleared.';
+    });
+  }
+
+  void onTaxGroupChanged(String value) {
+    if (value.trim().isEmpty || taxRateController.text.isEmpty) {
+      return;
+    }
+    taxRateController.clear();
+    setState(() {
+      validationMessage = 'Using tax group; tax rate cleared.';
+    });
+  }
+
+  Future<void> queueDraft() async {
+    if (isQueueing) {
+      return;
+    }
+    final issueDate = parseIsoDateOnlyUtc(issueDateController.text.trim());
+    final dueDate = parseIsoDateOnlyUtc(dueDateController.text.trim());
+    final quantityMillis = int.tryParse(quantityMillisController.text.trim());
+    final unitPriceMinor = parseRupeesToPaise(unitPriceController.text);
+    final taxRateId = taxRateController.text.trim();
+    final taxGroupId = taxGroupController.text.trim();
+
+    if (customerIdController.text.trim().isEmpty ||
+        accountsReceivableController.text.trim().isEmpty ||
+        incomeAccountController.text.trim().isEmpty ||
+        issueDate == null ||
+        dueDate == null ||
+        quantityMillis == null ||
+        quantityMillis <= 0 ||
+        unitPriceMinor <= 0) {
+      setState(() {
+        validationMessage =
+            'Enter customer ID, AR account, income account, valid dates, quantity, and unit price.';
+      });
+      return;
+    }
+    if (taxRateId.isNotEmpty && taxGroupId.isNotEmpty) {
+      setState(() {
+        validationMessage = 'Use either tax rate ID or tax group ID, not both.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationMessage = null;
+    });
+    try {
+      await widget.onSubmit(
+        InvoiceDraftInput(
+          customerId: customerIdController.text.trim(),
+          invoiceNumber: invoiceNumberController.text.trim(),
+          issueDate: issueDate,
+          dueDate: dueDate,
+          accountsReceivableId: accountsReceivableController.text.trim(),
+          description: descriptionController.text.trim(),
+          quantityMillis: quantityMillis,
+          unitPriceMinor: unitPriceMinor,
+          incomeAccountId: incomeAccountController.text.trim(),
+          pdfAttachmentId: pdfAttachmentController.text.trim(),
+          taxRateId: taxRateId,
+          taxGroupId: taxGroupId,
+          taxInclusive: taxInclusive,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pdfAttachments = widget.attachments
+        .where((attachment) => attachment.contentType == 'application/pdf')
+        .take(5)
+        .toList(growable: false);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Draft invoice',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Queue a one-line invoice draft offline. It will sync to the shared Go API when credentials are available.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: customerIdController,
+              decoration: const InputDecoration(
+                labelText: 'Invoice customer ID',
+              ),
+            ),
+            if (widget.customers.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Cached customers',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final customer in widget.customers.take(6))
+                    ActionChip(
+                      label: Text('${customer.displayName} · ${customer.id}'),
+                      onPressed: () {
+                        customerIdController.text = customer.id;
+                      },
+                    ),
+                ],
+              ),
+            ],
+            TextField(
+              controller: invoiceNumberController,
+              decoration: const InputDecoration(labelText: 'Invoice number'),
+            ),
+            TextField(
+              controller: issueDateController,
+              decoration: const InputDecoration(
+                labelText: 'Issue date',
+                hintText: '2026-07-16',
+              ),
+            ),
+            TextField(
+              controller: dueDateController,
+              decoration: const InputDecoration(
+                labelText: 'Due date',
+                hintText: '2026-08-15',
+              ),
+            ),
+            TextField(
+              controller: accountsReceivableController,
+              decoration: const InputDecoration(
+                labelText: 'Accounts receivable account ID',
+              ),
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Line description'),
+            ),
+            TextField(
+              controller: quantityMillisController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Quantity millis',
+                helperText: '1000 = 1 unit',
+              ),
+            ),
+            TextField(
+              controller: unitPriceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Unit price in INR'),
+            ),
+            TextField(
+              controller: incomeAccountController,
+              decoration: const InputDecoration(labelText: 'Income account ID'),
+            ),
+            TextField(
+              controller: pdfAttachmentController,
+              decoration: const InputDecoration(
+                labelText: 'PDF attachment ID',
+                helperText: 'Optional cached PDF metadata ID.',
+              ),
+            ),
+            if (pdfAttachments.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Cached PDF attachments',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final attachment in pdfAttachments)
+                    ActionChip(
+                      label: Text('${attachment.fileName} · ${attachment.id}'),
+                      onPressed: () {
+                        pdfAttachmentController.text = attachment.id;
+                      },
+                    ),
+                ],
+              ),
+            ],
+            TextField(
+              controller: taxRateController,
+              onChanged: onTaxRateChanged,
+              decoration: const InputDecoration(labelText: 'Tax rate ID'),
+            ),
+            TextField(
+              controller: taxGroupController,
+              onChanged: onTaxGroupChanged,
+              decoration: const InputDecoration(labelText: 'Tax group ID'),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Tax inclusive invoice line'),
+              value: taxInclusive,
+              onChanged: (value) {
+                setState(() {
+                  taxInclusive = value;
+                });
+              },
+            ),
+            if (validationMessage != null) Text(validationMessage!),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueDraft,
+              icon: const Icon(Icons.note_add_outlined),
+              label: Text(
+                isQueueing ? 'Queueing invoice...' : 'Queue invoice draft',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

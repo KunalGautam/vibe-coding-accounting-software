@@ -53,6 +53,7 @@ flutter test
 - Cached attachment IDs can be selected directly from the expense draft form for receipt posting.
 - Tax preview for draft expenses using configured API tax rates/groups before queueing.
 - Expense capture entry point for receipt and reimbursable workflows.
+- Invoice draft creation form that queues one-line AR drafts through `invoices.create_draft`.
 - Invoice cache refresh for offline AR snapshots with line-level GST/VAT tax context visible while offline.
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
 - Invoice PDF attachment download and cached-byte inspection directly from cached invoice rows.
@@ -69,4 +70,4 @@ flutter test
 - Investments page includes broker holdings CSV paste and file-pick flows that queue imports for later sync.
 - Sync settings placeholder for API base URL and organization selection.
 
-The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and richer invoice detail/edit views are still pending.
+The full generated OpenAPI client, desktop import/export actions, broader mobile/desktop module parity, and richer multi-line invoice detail/edit views are still pending.
