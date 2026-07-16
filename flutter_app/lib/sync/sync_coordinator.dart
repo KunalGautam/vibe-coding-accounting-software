@@ -87,6 +87,9 @@ final Map<String, _SyncHandler> _syncHandlers = {
   'attachments.create_metadata': (client, operation) async {
     await client.syncAttachmentMetadata(operation);
   },
+  'attachments.upload_binary': (client, operation) async {
+    await client.syncAttachmentUpload(operation);
+  },
   'investments.create_price': (client, operation) async {
     await client.syncInvestmentPrice(operation);
   },

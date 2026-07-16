@@ -387,7 +387,7 @@ void main() {
 
     expect(
       find.text(
-        'Add API credentials, organization ID, and default account IDs before syncing draft expenses.',
+        'Add API credentials and organization ID before syncing queued offline changes.',
       ),
       findsOneWidget,
     );

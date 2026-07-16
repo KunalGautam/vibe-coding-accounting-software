@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -143,6 +144,19 @@ class AccountingApiClient {
   Future<AttachmentSummary> syncAttachmentMetadata(SyncOperation operation) {
     return createAttachment(
       CreateAttachmentMetadata.fromSyncOperation(operation),
+    );
+  }
+
+  Future<AttachmentSummary> syncAttachmentUpload(
+    SyncOperation operation,
+  ) async {
+    final payload = operation.payload;
+    final fileName = payload['file_name'] as String?;
+    final localFilePath = payload['local_file_path']! as String;
+    final file = File(localFilePath);
+    return uploadAttachmentBytes(
+      fileName: fileName ?? file.uri.pathSegments.last,
+      bytes: await file.readAsBytes(),
     );
   }
 

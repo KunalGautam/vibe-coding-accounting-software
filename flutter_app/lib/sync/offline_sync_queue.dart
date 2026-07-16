@@ -249,6 +249,23 @@ class OfflineSyncQueue {
     return operation;
   }
 
+  SyncOperation enqueueAttachmentUpload({
+    required String fileName,
+    required String localFilePath,
+    DateTime? createdAt,
+  }) {
+    final timestamp = createdAt ?? DateTime.now().toUtc();
+    final operation = SyncOperation(
+      id: 'attachment-upload-${timestamp.microsecondsSinceEpoch}',
+      module: 'attachments',
+      action: 'upload_binary',
+      createdAt: timestamp,
+      payload: {'file_name': fileName, 'local_file_path': localFilePath},
+    );
+    enqueue(operation);
+    return operation;
+  }
+
   SyncOperation enqueueInvestmentPrice({
     required String symbol,
     required DateTime priceDate,

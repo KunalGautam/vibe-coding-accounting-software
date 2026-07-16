@@ -466,7 +466,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   }
 
   Future<void> syncPending() async {
-    if (!settings.canSyncExpenses) {
+    if (!settings.canFetchAccounts) {
       final result = SyncResult(
         synced: 0,
         skipped: syncQueue.pendingCount,
@@ -475,7 +475,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       setState(() {
         lastSyncResult = result;
         syncNotice =
-            'Add API credentials, organization ID, and default account IDs before syncing draft expenses.';
+            'Add API credentials and organization ID before syncing queued offline changes.';
       });
       return;
     }
@@ -882,6 +882,19 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
 
     try {
       final localFile = await readLocalAttachmentFile(trimmedPath);
+      if (!settings.canFetchAccounts) {
+        final operation = syncQueue.enqueueAttachmentUpload(
+          fileName: localFile.fileName,
+          localFilePath: trimmedPath,
+        );
+        await repository.savePending(syncQueue.pending);
+        setState(() {
+          syncNotice =
+              'Attachment upload queued for sync: ${operation.payload['file_name']}';
+          selectedIndex = 4;
+        });
+        return;
+      }
       await uploadAttachmentBytes(localFile.fileName, localFile.bytes);
     } on Object catch (error) {
       setState(() {

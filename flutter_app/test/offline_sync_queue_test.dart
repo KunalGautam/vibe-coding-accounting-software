@@ -246,6 +246,21 @@ void main() {
     expect(operation.payload['size_bytes'], 42);
   });
 
+  test('queues attachment binary uploads for later replay', () {
+    final queue = OfflineSyncQueue();
+
+    final operation = queue.enqueueAttachmentUpload(
+      fileName: 'receipt.jpg',
+      localFilePath: '/tmp/receipt.jpg',
+      createdAt: DateTime.utc(2026, 7, 15, 9),
+    );
+
+    expect(operation.module, 'attachments');
+    expect(operation.action, 'upload_binary');
+    expect(operation.payload['file_name'], 'receipt.jpg');
+    expect(operation.payload['local_file_path'], '/tmp/receipt.jpg');
+  });
+
   test('queues investment prices for later API creation', () {
     final queue = OfflineSyncQueue();
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:accounting_app/api/accounting_api_client.dart';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
@@ -339,5 +340,56 @@ void main() {
         '/api/v1/organizations/org-1/investments/prices',
       ]),
     );
+  });
+
+  test('syncs queued attachment binary uploads', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'ledger-upload-sync-test',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final receipt = File('${directory.path}/receipt.txt');
+    await receipt.writeAsString('offline receipt bytes');
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'attachment-upload-local-1',
+        module: 'attachments',
+        action: 'upload_binary',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: {'file_name': 'receipt.txt', 'local_file_path': receipt.path},
+      ),
+    ]);
+    final requestedPaths = <String>[];
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        requestedPaths.add(request.url.path);
+        expect(request.method, 'POST');
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/attachments/upload',
+        );
+        return http.Response(
+          jsonEncode({
+            'id': 'attachment-uploaded-1',
+            'file_name': 'receipt.txt',
+            'content_type': 'text/plain',
+            'storage_driver': 'local',
+            'storage_key': 'org-1/attachment-uploaded-1/receipt.txt',
+            'size_bytes': 21,
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+    expect(requestedPaths, ['/api/v1/organizations/org-1/attachments/upload']);
   });
 }
