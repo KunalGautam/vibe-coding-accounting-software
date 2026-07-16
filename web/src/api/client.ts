@@ -1226,6 +1226,12 @@ export type CreateOrganizationUserInput = {
   role: Role;
 };
 
+export type UpdateOrganizationUserInput = {
+  name?: string;
+  role?: Role;
+  is_active?: boolean;
+};
+
 export type CreatePayrollRunInput = {
   run_number: string;
   period_start: string;
@@ -2331,6 +2337,13 @@ export class ApiClient {
   async createOrganizationUser(input: CreateOrganizationUserInput): Promise<OrganizationUser> {
     return this.request(`/organizations/${this.config.organizationId}/users`, {
       method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  async updateOrganizationUser(userId: string, input: UpdateOrganizationUserInput): Promise<OrganizationUser> {
+    return this.request(`/organizations/${this.config.organizationId}/users/${userId}`, {
+      method: "PATCH",
       body: JSON.stringify(input)
     });
   }

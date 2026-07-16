@@ -11,6 +11,8 @@ import (
 )
 
 var ErrUserAlreadyMember = errors.New("user is already a member of this organization")
+var ErrOrganizationUserNotFound = errors.New("organization user was not found")
+var ErrLastActiveAdmin = errors.New("cannot remove the last active admin from an organization")
 
 type UserService struct {
 	db                *gorm.DB
@@ -24,6 +26,14 @@ type CreateOrganizationUserInput struct {
 	Email          string
 	Password       string
 	Role           domain.Role
+}
+
+type UpdateOrganizationUserInput struct {
+	OrganizationID string
+	UserID         string
+	Name           *string
+	Role           *domain.Role
+	IsActive       *bool
 }
 
 type OrganizationUser struct {
@@ -155,6 +165,95 @@ func (s UserService) CreateOrganizationUser(ctx context.Context, input CreateOrg
 	return result, nil
 }
 
+func (s UserService) UpdateOrganizationUser(ctx context.Context, input UpdateOrganizationUserInput) (OrganizationUser, error) {
+	var result OrganizationUser
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var membership domain.OrganizationMembership
+		if err := tx.Preload("User").
+			Where("organization_id = ? AND user_id = ?", input.OrganizationID, input.UserID).
+			First(&membership).
+			Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrOrganizationUserNotFound
+			}
+			return err
+		}
+
+		nextRole := membership.Role
+		if input.Role != nil && *input.Role != "" {
+			nextRole = *input.Role
+		}
+		nextActive := membership.User.IsActive
+		if input.IsActive != nil {
+			nextActive = *input.IsActive
+		}
+		nextName := strings.TrimSpace(membership.User.Name)
+		if input.Name != nil {
+			nextName = strings.TrimSpace(*input.Name)
+		}
+		if nextName == "" {
+			nextName = membership.User.Name
+		}
+
+		if membership.Role == domain.RoleAdmin && membership.User.IsActive && (nextRole != domain.RoleAdmin || !nextActive) {
+			activeAdmins, err := activeAdminCount(tx, input.OrganizationID)
+			if err != nil {
+				return err
+			}
+			if activeAdmins <= 1 {
+				return ErrLastActiveAdmin
+			}
+		}
+
+		before := OrganizationUser{
+			UserID:         membership.UserID,
+			OrganizationID: membership.OrganizationID,
+			Name:           membership.User.Name,
+			Email:          membership.User.Email,
+			Role:           membership.Role,
+			IsActive:       membership.User.IsActive,
+		}
+
+		if nextRole != membership.Role {
+			if err := tx.Model(&domain.OrganizationMembership{}).
+				Where("organization_id = ? AND user_id = ?", input.OrganizationID, input.UserID).
+				Update("role", nextRole).
+				Error; err != nil {
+				return err
+			}
+		}
+		if nextName != membership.User.Name || nextActive != membership.User.IsActive {
+			if err := tx.Model(&domain.User{}).
+				Where("id = ?", input.UserID).
+				Updates(map[string]any{
+					"name":      nextName,
+					"is_active": nextActive,
+				}).
+				Error; err != nil {
+				return err
+			}
+		}
+
+		result = OrganizationUser{
+			UserID:         membership.UserID,
+			OrganizationID: membership.OrganizationID,
+			Name:           nextName,
+			Email:          membership.User.Email,
+			Role:           nextRole,
+			IsActive:       nextActive,
+		}
+		return recordAuditWithTx(ctx, tx, RecordAuditInput{
+			OrganizationID: input.OrganizationID,
+			EntityType:     "organization_membership",
+			EntityID:       membership.ID,
+			Action:         "update",
+			Before:         before,
+			After:          result,
+		})
+	})
+	return result, err
+}
+
 func (s UserService) invitationEmail(user OrganizationUser, organizationName string) EmailMessage {
 	link := strings.TrimSpace(s.invitationBaseURL)
 	body := "You have been added to " + organizationName + " in AbhashTech Accounting as " + string(user.Role) + ".\n\n"
@@ -167,4 +266,21 @@ func (s UserService) invitationEmail(user OrganizationUser, organizationName str
 		Subject: "You have been invited to AbhashTech Accounting",
 		Text:    body,
 	}
+}
+
+func activeAdminCount(tx *gorm.DB, organizationID string) (int, error) {
+	var memberships []domain.OrganizationMembership
+	if err := tx.Preload("User").
+		Where("organization_id = ? AND role = ?", organizationID, domain.RoleAdmin).
+		Find(&memberships).
+		Error; err != nil {
+		return 0, err
+	}
+	activeAdmins := 0
+	for _, membership := range memberships {
+		if membership.User.IsActive {
+			activeAdmins += 1
+		}
+	}
+	return activeAdmins, nil
 }

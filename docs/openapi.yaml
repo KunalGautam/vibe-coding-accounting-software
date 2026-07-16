@@ -2968,6 +2968,35 @@ paths:
                 $ref: '#/components/schemas/OrganizationUser'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/users/{userId}:
+    patch:
+      tags: [Organizations]
+      summary: Update an organization user's role or active status
+      description: Admin-only account lifecycle control. The API rejects changes that would remove the last active admin from the organization.
+      operationId: updateOrganizationUser
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationUserRequest'
+      responses:
+        '200':
+          description: Updated organization user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationUser'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/imports/bank-statements:
     post:
       tags: [Imports]
@@ -6993,6 +7022,16 @@ components:
         role:
           type: string
           enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
+    UpdateOrganizationUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, accountant, bookkeeper, payroll_manager, viewer, employee_self_service]
+        is_active:
+          type: boolean
     ReportRow:
       type: object
       properties:

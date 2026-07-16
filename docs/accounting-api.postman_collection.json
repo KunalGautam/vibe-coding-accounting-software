@@ -300,6 +300,23 @@
           }
         },
         {
+          "name": "Update Organization User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/users/{{user_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"accountant\",\n  \"is_active\": true\n}"
+            }
+          }
+        },
+        {
           "name": "Export Organization Data",
           "request": {
             "method": "GET",

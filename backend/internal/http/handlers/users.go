@@ -20,6 +20,12 @@ type createOrganizationUserRequest struct {
 	Role     domain.Role `json:"role" binding:"required"`
 }
 
+type updateOrganizationUserRequest struct {
+	Name     *string      `json:"name"`
+	Role     *domain.Role `json:"role"`
+	IsActive *bool        `json:"is_active"`
+}
+
 func NewUserHandler(users services.UserService) UserHandler {
 	return UserHandler{users: users}
 }
@@ -30,6 +36,7 @@ func (h UserHandler) RegisterReadRoutes(router gin.IRoutes) {
 
 func (h UserHandler) RegisterWriteRoutes(router gin.IRoutes) {
 	router.POST("/users", h.Create)
+	router.PATCH("/users/:userId", h.Update)
 }
 
 func (h UserHandler) List(c *gin.Context) {
@@ -63,10 +70,36 @@ func (h UserHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+func (h UserHandler) Update(c *gin.Context) {
+	var request updateOrganizationUserRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	user, err := h.users.UpdateOrganizationUser(c.Request.Context(), services.UpdateOrganizationUserInput{
+		OrganizationID: c.Param("organizationId"),
+		UserID:         c.Param("userId"),
+		Name:           request.Name,
+		Role:           request.Role,
+		IsActive:       request.IsActive,
+	})
+	if err != nil {
+		status, code := userErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
+
 func userErrorStatus(err error) (int, string) {
 	switch {
 	case errors.Is(err, services.ErrUserAlreadyMember):
 		return http.StatusConflict, "user_already_member"
+	case errors.Is(err, services.ErrOrganizationUserNotFound):
+		return http.StatusNotFound, "organization_user_not_found"
+	case errors.Is(err, services.ErrLastActiveAdmin):
+		return http.StatusConflict, "last_active_admin"
 	default:
 		return http.StatusInternalServerError, "user_request_failed"
 	}

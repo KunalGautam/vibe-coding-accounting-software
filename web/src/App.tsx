@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -7796,6 +7796,32 @@ function AdminPage({
     }
   }
 
+  async function updateOrganizationUser(user: OrganizationUser, input: UpdateOrganizationUserInput) {
+    setLoading(`update-user-${user.user_id}`);
+    setAdminError("");
+    try {
+      const updated = await api.updateOrganizationUser(user.user_id, input);
+      onOrganizationUsersChanged(organizationUsers.map((candidate) => candidate.user_id === updated.user_id ? updated : candidate));
+      setAdminNotice(`Updated ${updated.email}: ${roleLabel(updated.role)}, ${updated.is_active ? "active" : "inactive"}.`);
+      await onRefresh();
+    } catch (error) {
+      setAdminError(errorMessage(error));
+    } finally {
+      setLoading("");
+    }
+  }
+
+  async function updateOrganizationUserRole(user: OrganizationUser, role: Role) {
+    if (role === user.role) {
+      return;
+    }
+    await updateOrganizationUser(user, { role });
+  }
+
+  async function toggleOrganizationUserActive(user: OrganizationUser) {
+    await updateOrganizationUser(user, { is_active: !user.is_active });
+  }
+
   return (
     <div className="stack">
       <section className="panel offline-panel">
@@ -7949,17 +7975,42 @@ function AdminPage({
         </div>
       </form>
 
-      <DataTable
-        headers={["Name", "Email", "Role", "Access", "Invite email", "Onboarding note"]}
-        rows={organizationUsers.map((user) => [
-          user.name,
-          user.email,
-          roleLabel(user.role),
-          user.is_active ? "Active" : "Inactive",
-          user.invite_email_sent ? "Sent" : user.invite_email_error ? `Failed: ${user.invite_email_error}` : "Not sent",
-          user.invite_email_error ? "Check SMTP settings and share password-reset fallback." : roleDescription(user.role)
-        ])}
-      />
+      <section className="table-panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Access</th>
+              <th>Invite email</th>
+              <th>Onboarding note</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {organizationUsers.map((user) => (
+              <tr key={user.user_id}>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>
+                  <select value={user.role} disabled={loading === `update-user-${user.user_id}`} onChange={(event) => void updateOrganizationUserRole(user, event.target.value as Role)}>
+                    {roleOptions.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
+                  </select>
+                </td>
+                <td>{user.is_active ? "Active" : "Inactive"}</td>
+                <td>{user.invite_email_sent ? "Sent" : user.invite_email_error ? `Failed: ${user.invite_email_error}` : "Not sent"}</td>
+                <td>{user.invite_email_error ? "Check SMTP settings and share password-reset fallback." : roleDescription(user.role)}</td>
+                <td>
+                  <button className={user.is_active ? "danger compact" : "secondary compact"} disabled={loading === `update-user-${user.user_id}`} onClick={() => void toggleOrganizationUserActive(user)}>
+                    {loading === `update-user-${user.user_id}` ? "Updating..." : user.is_active ? "Deactivate" : "Reactivate"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
       <section className="panel queue-panel">
         <div className="queue-heading">

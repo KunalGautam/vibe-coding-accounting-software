@@ -101,7 +101,9 @@ func TestOrganizationRoutePermissionMatrix(t *testing.T) {
 		{name: "payroll manager can read payroll", role: domain.RolePayrollManager, method: http.MethodGet, path: "/payroll/runs", wantStatus: http.StatusOK},
 		{name: "accountant can read organization users", role: domain.RoleAccountant, method: http.MethodGet, path: "/users", wantStatus: http.StatusOK},
 		{name: "accountant cannot create organization users", role: domain.RoleAccountant, method: http.MethodPost, path: "/users", body: `{}`, wantStatus: http.StatusForbidden},
+		{name: "accountant cannot update organization users", role: domain.RoleAccountant, method: http.MethodPatch, path: "/users/00000000-0000-0000-0000-000000000001", body: `{}`, wantStatus: http.StatusForbidden},
 		{name: "admin reaches organization user write handler", role: domain.RoleAdmin, method: http.MethodPost, path: "/users", body: `{}`, wantStatus: http.StatusBadRequest},
+		{name: "admin reaches organization user update handler", role: domain.RoleAdmin, method: http.MethodPatch, path: "/users/00000000-0000-0000-0000-000000000001", body: `{}`, wantStatus: http.StatusNotFound},
 	}
 
 	for _, test := range tests {
