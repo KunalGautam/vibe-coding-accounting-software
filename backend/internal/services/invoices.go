@@ -34,6 +34,11 @@ type CreateInvoiceInput struct {
 	Lines                []CreateInvoiceLineInput
 }
 
+type UpdateInvoiceInput struct {
+	CreateInvoiceInput
+	InvoiceID string
+}
+
 type CreateInvoiceLineInput struct {
 	Description     string
 	QuantityMillis  int64
@@ -60,6 +65,85 @@ func (s InvoiceService) List(ctx context.Context, organizationID string) ([]doma
 }
 
 func (s InvoiceService) Create(ctx context.Context, input CreateInvoiceInput) (domain.Invoice, error) {
+	invoice, err := s.buildDraft(ctx, input)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := validateInvoiceScope(ctx, tx, input.OrganizationID, invoice); err != nil {
+			return err
+		}
+		return tx.Create(&invoice).Error
+	})
+	return invoice, err
+}
+
+func (s InvoiceService) Update(ctx context.Context, input UpdateInvoiceInput) (domain.Invoice, error) {
+	next, err := s.buildDraft(ctx, input.CreateInvoiceInput)
+	if err != nil {
+		return domain.Invoice{}, err
+	}
+
+	var invoice domain.Invoice
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Preload("Lines").
+			Where("organization_id = ? AND id = ?", input.OrganizationID, input.InvoiceID).
+			First(&invoice).
+			Error; err != nil {
+			return err
+		}
+		if invoice.Status != domain.InvoiceStatusDraft {
+			return ErrInvoiceAlreadyPosted
+		}
+		if err := validateInvoiceScope(ctx, tx, input.OrganizationID, next); err != nil {
+			return err
+		}
+		if err := tx.Model(&invoice).Updates(map[string]any{
+			"customer_id":            next.CustomerID,
+			"invoice_number":         next.InvoiceNumber,
+			"issue_date":             next.IssueDate,
+			"due_date":               next.DueDate,
+			"currency":               next.Currency,
+			"tax_inclusive":          next.TaxInclusive,
+			"subtotal_minor":         next.SubtotalMinor,
+			"tax_total_minor":        next.TaxTotalMinor,
+			"total_minor":            next.TotalMinor,
+			"accounts_receivable_id": next.AccountsReceivableID,
+			"pdf_attachment_id":      next.PDFAttachmentID,
+		}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("invoice_id = ?", invoice.ID).Delete(&domain.InvoiceLine{}).Error; err != nil {
+			return err
+		}
+		for index := range next.Lines {
+			next.Lines[index].InvoiceID = invoice.ID
+		}
+		if err := tx.Create(&next.Lines).Error; err != nil {
+			return err
+		}
+		next.ID = invoice.ID
+		next.CreatedAt = invoice.CreatedAt
+		next.UpdatedAt = time.Now().UTC()
+		next.Status = invoice.Status
+		if err := recordAuditWithTx(ctx, tx, RecordAuditInput{
+			OrganizationID: invoice.OrganizationID,
+			EntityType:     "invoice",
+			EntityID:       invoice.ID,
+			Action:         "update",
+			Before:         invoice,
+			After:          next,
+		}); err != nil {
+			return err
+		}
+		invoice = next
+		return nil
+	})
+	return invoice, err
+}
+
+func (s InvoiceService) buildDraft(ctx context.Context, input CreateInvoiceInput) (domain.Invoice, error) {
 	if len(input.Lines) == 0 {
 		return domain.Invoice{}, ErrInvoiceHasNoLines
 	}
@@ -124,14 +208,7 @@ func (s InvoiceService) Create(ctx context.Context, input CreateInvoiceInput) (d
 			TaxGroupID:        lineInput.TaxGroupID,
 		})
 	}
-
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := validateInvoiceScope(ctx, tx, input.OrganizationID, invoice); err != nil {
-			return err
-		}
-		return tx.Create(&invoice).Error
-	})
-	return invoice, err
+	return invoice, nil
 }
 
 func (s InvoiceService) Post(ctx context.Context, organizationID string, invoiceID string) (domain.Invoice, error) {

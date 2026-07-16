@@ -39,6 +39,7 @@ func (h ExpenseHandler) RegisterReadRoutes(router gin.IRoutes) {
 
 func (h ExpenseHandler) RegisterWriteRoutes(router gin.IRoutes) {
 	router.POST("/expenses", h.Create)
+	router.PUT("/expenses/:expenseId", h.Update)
 	router.POST("/expenses/:expenseId/post", h.Post)
 }
 
@@ -85,6 +86,45 @@ func (h ExpenseHandler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, expense)
+}
+
+func (h ExpenseHandler) Update(c *gin.Context) {
+	var request createExpenseRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	expenseDate, err := time.Parse("2006-01-02", request.ExpenseDate)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_expense_date", "expense_date must use YYYY-MM-DD format")
+		return
+	}
+
+	expense, err := h.expenses.Update(c.Request.Context(), services.UpdateExpenseInput{
+		ExpenseID: c.Param("expenseId"),
+		CreateExpenseInput: services.CreateExpenseInput{
+			OrganizationID:      c.Param("organizationId"),
+			VendorID:            request.VendorID,
+			ExpenseNumber:       request.ExpenseNumber,
+			ExpenseDate:         expenseDate,
+			Currency:            request.Currency,
+			TaxInclusive:        request.TaxInclusive,
+			AmountMinor:         request.AmountMinor,
+			ExpenseAccountID:    request.ExpenseAccountID,
+			PaymentAccountID:    request.PaymentAccountID,
+			ReceiptAttachmentID: request.ReceiptAttachmentID,
+			TaxRateID:           request.TaxRateID,
+			TaxGroupID:          request.TaxGroupID,
+			Reimbursable:        request.Reimbursable,
+		},
+	})
+	if err != nil {
+		status, code := expenseErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, expense)
 }
 
 func (h ExpenseHandler) Post(c *gin.Context) {

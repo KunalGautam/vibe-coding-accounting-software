@@ -116,7 +116,7 @@ backend/
 - Shared Dart API client and business-facing view models.
 - Offline support for web and Flutter clients, with conflict-aware sync for supported workflows.
 - Local SQLite cache for Flutter is now active for the pending sync-operation queue, sync settings, account cache, tax catalog cache, invoice cache, investment cache, attachment metadata cache, downloaded attachment binary cache, and queued-attachment upload manifest.
-- Initial offline write replay supports expense drafts, invoice drafts, customer payments, vendor payments, ledger posting actions, estimate status changes/conversions, purchase-order status changes/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads with a SQLite queued-upload manifest, manual investment prices, and average-cost investment sales; account lookup, sync settings, tax catalog caching, and downloaded attachment bytes are SQLite-backed; true edit replay should start with backend draft-update endpoints.
+- Initial offline write replay supports expense drafts, invoice drafts, customer payments, vendor payments, ledger posting actions, estimate status changes/conversions, purchase-order status changes/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads with a SQLite queued-upload manifest, manual investment prices, and average-cost investment sales; account lookup, sync settings, tax catalog caching, and downloaded attachment bytes are SQLite-backed; next offline edit replay should target the new backend draft invoice/expense update endpoints.
 - Platform features:
 - Mobile: camera receipt capture and attachment upload.
 - Desktop: file import/export workflows.

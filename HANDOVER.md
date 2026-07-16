@@ -95,7 +95,7 @@ ruby scripts/validate_openapi_routes.rb
 ruby scripts/validate_postman_collection.rb
 ```
 
-Current API coverage: `132` OpenAPI route/method pairs, matched to Gin handlers and Postman.
+Current API coverage: `134` OpenAPI route/method pairs, matched to Gin handlers and Postman.
 
 ## Important Constraints
 - Double-entry ledger is the source of truth.
@@ -128,7 +128,7 @@ Current API coverage: `132` OpenAPI route/method pairs, matched to Gin handlers 
 7. UI polish: complete CRUD flows, validation UX, module dashboards, broader Flutter parity.
 
 ## Recommended Next Step
-Continue offline depth by adding backend update endpoints for draft invoice/expense edits, then wire Flutter replay against those real contracts. `SyncOperationRepository`, `SyncSettingsRepository`, `AccountCacheRepository`, `TaxCatalogCacheRepository`, `InvoiceCacheRepository`, `InvestmentCacheRepository`, `AttachmentCacheRepository`, `AttachmentBinaryCacheRepository`, and `AttachmentUploadManifestRepository` now default to SQLite. Keep the current operation keys (`expenses.create_draft`, `invoices.create_draft`, `payments.record_customer`, `payments.record_vendor`, `ledger.post_invoice`, `ledger.post_expense`, `ledger.post_bill`, `ledger.post_credit_note`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `commercial_documents.convert_estimate_to_invoice`, `commercial_documents.convert_purchase_order_to_bill`, `imports.bank_statement_structured`, `imports.bank_statement_qif`, `imports.bank_statement_ofx`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`, `investments.sell_average_cost`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract while adding new operation types.
+Continue offline depth by wiring Flutter offline replay for draft invoice/expense edits against the new `PUT /invoices/{invoiceId}` and `PUT /expenses/{expenseId}` API contracts. `SyncOperationRepository`, `SyncSettingsRepository`, `AccountCacheRepository`, `TaxCatalogCacheRepository`, `InvoiceCacheRepository`, `InvestmentCacheRepository`, `AttachmentCacheRepository`, `AttachmentBinaryCacheRepository`, and `AttachmentUploadManifestRepository` now default to SQLite. Keep the current operation keys (`expenses.create_draft`, `invoices.create_draft`, `payments.record_customer`, `payments.record_vendor`, `ledger.post_invoice`, `ledger.post_expense`, `ledger.post_bill`, `ledger.post_credit_note`, `commercial_documents.update_estimate_status`, `commercial_documents.update_purchase_order_status`, `commercial_documents.convert_estimate_to_invoice`, `commercial_documents.convert_purchase_order_to_bill`, `imports.bank_statement_structured`, `imports.bank_statement_qif`, `imports.bank_statement_ofx`, `attachments.create_metadata`, `attachments.upload_binary`, `investments.create_price`, `investments.sell_average_cost`) and conflict metadata fields (`retry_count`, `last_attempt_at`, `last_error`, `conflict_reason`) as the sync-state contract while adding edit operation types.
 
 ## Files To Read First
 1. `PROJECT_CONTEXT.md`

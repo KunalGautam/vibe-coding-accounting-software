@@ -489,6 +489,35 @@ paths:
                 $ref: '#/components/schemas/Invoice'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/invoices/{invoiceId}:
+    put:
+      tags: [Invoices]
+      summary: Replace a draft invoice
+      description: Replaces editable draft invoice fields and lines, recalculating tax totals. Posted, paid, or void invoices are immutable and must be adjusted through accounting workflows instead.
+      operationId: updateInvoice
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '200':
+          description: Updated draft invoice
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/invoices/{invoiceId}/post:
     post:
       tags: [Invoices, Ledger]
@@ -942,6 +971,35 @@ paths:
       responses:
         '201':
           description: Created expense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        default:
+          $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/expenses/{expenseId}:
+    put:
+      tags: [Expenses]
+      summary: Replace a draft expense
+      description: Replaces editable draft expense fields, recalculating tax totals. Posted or void expenses are immutable and must be adjusted through accounting workflows instead.
+      operationId: updateExpense
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+        - name: expenseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '200':
+          description: Updated draft expense
           content:
             application/json:
               schema:

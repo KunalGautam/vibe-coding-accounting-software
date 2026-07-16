@@ -734,6 +734,23 @@
           }
         },
         {
+          "name": "Update Draft Invoice",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/invoices/00000000-0000-0000-0000-000000000000",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"invoice_number\": \"INV-001-UPDATED\",\n  \"issue_date\": \"2026-07-12\",\n  \"due_date\": \"2026-08-11\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"accounts_receivable_id\": \"{{account_id}}\",\n  \"lines\": [\n    {\n      \"description\": \"Updated consulting\",\n      \"quantity_millis\": 1000,\n      \"unit_price_minor\": 12000,\n      \"income_account_id\": \"{{account_id}}\",\n      \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
           "name": "Post Invoice",
           "request": {
             "method": "POST",
@@ -987,6 +1004,23 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"expense_number\": \"EXP-001\",\n  \"expense_date\": \"2026-07-11\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"amount_minor\": 10000,\n  \"expense_account_id\": \"{{account_id}}\",\n  \"payment_account_id\": \"{{account_id}}\",\n  \"receipt_attachment_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Draft Expense",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/expenses/00000000-0000-0000-0000-000000000000",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expense_number\": \"EXP-001-UPDATED\",\n  \"expense_date\": \"2026-07-12\",\n  \"currency\": \"INR\",\n  \"tax_inclusive\": false,\n  \"amount_minor\": 12000,\n  \"expense_account_id\": \"{{account_id}}\",\n  \"payment_account_id\": \"{{account_id}}\",\n  \"tax_group_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"reimbursable\": true\n}"
             }
           }
         },

@@ -36,6 +36,11 @@ type CreateExpenseInput struct {
 	Reimbursable        bool
 }
 
+type UpdateExpenseInput struct {
+	CreateExpenseInput
+	ExpenseID string
+}
+
 func NewExpenseService(db *gorm.DB, tax TaxService) ExpenseService {
 	return ExpenseService{db: db, tax: tax}
 }
@@ -52,6 +57,78 @@ func (s ExpenseService) List(ctx context.Context, organizationID string) ([]doma
 }
 
 func (s ExpenseService) Create(ctx context.Context, input CreateExpenseInput) (domain.Expense, error) {
+	expense, err := s.buildDraft(ctx, input)
+	if err != nil {
+		return domain.Expense{}, err
+	}
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := validateExpenseScope(ctx, tx, input.OrganizationID, expense); err != nil {
+			return err
+		}
+		return tx.Create(&expense).Error
+	})
+	return expense, err
+}
+
+func (s ExpenseService) Update(ctx context.Context, input UpdateExpenseInput) (domain.Expense, error) {
+	next, err := s.buildDraft(ctx, input.CreateExpenseInput)
+	if err != nil {
+		return domain.Expense{}, err
+	}
+
+	var expense domain.Expense
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("organization_id = ? AND id = ?", input.OrganizationID, input.ExpenseID).
+			First(&expense).
+			Error; err != nil {
+			return err
+		}
+		if expense.Status != domain.ExpenseStatusDraft {
+			return ErrExpenseAlreadyPosted
+		}
+		if err := validateExpenseScope(ctx, tx, input.OrganizationID, next); err != nil {
+			return err
+		}
+		if err := tx.Model(&expense).Updates(map[string]any{
+			"vendor_id":             next.VendorID,
+			"expense_number":        next.ExpenseNumber,
+			"expense_date":          next.ExpenseDate,
+			"currency":              next.Currency,
+			"tax_inclusive":         next.TaxInclusive,
+			"subtotal_minor":        next.SubtotalMinor,
+			"tax_total_minor":       next.TaxTotalMinor,
+			"total_minor":           next.TotalMinor,
+			"expense_account_id":    next.ExpenseAccountID,
+			"payment_account_id":    next.PaymentAccountID,
+			"receipt_attachment_id": next.ReceiptAttachmentID,
+			"tax_rate_id":           next.TaxRateID,
+			"tax_group_id":          next.TaxGroupID,
+			"reimbursable":          next.Reimbursable,
+		}).Error; err != nil {
+			return err
+		}
+		next.ID = expense.ID
+		next.CreatedAt = expense.CreatedAt
+		next.UpdatedAt = time.Now().UTC()
+		next.Status = expense.Status
+		if err := recordAuditWithTx(ctx, tx, RecordAuditInput{
+			OrganizationID: expense.OrganizationID,
+			EntityType:     "expense",
+			EntityID:       expense.ID,
+			Action:         "update",
+			Before:         expense,
+			After:          next,
+		}); err != nil {
+			return err
+		}
+		expense = next
+		return nil
+	})
+	return expense, err
+}
+
+func (s ExpenseService) buildDraft(ctx context.Context, input CreateExpenseInput) (domain.Expense, error) {
 	currency := input.Currency
 	if currency == "" {
 		currency = "INR"
@@ -94,14 +171,7 @@ func (s ExpenseService) Create(ctx context.Context, input CreateExpenseInput) (d
 		TaxGroupID:          input.TaxGroupID,
 		Reimbursable:        input.Reimbursable,
 	}
-
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := validateExpenseScope(ctx, tx, input.OrganizationID, expense); err != nil {
-			return err
-		}
-		return tx.Create(&expense).Error
-	})
-	return expense, err
+	return expense, nil
 }
 
 func (s ExpenseService) Post(ctx context.Context, organizationID string, expenseID string) (domain.Expense, error) {

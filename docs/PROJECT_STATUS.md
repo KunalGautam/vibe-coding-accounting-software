@@ -15,13 +15,13 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - Added Yahoo Finance historical CSV investment price imports for API and scheduled worker flows.
 - Added managed scheduled report SMTP delivery with configurable recipients.
 - Added PDF downloads for trial balance, profit and loss, and balance sheet.
-- Kept OpenAPI and Postman coverage aligned at 132 documented route/method pairs.
+- Added draft-update API contracts for invoices and expenses, keeping OpenAPI/Postman coverage aligned at 134 documented route/method pairs.
 
 ## Completed By Area
 - Core accounting: chart of accounts, double-entry journal posting, split validation, account registers, audit logs.
 - Auth/RBAC: JWT login, optional TOTP MFA with one-time recovery codes, refresh, logout/session revocation, password reset token flow with optional SMTP email delivery, organization invitation emails, gated self-service registration, first-admin bootstrap, organization-scoped roles.
-- Invoicing/AR: customers, invoices, recurring invoice generation, estimates, credit notes, customer payments.
-- Expenses/AP: vendors, expenses, bills, purchase orders, vendor payments.
+- Invoicing/AR: customers, invoices with draft replacement updates, recurring invoice generation, estimates, credit notes, customer payments.
+- Expenses/AP: vendors, expenses with draft replacement updates, bills, purchase orders, vendor payments.
 - Tax: configurable authorities/rates/groups, India GST seed data, calculation preview, tax liability and summary reports.
 - Payroll: employees, payroll runs, componentized earnings/deductions, India payroll preview with professional-tax starter presets, fixed/flat-rate/progressive-slab TDS, employer contribution cost, GL posting including optional employer contribution expense/liability splits, payroll summary report plus PF/ESI/PT/TDS statutory component CSV downloads, payslip preview, payslip CSV export, payslip PDF download.
 - Reports: trial balance, P&L, balance sheet, cash flow, AR/AP aging, tax reports, budget vs actual, realized gains, investment dividends, investment tax lots, investment valuation, core statement PDF exports, and managed scheduled report snapshots with optional SMTP delivery for core financial reports.
@@ -34,7 +34,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 
 ## Highest-Value Work Left
 - Investment depth: AMFI, NSE-style equity CSV, Yahoo Finance historical CSV, generic CSV/file/URL imports are implemented; more broker/provider-specific adapters remain.
-- Offline sync depth: Flutter queued writes, sync settings, downloaded attachment bytes, and read caches now persist in SQLite, surface conflict review state, track queued attachment upload blob metadata in a SQLite manifest, cache accounts and tax catalog snapshots in SQLite, and replay expense drafts, invoice drafts, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales; true edit queues need backend update endpoints before replay can be added.
+- Offline sync depth: Flutter queued writes, sync settings, downloaded attachment bytes, and read caches now persist in SQLite, surface conflict review state, track queued attachment upload blob metadata in a SQLite manifest, cache accounts and tax catalog snapshots in SQLite, and replay expense drafts, invoice drafts, customer payments, vendor payments, invoice/expense/bill/credit-note posting actions, estimate statuses/conversions, purchase-order statuses/conversions, structured/QIF/OFX bank statement imports, attachment metadata, binary attachment uploads, investment prices, and average-cost investment sales; Flutter edit replay can now target the new draft invoice/expense update endpoints.
 - Production deployment: Docker/compose, explicit GORM migration CLI, backup restore CLI, production environment validation, structured logging, basic Prometheus metrics, Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are implemented; managed-cloud production runbooks remain.
 - Security hardening: public auth/bootstrap rate limiting, optional TOTP MFA with encrypted secret storage and one-time recovery codes, refresh-token session revocation, tenant isolation tests, and permission matrix tests are implemented; broader auth UX polish remains.
 - Email/account flows: password reset SMTP delivery, organization invitation emails, and gated self-service registration are implemented; richer onboarding flows remain.
@@ -42,7 +42,7 @@ The product is not production-ready yet. The remaining work is mainly depth, com
 - UI polish: complete CRUD flows, validation UX, module dashboards, broader mobile/desktop Flutter parity.
 
 ## Suggested Next Build Order
-1. Add backend update endpoints for draft invoice/expense edits, then wire Flutter offline edit replay against those real API contracts.
+1. Wire Flutter offline edit replay for draft invoices and expenses against the new backend update endpoints.
 2. Flutter file picker/camera polish for binary attachments and receipt capture.
 3. Additional broker/provider-specific market-data adapters beyond AMFI, NSE-style CSV, and Yahoo Finance CSV.
 4. Deeper operational monitoring runbooks and managed-cloud deployment notes.
