@@ -252,6 +252,12 @@ class AccountingApiClient {
     return RealizedGainsReport.fromJson(_decodeObject(response));
   }
 
+  Future<TrialBalanceReport> getTrialBalance({required DateTime asOf}) async {
+    final params = Uri(queryParameters: {'as_of': _dateOnly(asOf)}).query;
+    final response = await _send('GET', '/reports/trial-balance?$params');
+    return TrialBalanceReport.fromJson(_decodeObject(response));
+  }
+
   Future<List<InvestmentPriceSummary>> listInvestmentPrices() async {
     final response = await _send('GET', '/investments/prices');
     return _decodeList(response, InvestmentPriceSummary.fromJson);
@@ -1144,6 +1150,89 @@ class RealizedGainsReport {
       'total_proceeds_minor': totalProceedsMinor,
       'total_cost_basis_minor': totalCostBasisMinor,
       'total_gain_loss_minor': totalGainLossMinor,
+    };
+  }
+}
+
+class ReportRowSummary {
+  const ReportRowSummary({
+    required this.accountId,
+    required this.accountCode,
+    required this.accountName,
+    required this.accountType,
+    required this.debitMinor,
+    required this.creditMinor,
+    required this.balanceMinor,
+  });
+
+  final String accountId;
+  final String accountCode;
+  final String accountName;
+  final String accountType;
+  final int debitMinor;
+  final int creditMinor;
+  final int balanceMinor;
+
+  factory ReportRowSummary.fromJson(Map<String, Object?> json) {
+    return ReportRowSummary(
+      accountId: json['account_id']! as String,
+      accountCode: json['account_code'] as String? ?? '',
+      accountName: json['account_name'] as String? ?? '',
+      accountType: json['account_type'] as String? ?? '',
+      debitMinor: json['debit_minor'] as int? ?? 0,
+      creditMinor: json['credit_minor'] as int? ?? 0,
+      balanceMinor: json['balance_minor'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'account_id': accountId,
+      'account_code': accountCode,
+      'account_name': accountName,
+      'account_type': accountType,
+      'debit_minor': debitMinor,
+      'credit_minor': creditMinor,
+      'balance_minor': balanceMinor,
+    };
+  }
+}
+
+class TrialBalanceReport {
+  const TrialBalanceReport({
+    required this.asOfDate,
+    required this.rows,
+    required this.totalDebitMinor,
+    required this.totalCreditMinor,
+    required this.balanced,
+  });
+
+  final DateTime asOfDate;
+  final List<ReportRowSummary> rows;
+  final int totalDebitMinor;
+  final int totalCreditMinor;
+  final bool balanced;
+
+  factory TrialBalanceReport.fromJson(Map<String, Object?> json) {
+    return TrialBalanceReport(
+      asOfDate: DateTime.parse(json['as_of_date']! as String),
+      rows: (json['rows'] as List? ?? const [])
+          .cast<Map<String, Object?>>()
+          .map(ReportRowSummary.fromJson)
+          .toList(growable: false),
+      totalDebitMinor: json['total_debit_minor'] as int? ?? 0,
+      totalCreditMinor: json['total_credit_minor'] as int? ?? 0,
+      balanced: json['balanced'] as bool? ?? false,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'as_of_date': _dateOnly(asOfDate),
+      'rows': rows.map((row) => row.toJson()).toList(growable: false),
+      'total_debit_minor': totalDebitMinor,
+      'total_credit_minor': totalCreditMinor,
+      'balanced': balanced,
     };
   }
 }

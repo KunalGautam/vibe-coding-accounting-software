@@ -98,6 +98,47 @@ void main() {
     ]);
   });
 
+  test('fetches trial balance reports', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/reports/trial-balance',
+        );
+        expect(request.url.queryParameters['as_of'], '2026-07-31');
+        return http.Response(
+          jsonEncode({
+            'as_of_date': '2026-07-31T00:00:00Z',
+            'total_debit_minor': 125000,
+            'total_credit_minor': 125000,
+            'balanced': true,
+            'rows': [
+              {
+                'account_id': 'acct-cash',
+                'account_code': '1000',
+                'account_name': 'Cash',
+                'account_type': 'asset',
+                'debit_minor': 125000,
+                'credit_minor': 0,
+                'balance_minor': 125000,
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final report = await client.getTrialBalance(
+      asOf: DateTime.utc(2026, 7, 31),
+    );
+
+    expect(report.balanced, true);
+    expect(report.totalDebitMinor, 125000);
+    expect(report.rows.single.accountName, 'Cash');
+  });
+
   test('lists invoice and expense summaries', () async {
     final client = AccountingApiClient(
       config: config,

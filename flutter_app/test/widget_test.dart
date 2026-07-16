@@ -11,6 +11,7 @@ import 'package:accounting_app/invoices/invoice_cache_repository.dart';
 import 'package:accounting_app/investments/investment_cache_repository.dart';
 import 'package:accounting_app/main.dart';
 import 'package:accounting_app/parties/party_cache_repository.dart';
+import 'package:accounting_app/reports/report_cache_repository.dart';
 import 'package:accounting_app/settings/sync_settings.dart';
 import 'package:accounting_app/sync/offline_sync_queue.dart';
 import 'package:accounting_app/sync/sync_operation_repository.dart';
@@ -1218,6 +1219,68 @@ void main() {
     expect(find.text('PDF attachment: pdf-2'), findsOneWidget);
     expect(find.text('Annual support'), findsOneWidget);
     expect(find.text('Tax config: gst-rate-18'), findsOneWidget);
+  });
+
+  testWidgets('fetches and caches trial balance reports', (tester) async {
+    useTallTestViewport(tester);
+    final settingsRepository = MemorySyncSettingsRepository(
+      const SyncSettings(accessToken: 'token-1', organizationId: 'org-1'),
+    );
+    final reportCacheRepository = MemoryReportCacheRepository();
+
+    await tester.pumpWidget(
+      AccountingApp(
+        settingsRepository: settingsRepository,
+        reportCacheRepository: reportCacheRepository,
+        trialBalanceLoader: (_, asOf) async => TrialBalanceReport(
+          asOfDate: asOf,
+          rows: const [
+            ReportRowSummary(
+              accountId: 'acct-cash',
+              accountCode: '1000',
+              accountName: 'Cash',
+              accountType: 'asset',
+              debitMinor: 125000,
+              creditMinor: 0,
+              balanceMinor: 125000,
+            ),
+            ReportRowSummary(
+              accountId: 'acct-equity',
+              accountCode: '3000',
+              accountName: 'Owner Equity',
+              accountType: 'equity',
+              debitMinor: 0,
+              creditMinor: 125000,
+              balanceMinor: -125000,
+            ),
+          ],
+          totalDebitMinor: 125000,
+          totalCreditMinor: 125000,
+          balanced: true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Reports'));
+    await tester.pump();
+    await tester.tap(find.text('Fetch trial balance'));
+    await tester.pumpAndSettle();
+
+    final cached = await reportCacheRepository.loadCached();
+    expect(cached.trialBalance?.balanced, true);
+    expect(cached.trialBalance?.rows, hasLength(2));
+    expect(find.text('Balanced'), findsOneWidget);
+    expect(
+      find.text('Debits INR 1250.00 · Credits INR 1250.00'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        '1000 · Cash · asset · Dr INR 1250.00 · Cr INR 0.00 · Bal INR 1250.00',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('fetches and caches investment valuation reports', (

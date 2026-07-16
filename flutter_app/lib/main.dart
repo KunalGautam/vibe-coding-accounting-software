@@ -11,6 +11,7 @@ import 'attachments/attachment_cache_repository.dart';
 import 'invoices/invoice_cache_repository.dart';
 import 'investments/investment_cache_repository.dart';
 import 'parties/party_cache_repository.dart';
+import 'reports/report_cache_repository.dart';
 import 'settings/sync_settings.dart';
 import 'sync/offline_sync_queue.dart';
 import 'sync/sync_coordinator.dart';
@@ -25,6 +26,8 @@ typedef CustomerLoader =
     Future<List<CustomerSummary>> Function(SyncSettings settings);
 typedef VendorLoader =
     Future<List<VendorSummary>> Function(SyncSettings settings);
+typedef TrialBalanceLoader =
+    Future<TrialBalanceReport> Function(SyncSettings settings, DateTime asOf);
 typedef TaxRateLoader =
     Future<List<TaxRateSummary>> Function(SyncSettings settings);
 typedef TaxGroupLoader =
@@ -72,6 +75,7 @@ Future<void> main() async {
   final investmentCacheRepository =
       await createDefaultInvestmentCacheRepository();
   final partyCacheRepository = await createDefaultPartyCacheRepository();
+  final reportCacheRepository = await createDefaultReportCacheRepository();
   final attachmentCacheRepository =
       await createDefaultAttachmentCacheRepository();
   final attachmentBinaryCacheRepository =
@@ -88,6 +92,7 @@ Future<void> main() async {
       invoiceCacheRepository: invoiceCacheRepository,
       investmentCacheRepository: investmentCacheRepository,
       partyCacheRepository: partyCacheRepository,
+      reportCacheRepository: reportCacheRepository,
       attachmentCacheRepository: attachmentCacheRepository,
       attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
       attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -104,6 +109,7 @@ class AccountingApp extends StatelessWidget {
     this.invoiceCacheRepository,
     this.investmentCacheRepository,
     this.partyCacheRepository,
+    this.reportCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -112,6 +118,7 @@ class AccountingApp extends StatelessWidget {
     this.invoiceLoader,
     this.customerLoader,
     this.vendorLoader,
+    this.trialBalanceLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -131,6 +138,7 @@ class AccountingApp extends StatelessWidget {
   final InvoiceCacheRepository? invoiceCacheRepository;
   final InvestmentCacheRepository? investmentCacheRepository;
   final PartyCacheRepository? partyCacheRepository;
+  final ReportCacheRepository? reportCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -139,6 +147,7 @@ class AccountingApp extends StatelessWidget {
   final InvoiceLoader? invoiceLoader;
   final CustomerLoader? customerLoader;
   final VendorLoader? vendorLoader;
+  final TrialBalanceLoader? trialBalanceLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -170,6 +179,7 @@ class AccountingApp extends StatelessWidget {
         invoiceCacheRepository: invoiceCacheRepository,
         investmentCacheRepository: investmentCacheRepository,
         partyCacheRepository: partyCacheRepository,
+        reportCacheRepository: reportCacheRepository,
         attachmentCacheRepository: attachmentCacheRepository,
         attachmentBinaryCacheRepository: attachmentBinaryCacheRepository,
         attachmentUploadManifestRepository: attachmentUploadManifestRepository,
@@ -178,6 +188,7 @@ class AccountingApp extends StatelessWidget {
         invoiceLoader: invoiceLoader,
         customerLoader: customerLoader,
         vendorLoader: vendorLoader,
+        trialBalanceLoader: trialBalanceLoader,
         taxRateLoader: taxRateLoader,
         taxGroupLoader: taxGroupLoader,
         attachmentLoader: attachmentLoader,
@@ -201,6 +212,7 @@ class MobileDeskShell extends StatefulWidget {
     this.invoiceCacheRepository,
     this.investmentCacheRepository,
     this.partyCacheRepository,
+    this.reportCacheRepository,
     this.attachmentCacheRepository,
     this.attachmentBinaryCacheRepository,
     this.attachmentUploadManifestRepository,
@@ -209,6 +221,7 @@ class MobileDeskShell extends StatefulWidget {
     this.invoiceLoader,
     this.customerLoader,
     this.vendorLoader,
+    this.trialBalanceLoader,
     this.taxRateLoader,
     this.taxGroupLoader,
     this.attachmentLoader,
@@ -228,6 +241,7 @@ class MobileDeskShell extends StatefulWidget {
   final InvoiceCacheRepository? invoiceCacheRepository;
   final InvestmentCacheRepository? investmentCacheRepository;
   final PartyCacheRepository? partyCacheRepository;
+  final ReportCacheRepository? reportCacheRepository;
   final AttachmentCacheRepository? attachmentCacheRepository;
   final AttachmentBinaryCacheRepository? attachmentBinaryCacheRepository;
   final AttachmentUploadManifestRepository? attachmentUploadManifestRepository;
@@ -236,6 +250,7 @@ class MobileDeskShell extends StatefulWidget {
   final InvoiceLoader? invoiceLoader;
   final CustomerLoader? customerLoader;
   final VendorLoader? vendorLoader;
+  final TrialBalanceLoader? trialBalanceLoader;
   final TaxRateLoader? taxRateLoader;
   final TaxGroupLoader? taxGroupLoader;
   final AttachmentLoader? attachmentLoader;
@@ -258,6 +273,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   late final InvoiceCacheRepository invoiceCacheRepository;
   late final InvestmentCacheRepository investmentCacheRepository;
   late final PartyCacheRepository partyCacheRepository;
+  late final ReportCacheRepository reportCacheRepository;
   late final AttachmentCacheRepository attachmentCacheRepository;
   late final AttachmentBinaryCacheRepository attachmentBinaryCacheRepository;
   late final AttachmentUploadManifestRepository
@@ -293,6 +309,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   List<InvoiceSummary> cachedInvoices = const [];
   List<CustomerSummary> cachedCustomers = const [];
   List<VendorSummary> cachedVendors = const [];
+  TrialBalanceReport? cachedTrialBalanceReport;
   List<InvestmentLotSummary> cachedInvestmentLots = const [];
   RealizedGainsReport? cachedRealizedGainsReport;
   List<InvestmentPriceSummary> cachedInvestmentPrices = const [];
@@ -303,6 +320,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   Set<String> cachedAttachmentBinaryIds = const {};
   bool isLoadingAccounts = false;
   bool isLoadingParties = false;
+  bool isLoadingReports = false;
   bool isLoadingInvoices = false;
   bool isLoadingInvestments = false;
   bool isLoadingTaxCatalog = false;
@@ -322,6 +340,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         widget.investmentCacheRepository ?? MemoryInvestmentCacheRepository();
     partyCacheRepository =
         widget.partyCacheRepository ?? MemoryPartyCacheRepository();
+    reportCacheRepository =
+        widget.reportCacheRepository ?? MemoryReportCacheRepository();
     attachmentCacheRepository =
         widget.attachmentCacheRepository ?? MemoryAttachmentCacheRepository();
     attachmentBinaryCacheRepository =
@@ -336,6 +356,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     hydrateSettings();
     hydrateAccounts();
     hydrateParties();
+    hydrateReports();
     hydrateInvoices();
     hydrateInvestments();
     hydrateAttachments();
@@ -380,6 +401,16 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     setState(() {
       cachedCustomers = snapshot.customers;
       cachedVendors = snapshot.vendors;
+    });
+  }
+
+  Future<void> hydrateReports() async {
+    final snapshot = await reportCacheRepository.loadCached();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      cachedTrialBalanceReport = snapshot.trialBalance;
     });
   }
 
@@ -683,6 +714,48 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       if (mounted) {
         setState(() {
           isLoadingParties = false;
+        });
+      }
+    }
+  }
+
+  Future<void> fetchTrialBalance(DateTime asOf) async {
+    if (!settings.canFetchAccounts) {
+      setState(() {
+        syncNotice =
+            'Add API credentials and organization ID before fetching reports.';
+      });
+      return;
+    }
+
+    setState(() {
+      isLoadingReports = true;
+      syncNotice = null;
+    });
+
+    try {
+      final loader =
+          widget.trialBalanceLoader ??
+          (settings, asOf) => AccountingApiClient(
+            config: settings.toApiConfig(),
+          ).getTrialBalance(asOf: asOf);
+      final report = await loader(settings, asOf);
+      await reportCacheRepository.saveCached(
+        ReportCacheSnapshot(trialBalance: report),
+      );
+      setState(() {
+        cachedTrialBalanceReport = report;
+        syncNotice =
+            'Fetched trial balance as of ${formatDateOnly(report.asOfDate)}.';
+      });
+    } on Object catch (error) {
+      setState(() {
+        syncNotice = 'Trial balance fetch failed: $error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingReports = false;
         });
       }
     }
@@ -1011,7 +1084,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         setState(() {
           syncNotice =
               'Attachment upload queued for sync: ${operation.payload['file_name']}';
-          selectedIndex = 4;
+          selectedIndex = 5;
         });
         return;
       }
@@ -1068,7 +1141,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
       await repository.savePending(syncQueue.pending);
       setState(() {
         syncNotice = 'Attachment upload queued for sync: ${picked.fileName}';
-        selectedIndex = 4;
+        selectedIndex = 5;
       });
       return;
     }
@@ -1229,6 +1302,12 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchRealizedGains: fetchRealizedGains,
         onFetchValuation: fetchInvestmentValuation,
       ),
+      ReportsPage(
+        trialBalance: cachedTrialBalanceReport,
+        isLoading: isLoadingReports,
+        notice: syncNotice,
+        onFetchTrialBalance: fetchTrialBalance,
+      ),
       SyncPage(
         settings: settings,
         offlineMode: offlineMode,
@@ -1316,6 +1395,10 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
               NavigationDestination(
                 icon: Icon(Icons.show_chart_outlined),
                 label: 'Invest',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.assessment_outlined),
+                label: 'Reports',
               ),
               NavigationDestination(
                 icon: Icon(Icons.sync_outlined),
@@ -1474,6 +1557,10 @@ class AppNavigation extends StatelessWidget {
         NavigationRailDestination(
           icon: Icon(Icons.show_chart_outlined),
           label: Text('Investments'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.assessment_outlined),
+          label: Text('Reports'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.sync_outlined),
@@ -2560,6 +2647,95 @@ class InvestmentsPage extends StatelessWidget {
             'Target APIs: GET /investments/lots, GET /reports/realized-gains, and GET /reports/investment-valuation',
             'Cached locally for read-only offline investment review',
             'Create/sell lot and price maintenance workflows are currently available in the web app/API',
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class ReportsPage extends StatelessWidget {
+  const ReportsPage({
+    required this.trialBalance,
+    required this.isLoading,
+    required this.onFetchTrialBalance,
+    this.notice,
+    super.key,
+  });
+
+  final TrialBalanceReport? trialBalance;
+  final bool isLoading;
+  final String? notice;
+  final Future<void> Function(DateTime asOf) onFetchTrialBalance;
+
+  @override
+  Widget build(BuildContext context) {
+    final asOf = DateTime.now().toUtc();
+    return AppPage(
+      eyebrow: 'Reports',
+      title: 'Financial snapshots',
+      children: [
+        const Text(
+          'Refresh core statements from the API and keep the latest report available offline.',
+        ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trial balance',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                Text('Fetches account balances as of ${formatDateOnly(asOf)}.'),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: isLoading ? null : () => onFetchTrialBalance(asOf),
+                  icon: const Icon(Icons.assessment_outlined),
+                  label: Text(
+                    isLoading
+                        ? 'Loading trial balance...'
+                        : 'Fetch trial balance',
+                  ),
+                ),
+                if (trialBalance != null) ...[
+                  const SizedBox(height: 16),
+                  Text('As of ${formatDateOnly(trialBalance!.asOfDate)}'),
+                  Text(
+                    trialBalance!.balanced ? 'Balanced' : 'Out of balance',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: trialBalance!.balanced
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                  Text(
+                    'Debits ${formatMinorAsInr(trialBalance!.totalDebitMinor)} · Credits ${formatMinorAsInr(trialBalance!.totalCreditMinor)}',
+                  ),
+                  const SizedBox(height: 8),
+                  if (trialBalance!.rows.isEmpty)
+                    const Text('No account activity in the cached report.')
+                  else
+                    for (final row in trialBalance!.rows.take(12))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          '${row.accountCode} · ${row.accountName} · ${row.accountType} · Dr ${formatMinorAsInr(row.debitMinor)} · Cr ${formatMinorAsInr(row.creditMinor)} · Bal ${formatMinorAsInr(row.balanceMinor)}',
+                        ),
+                      ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (notice != null) Text(notice!),
+        const InfoList(
+          items: [
+            'Target API: GET /reports/trial-balance',
+            'Latest trial balance is cached locally for offline review',
+            'P&L, balance sheet, cash flow, and aging report screens remain next parity targets',
           ],
         ),
       ],
