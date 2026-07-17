@@ -1580,6 +1580,52 @@ void main() {
     expect(result.prices.single.priceMinor, 149995);
   });
 
+  test('imports Nuvama holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/nuvama-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'nuvama_holdings_csv');
+        expect(body['csv'], contains('WIPRO'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-nuvama-1',
+                'symbol': 'WIPRO',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 51240,
+                'currency': 'INR',
+                'source': 'nuvama_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importNuvamaHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nWIPRO,INE075A01022,2026-07-31,512.40,11',
+        source: 'nuvama_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'WIPRO');
+    expect(result.prices.single.priceMinor, 51240);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

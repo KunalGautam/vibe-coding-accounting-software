@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -30,7 +30,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "sharekhan",
   "fivepaisa",
   "axisdirect",
-  "sbisecurities"
+  "sbisecurities",
+  "nuvama"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -198,6 +199,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "SBI Securities holdings CSV",
     buttonLabel: "Import SBI Securities holdings",
     defaultSource: "sbisecurities_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  nuvama: {
+    label: "Nuvama holdings CSV",
+    buttonLabel: "Import Nuvama holdings",
+    defaultSource: "nuvama_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

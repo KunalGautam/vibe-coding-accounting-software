@@ -6339,6 +6339,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'sbisecurities_holdings_csv',
                   child: Text('SBI Securities holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'nuvama_holdings_csv',
+                  child: Text('Nuvama holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6388,6 +6392,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'sbisecurities_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nINFY,INE009A01021,2026-07-31,1499.95,9';
+                  } else if (value == 'nuvama_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nWIPRO,INE075A01022,2026-07-31,512.40,11';
                   }
                 });
               },

@@ -585,6 +585,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importNuvamaHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/nuvama-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -630,6 +641,9 @@ class AccountingApiClient {
     }
     if (request.source == 'sbisecurities_holdings_csv') {
       return importSBISecuritiesHoldingsPrices(request);
+    }
+    if (request.source == 'nuvama_holdings_csv') {
+      return importNuvamaHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

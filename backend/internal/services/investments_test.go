@@ -578,6 +578,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected SBI Securities price: %+v", sbiSecuritiesPrice)
 	}
 
+	nuvamaResult, err := service.ImportNuvamaHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"WIPRO,INE075A01022,2026-07-31,512.40,11\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportNuvamaHoldingsCSV() error = %v", err)
+	}
+	if nuvamaResult.Imported != 1 || nuvamaResult.Skipped != 0 {
+		t.Fatalf("unexpected Nuvama holdings import result: %+v", nuvamaResult)
+	}
+	var nuvamaPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "WIPRO", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&nuvamaPrice).Error; err != nil {
+		t.Fatalf("load Nuvama price: %v", err)
+	}
+	if nuvamaPrice.PriceMinor != 51240 || nuvamaPrice.Source != "nuvama_holdings_csv" {
+		t.Fatalf("unexpected Nuvama price: %+v", nuvamaPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

@@ -3244,6 +3244,9 @@ function InvestmentsPage({
         case "sbisecurities":
           result = await api.importSBISecuritiesHoldingsPrices(importInput);
           break;
+        case "nuvama":
+          result = await api.importNuvamaHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

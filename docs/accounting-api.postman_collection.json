@@ -914,6 +914,23 @@
           }
         },
         {
+          "name": "Import Nuvama Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/nuvama-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Symbol,ISIN,Date,LTP,Quantity\\nWIPRO,INE075A01022,2026-07-31,512.40,11\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

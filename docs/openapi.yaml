@@ -2998,6 +2998,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/nuvama-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Nuvama holdings price CSV
+      description: Parses Nuvama holdings exports with Symbol/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `nuvama_holdings_csv`.
+      operationId: importNuvamaHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Nuvama holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]
