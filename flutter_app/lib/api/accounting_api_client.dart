@@ -640,6 +640,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importAliceBlueHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/aliceblue-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -700,6 +711,9 @@ class AccountingApiClient {
     }
     if (request.source == 'edelweiss_holdings_csv') {
       return importEdelweissHoldingsPrices(request);
+    }
+    if (request.source == 'aliceblue_holdings_csv') {
+      return importAliceBlueHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

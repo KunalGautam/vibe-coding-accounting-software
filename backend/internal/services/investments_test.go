@@ -673,6 +673,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Edelweiss price: %+v", edelweissPrice)
 	}
 
+	aliceBlueResult, err := service.ImportAliceBlueHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"TCS,INE467B01029,2026-07-31,4012.30,3\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportAliceBlueHoldingsCSV() error = %v", err)
+	}
+	if aliceBlueResult.Imported != 1 || aliceBlueResult.Skipped != 0 {
+		t.Fatalf("unexpected Alice Blue holdings import result: %+v", aliceBlueResult)
+	}
+	var aliceBluePrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "TCS", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&aliceBluePrice).Error; err != nil {
+		t.Fatalf("load Alice Blue price: %v", err)
+	}
+	if aliceBluePrice.PriceMinor != 401230 || aliceBluePrice.Source != "aliceblue_holdings_csv" {
+		t.Fatalf("unexpected Alice Blue price: %+v", aliceBluePrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

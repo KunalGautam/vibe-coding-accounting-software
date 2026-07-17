@@ -3259,6 +3259,9 @@ function InvestmentsPage({
         case "edelweiss":
           result = await api.importEdelweissHoldingsPrices(importInput);
           break;
+        case "aliceblue":
+          result = await api.importAliceBlueHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

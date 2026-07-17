@@ -3113,6 +3113,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/aliceblue-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Alice Blue holdings price CSV
+      description: Parses Alice Blue holdings exports with Symbol/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `aliceblue_holdings_csv`.
+      operationId: importAliceBlueHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Alice Blue holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]
