@@ -2148,6 +2148,13 @@ export class ApiClient {
     });
   }
 
+  async importChoiceHoldingsPrices(input: ImportInvestmentPricesInput): Promise<InvestmentPriceImportResult> {
+    return this.request(`/organizations/${this.config.organizationId}/investments/prices/import/choice-holdings`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
   async getRealizedGains(from: string, to: string): Promise<RealizedGainsReport> {
     const params = new URLSearchParams({ from, to });
     return this.request(`/organizations/${this.config.organizationId}/reports/realized-gains?${params.toString()}`);

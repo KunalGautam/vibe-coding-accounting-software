@@ -1902,6 +1902,52 @@ void main() {
     expect(result.prices.single.priceMinor, 167540);
   });
 
+  test('imports Choice holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/choice-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'choice_holdings_csv');
+        expect(body['csv'], contains('ULTRACEMCO'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-choice-1',
+                'symbol': 'ULTRACEMCO',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 1123455,
+                'currency': 'INR',
+                'source': 'choice_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importChoiceHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nULTRACEMCO,INE481G01011,2026-07-31,11234.55,1',
+        source: 'choice_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'ULTRACEMCO');
+    expect(result.prices.single.priceMinor, 1123455);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

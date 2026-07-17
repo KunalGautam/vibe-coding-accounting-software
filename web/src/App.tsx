@@ -3265,6 +3265,9 @@ function InvestmentsPage({
         case "samco":
           result = await api.importSamcoHoldingsPrices(importInput);
           break;
+        case "choice":
+          result = await api.importChoiceHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

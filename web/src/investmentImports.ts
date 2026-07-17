@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities" | "fyers" | "edelweiss" | "aliceblue" | "samco";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities" | "fyers" | "edelweiss" | "aliceblue" | "samco" | "choice";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -37,7 +37,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "fyers",
   "edelweiss",
   "aliceblue",
-  "samco"
+  "samco",
+  "choice"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -261,6 +262,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "Samco holdings CSV",
     buttonLabel: "Import Samco holdings",
     defaultSource: "samco_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  choice: {
+    label: "Choice holdings CSV",
+    buttonLabel: "Import Choice holdings",
+    defaultSource: "choice_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

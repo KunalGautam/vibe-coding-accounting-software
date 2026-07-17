@@ -6367,6 +6367,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'samco_holdings_csv',
                   child: Text('Samco holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'choice_holdings_csv',
+                  child: Text('Choice holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6437,6 +6441,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'samco_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nSUNPHARMA,INE044A01036,2026-07-31,1675.40,6';
+                  } else if (value == 'choice_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nULTRACEMCO,INE481G01011,2026-07-31,11234.55,1';
                   }
                 });
               },

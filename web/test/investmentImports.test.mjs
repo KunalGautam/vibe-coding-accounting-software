@@ -8,7 +8,7 @@ import {
 } from "../.test-build/investmentImports.js";
 
 test("investment import metadata covers every supported format", () => {
-  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama", "geojit", "iiflsecurities", "fyers", "edelweiss", "aliceblue", "samco"]);
+  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama", "geojit", "iiflsecurities", "fyers", "edelweiss", "aliceblue", "samco", "choice"]);
   assert.equal(investmentPriceImportMetadata("zerodha").defaultSource, "zerodha_holdings_csv");
   assert.equal(investmentPriceImportMetadata("zerodha").placeholder, "Instrument,ISIN,Date,LTP,Qty.");
   assert.equal(investmentPriceImportMetadata("groww").defaultSource, "groww_holdings_csv");
@@ -51,6 +51,8 @@ test("investment import metadata covers every supported format", () => {
   assert.equal(investmentPriceImportMetadata("aliceblue").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("samco").defaultSource, "samco_holdings_csv");
   assert.equal(investmentPriceImportMetadata("samco").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
+  assert.equal(investmentPriceImportMetadata("choice").defaultSource, "choice_holdings_csv");
+  assert.equal(investmentPriceImportMetadata("choice").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("yahoo").requiresSingleSymbol, true);
   assert.equal(investmentPriceImportMetadata("amfi").isAMFI, true);
 });
@@ -78,5 +80,6 @@ test("nextInvestmentPriceImportSource switches managed defaults but preserves cu
   assert.equal(nextInvestmentPriceImportSource("fyers_holdings_csv", "edelweiss"), "edelweiss_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("edelweiss_holdings_csv", "aliceblue"), "aliceblue_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("aliceblue_holdings_csv", "samco"), "samco_holdings_csv");
+  assert.equal(nextInvestmentPriceImportSource("samco_holdings_csv", "choice"), "choice_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("my_custom_provider", "bse"), "my_custom_provider");
 });

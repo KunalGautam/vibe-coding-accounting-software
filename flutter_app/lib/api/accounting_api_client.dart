@@ -662,6 +662,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importChoiceHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/choice-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -728,6 +739,9 @@ class AccountingApiClient {
     }
     if (request.source == 'samco_holdings_csv') {
       return importSamcoHoldingsPrices(request);
+    }
+    if (request.source == 'choice_holdings_csv') {
+      return importChoiceHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

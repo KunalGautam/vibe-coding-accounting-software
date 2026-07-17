@@ -178,7 +178,7 @@ func (c Config) validate(runtime bool) error {
 			problems = append(problems, errors.New("MARKET_DATA_IMPORT_PATH or MARKET_DATA_IMPORT_URL is required when MARKET_DATA_IMPORT_ENABLED=true"))
 		}
 		if !isSupportedMarketDataFormat(c.MarketDataImportFormat) {
-			problems = append(problems, errors.New("MARKET_DATA_IMPORT_FORMAT must be amfi, csv, nse_equity_csv, bse_equity_csv, yahoo_finance_csv, alpha_vantage_csv, broker_holdings_csv, zerodha_holdings_csv, groww_holdings_csv, upstox_holdings_csv, angelone_holdings_csv, dhan_holdings_csv, icicidirect_holdings_csv, hdfcsky_holdings_csv, kotakneo_holdings_csv, paytmmoney_holdings_csv, motilaloswal_holdings_csv, sharekhan_holdings_csv, fivepaisa_holdings_csv, axisdirect_holdings_csv, sbisecurities_holdings_csv, nuvama_holdings_csv, geojit_holdings_csv, iiflsecurities_holdings_csv, fyers_holdings_csv, edelweiss_holdings_csv, aliceblue_holdings_csv, or samco_holdings_csv"))
+			problems = append(problems, errors.New("MARKET_DATA_IMPORT_FORMAT must be amfi, csv, nse_equity_csv, bse_equity_csv, yahoo_finance_csv, alpha_vantage_csv, broker_holdings_csv, zerodha_holdings_csv, groww_holdings_csv, upstox_holdings_csv, angelone_holdings_csv, dhan_holdings_csv, icicidirect_holdings_csv, hdfcsky_holdings_csv, kotakneo_holdings_csv, paytmmoney_holdings_csv, motilaloswal_holdings_csv, sharekhan_holdings_csv, fivepaisa_holdings_csv, axisdirect_holdings_csv, sbisecurities_holdings_csv, nuvama_holdings_csv, geojit_holdings_csv, iiflsecurities_holdings_csv, fyers_holdings_csv, edelweiss_holdings_csv, aliceblue_holdings_csv, samco_holdings_csv, or choice_holdings_csv"))
 		}
 		if c.MarketDataTimeoutSeconds <= 0 {
 			problems = append(problems, errors.New("MARKET_DATA_TIMEOUT_SECONDS must be positive"))
@@ -212,7 +212,7 @@ func (c Config) validate(runtime bool) error {
 
 func isSupportedMarketDataFormat(format string) bool {
 	switch format {
-	case "amfi", "csv", "nse_equity_csv", "bse_equity_csv", "yahoo_finance_csv", "alpha_vantage_csv", "broker_holdings_csv", "zerodha_holdings_csv", "groww_holdings_csv", "upstox_holdings_csv", "angelone_holdings_csv", "dhan_holdings_csv", "icicidirect_holdings_csv", "hdfcsky_holdings_csv", "kotakneo_holdings_csv", "paytmmoney_holdings_csv", "motilaloswal_holdings_csv", "sharekhan_holdings_csv", "fivepaisa_holdings_csv", "axisdirect_holdings_csv", "sbisecurities_holdings_csv", "nuvama_holdings_csv", "geojit_holdings_csv", "iiflsecurities_holdings_csv", "fyers_holdings_csv", "edelweiss_holdings_csv", "aliceblue_holdings_csv", "samco_holdings_csv":
+	case "amfi", "csv", "nse_equity_csv", "bse_equity_csv", "yahoo_finance_csv", "alpha_vantage_csv", "broker_holdings_csv", "zerodha_holdings_csv", "groww_holdings_csv", "upstox_holdings_csv", "angelone_holdings_csv", "dhan_holdings_csv", "icicidirect_holdings_csv", "hdfcsky_holdings_csv", "kotakneo_holdings_csv", "paytmmoney_holdings_csv", "motilaloswal_holdings_csv", "sharekhan_holdings_csv", "fivepaisa_holdings_csv", "axisdirect_holdings_csv", "sbisecurities_holdings_csv", "nuvama_holdings_csv", "geojit_holdings_csv", "iiflsecurities_holdings_csv", "fyers_holdings_csv", "edelweiss_holdings_csv", "aliceblue_holdings_csv", "samco_holdings_csv", "choice_holdings_csv":
 		return true
 	default:
 		return false

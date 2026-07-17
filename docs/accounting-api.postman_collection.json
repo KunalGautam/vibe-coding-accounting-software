@@ -1033,6 +1033,23 @@
           }
         },
         {
+          "name": "Import Choice Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/choice-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Symbol,ISIN,Date,LTP,Quantity\\nULTRACEMCO,INE481G01011,2026-07-31,11234.55,1\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",
