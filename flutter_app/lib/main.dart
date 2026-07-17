@@ -6295,6 +6295,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'upstox_holdings_csv',
                   child: Text('Upstox holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'angelone_holdings_csv',
+                  child: Text('Angel One holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6311,6 +6315,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'upstox_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,Current Price,Quantity\nSBIN,INE062A01020,2026-07-31,615.25,12';
+                  } else if (value == 'angelone_holdings_csv') {
+                    controller.text =
+                        'Scrip,ISIN,Date,LTP,Quantity\nICICIBANK,INE090A01021,2026-07-31,1245.30,5';
                   }
                 });
               },

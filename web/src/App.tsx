@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
-import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type ChangePasswordInput, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type CurrentUserProfile, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
+import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type ChangePasswordInput, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type CurrentUserProfile, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type InvestmentPriceImportResult, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
 import { connectionReadinessChecks, extractPasswordResetToken, generateTemporaryPassword, organizationUserOnboardingChecks, passwordChangeChecks, passwordStrengthChecks, roleDescription, safeFilenamePart } from "./accountSecurity";
 import { investmentPriceImportFormats, investmentPriceImportMetadata, nextInvestmentPriceImportSource, type InvestmentPriceImportFormat } from "./investmentImports";
@@ -3182,25 +3182,41 @@ function InvestmentsPage({
         ...priceImportForm,
         source: priceImportForm.source || priceImportMetadata.defaultSource
       });
-      const result = priceImportForm.format === "amfi"
-        ? await api.importAMFINAV(toImportAMFINAVInput(priceImportForm))
-        : priceImportForm.format === "nse"
-          ? await api.importNSEEquityPrices(importInput)
-          : priceImportForm.format === "bse"
-            ? await api.importBSEEquityPrices(importInput)
-            : priceImportForm.format === "yahoo"
-              ? await api.importYahooFinancePrices(importInput)
-              : priceImportForm.format === "alphavantage"
-                ? await api.importAlphaVantagePrices(importInput)
-                : priceImportForm.format === "broker"
-                  ? await api.importBrokerHoldingsPrices(importInput)
-                  : priceImportForm.format === "zerodha"
-                    ? await api.importZerodhaHoldingsPrices(importInput)
-                    : priceImportForm.format === "groww"
-                      ? await api.importGrowwHoldingsPrices(importInput)
-                      : priceImportForm.format === "upstox"
-                        ? await api.importUpstoxHoldingsPrices(importInput)
-                    : await api.importInvestmentPrices(importInput);
+      let result: InvestmentPriceImportResult;
+      switch (priceImportForm.format) {
+        case "amfi":
+          result = await api.importAMFINAV(toImportAMFINAVInput(priceImportForm));
+          break;
+        case "nse":
+          result = await api.importNSEEquityPrices(importInput);
+          break;
+        case "bse":
+          result = await api.importBSEEquityPrices(importInput);
+          break;
+        case "yahoo":
+          result = await api.importYahooFinancePrices(importInput);
+          break;
+        case "alphavantage":
+          result = await api.importAlphaVantagePrices(importInput);
+          break;
+        case "broker":
+          result = await api.importBrokerHoldingsPrices(importInput);
+          break;
+        case "zerodha":
+          result = await api.importZerodhaHoldingsPrices(importInput);
+          break;
+        case "groww":
+          result = await api.importGrowwHoldingsPrices(importInput);
+          break;
+        case "upstox":
+          result = await api.importUpstoxHoldingsPrices(importInput);
+          break;
+        case "angelone":
+          result = await api.importAngelOneHoldingsPrices(importInput);
+          break;
+        default:
+          result = await api.importInvestmentPrices(importInput);
+      }
       const suffix = result.errors.length > 0 ? ` ${result.errors.length} row issue(s) need review.` : "";
       setInvestmentNotice(`Imported ${result.imported} price row(s), skipped ${result.skipped}.${suffix}`);
       await onRefresh();

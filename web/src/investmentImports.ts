@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -19,7 +19,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "broker",
   "zerodha",
   "groww",
-  "upstox"
+  "upstox",
+  "angelone"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -100,6 +101,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     buttonLabel: "Import Upstox holdings",
     defaultSource: "upstox_holdings_csv",
     placeholder: "Symbol,ISIN,Date,Current Price,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  angelone: {
+    label: "Angel One holdings CSV",
+    buttonLabel: "Import Angel One holdings",
+    defaultSource: "angelone_holdings_csv",
+    placeholder: "Scrip,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false
   }

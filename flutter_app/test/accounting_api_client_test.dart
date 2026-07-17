@@ -1074,6 +1074,52 @@ void main() {
     expect(result.prices.single.priceMinor, 61525);
   });
 
+  test('imports Angel One holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/angelone-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'angelone_holdings_csv');
+        expect(body['csv'], contains('Scrip'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-angelone-1',
+                'symbol': 'ICICIBANK',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 124530,
+                'currency': 'INR',
+                'source': 'angelone_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importAngelOneHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Scrip,ISIN,Date,LTP,Quantity\nICICIBANK,INE090A01021,2026-07-31,1245.30,5',
+        source: 'angelone_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'ICICIBANK');
+    expect(result.prices.single.priceMinor, 124530);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

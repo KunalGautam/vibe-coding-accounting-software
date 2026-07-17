@@ -727,6 +727,23 @@
           }
         },
         {
+          "name": "Import Angel One Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/angelone-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Scrip,ISIN,Date,LTP,Quantity\\nICICIBANK,INE090A01021,2026-07-31,1245.30,5\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

@@ -369,6 +369,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Upstox price: %+v", upstoxPrice)
 	}
 
+	angelOneResult, err := service.ImportAngelOneHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Scrip,ISIN,Date,LTP,Quantity\n" +
+			"ICICIBANK,INE090A01021,2026-07-31,1245.30,5\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportAngelOneHoldingsCSV() error = %v", err)
+	}
+	if angelOneResult.Imported != 1 || angelOneResult.Skipped != 0 {
+		t.Fatalf("unexpected Angel One holdings import result: %+v", angelOneResult)
+	}
+	var angelOnePrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "ICICIBANK", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&angelOnePrice).Error; err != nil {
+		t.Fatalf("load Angel One price: %v", err)
+	}
+	if angelOnePrice.PriceMinor != 124530 || angelOnePrice.Source != "angelone_holdings_csv" {
+		t.Fatalf("unexpected Angel One price: %+v", angelOnePrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
