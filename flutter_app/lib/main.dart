@@ -791,8 +791,11 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
-  Future<void> queueBrokerHoldingsImport(String csv) async {
-    final operation = syncQueue.enqueueBrokerHoldingsPriceImport(csv: csv);
+  Future<void> queueBrokerHoldingsImport(String csv, String source) async {
+    final operation = syncQueue.enqueueBrokerHoldingsPriceImport(
+      csv: csv,
+      source: source,
+    );
     await repository.savePending(syncQueue.pending);
     setState(() {
       syncNotice = 'Broker holdings import queued for sync: ${operation.id}';
@@ -4737,7 +4740,8 @@ class InvestmentsPage extends StatelessWidget {
     required String notes,
   })
   onQueueInvestmentCorporateAction;
-  final Future<void> Function(String csv) onQueueBrokerHoldingsImport;
+  final Future<void> Function(String csv, String source)
+  onQueueBrokerHoldingsImport;
   final Future<PickedTextFile?> Function() onPickBrokerHoldingsCSV;
 
   @override
@@ -6186,7 +6190,7 @@ class BrokerHoldingsImportCard extends StatefulWidget {
     super.key,
   });
 
-  final Future<void> Function(String csv) onQueueImport;
+  final Future<void> Function(String csv, String source) onQueueImport;
   final Future<PickedTextFile?> Function() onPickCSV;
 
   @override
@@ -6199,6 +6203,7 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
     text:
         'Symbol,ISIN,As of Date,Last Traded Price,Quantity\nTCS,INE467B01029,31-Jul-2026,3450.75,10',
   );
+  String source = 'broker_holdings_csv';
   bool isQueueing = false;
   bool isPicking = false;
   String? pickedFileName;
@@ -6218,7 +6223,7 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
       isQueueing = true;
     });
     try {
-      await widget.onQueueImport(csv);
+      await widget.onQueueImport(csv, source);
     } finally {
       if (mounted) {
         setState(() {
@@ -6265,6 +6270,36 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
             const SizedBox(height: 8),
             const Text(
               'Paste a broker holdings CSV with Symbol/ISIN, date, and LTP/current price columns. It will queue offline and sync when credentials are available.',
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: source,
+              decoration: const InputDecoration(
+                labelText: 'Provider route',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'broker_holdings_csv',
+                  child: Text('Generic broker holdings CSV'),
+                ),
+                DropdownMenuItem(
+                  value: 'zerodha_holdings_csv',
+                  child: Text('Zerodha holdings CSV'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  source = value;
+                  if (value == 'zerodha_holdings_csv') {
+                    controller.text =
+                        'Instrument,ISIN,Date,LTP,Qty.\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4';
+                  }
+                });
+              },
             ),
             if (pickedFileName != null) ...[
               const SizedBox(height: 8),

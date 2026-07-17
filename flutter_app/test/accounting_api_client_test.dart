@@ -936,6 +936,52 @@ void main() {
     expect(result.prices.single.priceMinor, 345075);
   });
 
+  test('imports Zerodha holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/zerodha-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'zerodha_holdings_csv');
+        expect(body['csv'], contains('Instrument'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-zerodha-1',
+                'symbol': 'HDFCBANK',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 157520,
+                'currency': 'INR',
+                'source': 'zerodha_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importZerodhaHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Instrument,ISIN,Date,LTP,Qty.\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4',
+        source: 'zerodha_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'HDFCBANK');
+    expect(result.prices.single.priceMinor, 157520);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

@@ -431,12 +431,25 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importZerodhaHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/zerodha-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
-    return importBrokerHoldingsPrices(
-      ImportInvestmentPricesRequest.fromSyncOperation(operation),
-    );
+    final request = ImportInvestmentPricesRequest.fromSyncOperation(operation);
+    if (request.source == 'zerodha_holdings_csv') {
+      return importZerodhaHoldingsPrices(request);
+    }
+    return importBrokerHoldingsPrices(request);
   }
 
   Future<CustomerPaymentSummary> recordCustomerPayment(
