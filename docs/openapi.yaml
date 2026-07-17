@@ -2676,6 +2676,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/zerodha-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Zerodha holdings price CSV
+      description: Parses Zerodha Console holdings exports with Instrument/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `zerodha_holdings_csv`.
+      operationId: importZerodhaHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Zerodha holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]

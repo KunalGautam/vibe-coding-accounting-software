@@ -312,6 +312,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected broker ISIN fallback price: %+v", isinFallbackPrice)
 	}
 
+	zerodhaResult, err := service.ImportZerodhaHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Instrument,ISIN,Date,LTP,Qty.\n" +
+			"HDFCBANK,INE040A01034,2026-07-31,1575.20,4\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportZerodhaHoldingsCSV() error = %v", err)
+	}
+	if zerodhaResult.Imported != 1 || zerodhaResult.Skipped != 0 {
+		t.Fatalf("unexpected Zerodha holdings import result: %+v", zerodhaResult)
+	}
+	var zerodhaPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "HDFCBANK", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&zerodhaPrice).Error; err != nil {
+		t.Fatalf("load Zerodha price: %v", err)
+	}
+	if zerodhaPrice.PriceMinor != 157520 || zerodhaPrice.Source != "zerodha_holdings_csv" {
+		t.Fatalf("unexpected Zerodha price: %+v", zerodhaPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

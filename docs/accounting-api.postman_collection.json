@@ -676,6 +676,23 @@
           }
         },
         {
+          "name": "Import Zerodha Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/zerodha-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Instrument,ISIN,Date,LTP,Qty.\\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

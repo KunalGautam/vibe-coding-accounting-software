@@ -3020,7 +3020,7 @@ function InvestmentsPage({
     notes: ""
   });
   const [priceImportForm, setPriceImportForm] = useState({
-    format: "csv" as "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker",
+    format: "csv" as "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha",
     source: "csv_import",
     symbol: "",
     symbol_mode: "scheme_code" as ImportAMFINAVInput["symbol_mode"],
@@ -3189,7 +3189,9 @@ function InvestmentsPage({
                 ? await api.importAlphaVantagePrices(toImportInvestmentPricesInput({ ...priceImportForm, source: priceImportForm.source || "alpha_vantage_csv" }))
                 : priceImportForm.format === "broker"
                   ? await api.importBrokerHoldingsPrices(toImportInvestmentPricesInput({ ...priceImportForm, source: priceImportForm.source || "broker_holdings_csv" }))
-                  : await api.importInvestmentPrices(toImportInvestmentPricesInput(priceImportForm));
+                  : priceImportForm.format === "zerodha"
+                    ? await api.importZerodhaHoldingsPrices(toImportInvestmentPricesInput({ ...priceImportForm, source: priceImportForm.source || "zerodha_holdings_csv" }))
+                    : await api.importInvestmentPrices(toImportInvestmentPricesInput(priceImportForm));
       const suffix = result.errors.length > 0 ? ` ${result.errors.length} row issue(s) need review.` : "";
       setInvestmentNotice(`Imported ${result.imported} price row(s), skipped ${result.skipped}.${suffix}`);
       await onRefresh();
@@ -3430,8 +3432,8 @@ function InvestmentsPage({
           <select
             value={priceImportForm.format}
             onChange={(event) => {
-              const format = event.target.value as "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker";
-              const source = priceImportForm.source === "csv_import" || priceImportForm.source === "nse_equity_csv" || priceImportForm.source === "bse_equity_csv" || priceImportForm.source === "yahoo_finance_csv" || priceImportForm.source === "alpha_vantage_csv" || priceImportForm.source === "broker_holdings_csv"
+              const format = event.target.value as "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha";
+              const source = priceImportForm.source === "csv_import" || priceImportForm.source === "nse_equity_csv" || priceImportForm.source === "bse_equity_csv" || priceImportForm.source === "yahoo_finance_csv" || priceImportForm.source === "alpha_vantage_csv" || priceImportForm.source === "broker_holdings_csv" || priceImportForm.source === "zerodha_holdings_csv"
                 ? format === "nse"
                   ? "nse_equity_csv"
                   : format === "bse"
@@ -3442,7 +3444,9 @@ function InvestmentsPage({
                         ? "alpha_vantage_csv"
                         : format === "broker"
                           ? "broker_holdings_csv"
-                          : "csv_import"
+                          : format === "zerodha"
+                            ? "zerodha_holdings_csv"
+                            : "csv_import"
                 : priceImportForm.source;
               setPriceImportForm({
                 ...priceImportForm,
@@ -3458,6 +3462,7 @@ function InvestmentsPage({
             <option value="yahoo">Yahoo Finance CSV</option>
             <option value="alphavantage">Alpha Vantage CSV</option>
             <option value="broker">Broker holdings CSV</option>
+            <option value="zerodha">Zerodha holdings CSV</option>
           </select>
         </label>
         {priceImportForm.format !== "amfi" ? (
@@ -3478,15 +3483,15 @@ function InvestmentsPage({
           </label>
         )}
         <label className="full-span">
-          {priceImportForm.format === "amfi" ? "AMFI NAV feed text" : priceImportForm.format === "nse" ? "NSE equity CSV" : priceImportForm.format === "bse" ? "BSE equity CSV" : priceImportForm.format === "yahoo" ? "Yahoo Finance CSV" : priceImportForm.format === "alphavantage" ? "Alpha Vantage CSV" : priceImportForm.format === "broker" ? "Broker holdings CSV" : "Price CSV"}
+          {priceImportForm.format === "amfi" ? "AMFI NAV feed text" : priceImportForm.format === "nse" ? "NSE equity CSV" : priceImportForm.format === "bse" ? "BSE equity CSV" : priceImportForm.format === "yahoo" ? "Yahoo Finance CSV" : priceImportForm.format === "alphavantage" ? "Alpha Vantage CSV" : priceImportForm.format === "broker" ? "Broker holdings CSV" : priceImportForm.format === "zerodha" ? "Zerodha holdings CSV" : "Price CSV"}
           <textarea
             rows={5}
             value={priceImportForm.csv}
             onChange={(event) => setPriceImportForm({ ...priceImportForm, csv: event.target.value })}
-            placeholder={priceImportForm.format === "amfi" ? "Scheme Code;...;Net Asset Value;Date" : priceImportForm.format === "nse" ? "SYMBOL,SERIES,DATE1,CLOSE_PRICE" : priceImportForm.format === "bse" ? "SC_CODE,SC_GROUP,TRADING_DATE,CLOSE" : priceImportForm.format === "yahoo" ? "Date,Open,High,Low,Close,Adj Close,Volume" : priceImportForm.format === "alphavantage" ? "timestamp,open,high,low,close,volume" : priceImportForm.format === "broker" ? "Symbol,ISIN,As of Date,Last Traded Price,Quantity" : "symbol,price_date,price_minor,currency"}
+            placeholder={priceImportForm.format === "amfi" ? "Scheme Code;...;Net Asset Value;Date" : priceImportForm.format === "nse" ? "SYMBOL,SERIES,DATE1,CLOSE_PRICE" : priceImportForm.format === "bse" ? "SC_CODE,SC_GROUP,TRADING_DATE,CLOSE" : priceImportForm.format === "yahoo" ? "Date,Open,High,Low,Close,Adj Close,Volume" : priceImportForm.format === "alphavantage" ? "timestamp,open,high,low,close,volume" : priceImportForm.format === "broker" ? "Symbol,ISIN,As of Date,Last Traded Price,Quantity" : priceImportForm.format === "zerodha" ? "Instrument,ISIN,Date,LTP,Qty." : "symbol,price_date,price_minor,currency"}
           />
         </label>
-        <button disabled={!canImportPrices || loading === "import-prices"}>{loading === "import-prices" ? "Importing..." : priceImportForm.format === "amfi" ? "Import AMFI NAV" : priceImportForm.format === "nse" ? "Import NSE CSV" : priceImportForm.format === "bse" ? "Import BSE CSV" : priceImportForm.format === "yahoo" ? "Import Yahoo CSV" : priceImportForm.format === "alphavantage" ? "Import Alpha Vantage CSV" : priceImportForm.format === "broker" ? "Import broker holdings" : "Import price CSV"}</button>
+        <button disabled={!canImportPrices || loading === "import-prices"}>{loading === "import-prices" ? "Importing..." : priceImportForm.format === "amfi" ? "Import AMFI NAV" : priceImportForm.format === "nse" ? "Import NSE CSV" : priceImportForm.format === "bse" ? "Import BSE CSV" : priceImportForm.format === "yahoo" ? "Import Yahoo CSV" : priceImportForm.format === "alphavantage" ? "Import Alpha Vantage CSV" : priceImportForm.format === "broker" ? "Import broker holdings" : priceImportForm.format === "zerodha" ? "Import Zerodha holdings" : "Import price CSV"}</button>
       </form>
 
       <DataTable

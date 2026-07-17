@@ -81,7 +81,7 @@ WORKER_INTERVAL_SECONDS=3600
 MARKET_DATA_IMPORT_ENABLED=false
 ```
 
-If scheduled market-data import is enabled, set one of `MARKET_DATA_IMPORT_PATH` or `MARKET_DATA_IMPORT_URL`, plus `MARKET_DATA_IMPORT_FORMAT`. Supported formats are `amfi`, `csv`, `nse_equity_csv`, `bse_equity_csv`, `yahoo_finance_csv`, and `alpha_vantage_csv`.
+If scheduled market-data import is enabled, set one of `MARKET_DATA_IMPORT_PATH` or `MARKET_DATA_IMPORT_URL`, plus `MARKET_DATA_IMPORT_FORMAT`. Supported formats are `amfi`, `csv`, `nse_equity_csv`, `bse_equity_csv`, `yahoo_finance_csv`, `alpha_vantage_csv`, `broker_holdings_csv`, and `zerodha_holdings_csv`.
 
 ## Deployment Flow
 
