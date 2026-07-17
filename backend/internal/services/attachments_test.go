@@ -23,6 +23,7 @@ func TestAttachmentServiceCreateDefaultsStorageDriver(t *testing.T) {
 		ContentType:    "image/jpeg",
 		StorageKey:     "receipts/receipt.jpg",
 		SizeBytes:      2048,
+		ChecksumSHA256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -32,6 +33,9 @@ func TestAttachmentServiceCreateDefaultsStorageDriver(t *testing.T) {
 	}
 	if attachment.OrganizationID != org.ID {
 		t.Fatalf("organization id = %s, want %s", attachment.OrganizationID, org.ID)
+	}
+	if attachment.ChecksumSHA256 == "" {
+		t.Fatalf("checksum was not persisted")
 	}
 }
 

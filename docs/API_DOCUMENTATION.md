@@ -74,7 +74,7 @@ The current OpenAPI groups are:
 - `Ledger`: Journal posting, account registers, reconciliation, currency revaluation, and fiscal close.
 - `Invoices`: Customers, invoices, recurring invoices, estimates, credit notes, and customer payments.
 - `Expenses`: Vendors, expenses, bills, purchase orders, and vendor payments.
-- `Attachments`: Tenant-scoped attachment metadata and local binary upload/download.
+- `Attachments`: Tenant-scoped attachment metadata plus local binary upload/download with configurable max upload size and SHA-256 checksum metadata.
 - `Payroll`: Employees, payroll runs, payroll posting with optional employer contribution splits, payslip previews/PDF downloads, configurable India payroll component previews, professional-tax starter presets, and PF/ESI/PT/TDS statutory component CSV exports.
 - `Tax`: Config-driven GST/VAT tax catalog, groups, calculation, and India seed data.
 - `Reports`: Financial, tax, payroll, budget, AR/AP aging, account drilldown, and investment reports.

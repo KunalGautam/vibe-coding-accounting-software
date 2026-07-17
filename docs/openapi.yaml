@@ -931,7 +931,7 @@ paths:
     post:
       tags: [Attachments]
       summary: Upload a local attachment file
-      description: Creates an attachment metadata record and stores the uploaded binary using the configured local attachment storage path.
+      description: Creates an attachment metadata record and stores the uploaded binary using the configured local attachment storage path. Uploads are capped by ATTACHMENT_MAX_UPLOAD_BYTES and successful local uploads include a SHA-256 checksum.
       operationId: uploadAttachment
       parameters:
         - $ref: '#/components/parameters/OrganizationId'
@@ -953,6 +953,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Attachment'
+        '413':
+          description: Attachment exceeds the configured upload size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         default:
           $ref: '#/components/responses/Error'
   /organizations/{organizationId}/attachments/{attachmentId}/download:
@@ -5023,6 +5029,10 @@ components:
           type: integer
           format: int64
           example: 4096
+        checksum_sha256:
+          type: string
+          description: SHA-256 checksum for binaries uploaded through the local upload endpoint.
+          example: 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
     CreateAttachmentRequest:
       type: object
       required: [file_name, storage_key]

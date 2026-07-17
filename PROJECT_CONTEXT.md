@@ -183,6 +183,7 @@ REDIS_ADDR=localhost:6379
 SWAGGER_ENABLED=true
 ATTACHMENT_STORAGE_DRIVER=local
 ATTACHMENT_STORAGE_PATH=./storage
+ATTACHMENT_MAX_UPLOAD_BYTES=26214400
 DEFAULT_COUNTRY=IN
 DEFAULT_CURRENCY=INR
 CORS_ALLOWED_ORIGINS=*
@@ -274,7 +275,7 @@ CI runs these checks from `.github/workflows/ci.yml` on pull requests and pushes
 - First-admin bootstrap is implemented and only succeeds while no users exist.
 - India default chart of accounts and GST preset seeding is implemented and idempotent.
 - Tax authority, tax rate, tax group, and tax calculation endpoints are implemented.
-- Attachment metadata endpoints and local binary upload/download are implemented for tenant-scoped file references; cloud/object-storage drivers are still pending.
+- Attachment metadata endpoints and local binary upload/download are implemented for tenant-scoped file references with configurable upload limits and SHA-256 checksum metadata; cloud/object-storage drivers are still pending.
 - Customer and invoice endpoints are implemented; invoice PDF attachment metadata is tenant-scoped; posting an invoice creates AR, revenue, and output-tax ledger splits; customer payment endpoints create cash/AR ledger entries and mark invoices paid when applied payments reach the invoice total.
 - Recurring invoice templates are implemented; generate-due creates draft invoices and advances each template's next run date, and `cmd/worker` can run this job once or on a configurable interval.
 - Estimate/quote and credit-note endpoints are implemented; estimates are non-posting, support draft/sent/accepted/void lifecycle transitions, and can convert to draft invoices; posted credit notes reduce revenue/output GST and accounts receivable.

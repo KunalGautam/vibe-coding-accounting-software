@@ -58,6 +58,7 @@ func main() {
 		CORSAllowedOrigins:             cfg.CORSAllowedOrigins,
 		AttachmentStorageDriver:        cfg.AttachmentStorageDriver,
 		AttachmentStoragePath:          cfg.AttachmentStoragePath,
+		AttachmentMaxUploadBytes:       cfg.AttachmentMaxUploadBytes,
 		RateLimitEnabled:               cfg.RateLimitEnabled,
 		RateLimitRequests:              cfg.RateLimitRequests,
 		RateLimitWindow:                time.Duration(cfg.RateLimitWindowSeconds) * time.Second,

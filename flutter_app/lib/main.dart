@@ -8439,6 +8439,11 @@ class AttachmentDiscoveryPanel extends StatelessWidget {
                             '${attachment.fileName} · ${attachment.contentType} · ${attachment.sizeBytes} bytes',
                           ),
                           SelectableText('Attachment ID: ${attachment.id}'),
+                          if (attachment.checksumSha256 != null &&
+                              attachment.checksumSha256!.isNotEmpty)
+                            SelectableText(
+                              'SHA-256: ${attachment.checksumSha256}',
+                            ),
                           SelectableText(
                             'Storage: ${attachment.storageDriver} · ${attachment.storageKey}',
                           ),

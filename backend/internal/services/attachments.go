@@ -19,6 +19,7 @@ type CreateAttachmentInput struct {
 	StorageDriver  string
 	StorageKey     string
 	SizeBytes      int64
+	ChecksumSHA256 string
 }
 
 func NewAttachmentService(db *gorm.DB) AttachmentService {
@@ -49,6 +50,7 @@ func (s AttachmentService) Create(ctx context.Context, input CreateAttachmentInp
 		StorageDriver:  storageDriver,
 		StorageKey:     input.StorageKey,
 		SizeBytes:      input.SizeBytes,
+		ChecksumSHA256: input.ChecksumSHA256,
 	}
 	err := s.db.WithContext(ctx).Create(&attachment).Error
 	return attachment, err

@@ -3581,6 +3581,7 @@ class AttachmentSummary {
     required this.storageDriver,
     required this.storageKey,
     required this.sizeBytes,
+    this.checksumSha256,
   });
 
   final String id;
@@ -3589,6 +3590,7 @@ class AttachmentSummary {
   final String storageDriver;
   final String storageKey;
   final int sizeBytes;
+  final String? checksumSha256;
 
   factory AttachmentSummary.fromJson(Map<String, Object?> json) {
     return AttachmentSummary(
@@ -3598,6 +3600,7 @@ class AttachmentSummary {
       storageDriver: json['storage_driver'] as String? ?? 'local',
       storageKey: json['storage_key']! as String,
       sizeBytes: json['size_bytes'] as int? ?? 0,
+      checksumSha256: json['checksum_sha256'] as String?,
     );
   }
 
@@ -3609,7 +3612,8 @@ class AttachmentSummary {
       'storage_driver': storageDriver,
       'storage_key': storageKey,
       'size_bytes': sizeBytes,
-    };
+      'checksum_sha256': checksumSha256,
+    }..removeWhere((_, value) => value == null);
   }
 }
 

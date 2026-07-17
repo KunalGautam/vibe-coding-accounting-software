@@ -183,6 +183,7 @@ export type Attachment = {
   storage_driver: string;
   storage_key: string;
   size_bytes: number;
+  checksum_sha256?: string;
 };
 
 export type CreateAttachmentInput = {

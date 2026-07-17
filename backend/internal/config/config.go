@@ -44,6 +44,7 @@ type Config struct {
 	RefreshTokenTTLHours           int
 	AttachmentStoragePath          string
 	AttachmentStorageDriver        string
+	AttachmentMaxUploadBytes       int64
 	BackupStoragePath              string
 	BackupMirrorPath               string
 	BackupRetentionCount           int
@@ -96,6 +97,7 @@ func Load() Config {
 		RefreshTokenTTLHours:           envInt("REFRESH_TOKEN_TTL_HOURS", 720),
 		AttachmentStorageDriver:        env("ATTACHMENT_STORAGE_DRIVER", "local"),
 		AttachmentStoragePath:          env("ATTACHMENT_STORAGE_PATH", "./storage"),
+		AttachmentMaxUploadBytes:       envInt64("ATTACHMENT_MAX_UPLOAD_BYTES", 25*1024*1024),
 		BackupStoragePath:              env("BACKUP_STORAGE_PATH", "./storage/backups"),
 		BackupMirrorPath:               env("BACKUP_MIRROR_PATH", ""),
 		BackupRetentionCount:           envInt("BACKUP_RETENTION_COUNT", 7),
@@ -177,6 +179,9 @@ func (c Config) validate(runtime bool) error {
 	}
 	if c.BackupRetentionCount <= 0 {
 		problems = append(problems, errors.New("BACKUP_RETENTION_COUNT must be positive in production"))
+	}
+	if c.AttachmentMaxUploadBytes <= 0 {
+		problems = append(problems, errors.New("ATTACHMENT_MAX_UPLOAD_BYTES must be positive in production"))
 	}
 	if strings.TrimSpace(c.BackupMirrorPath) != "" && strings.TrimSpace(c.BackupMirrorPath) == strings.TrimSpace(c.BackupStoragePath) {
 		problems = append(problems, errors.New("BACKUP_MIRROR_PATH must be different from BACKUP_STORAGE_PATH"))
@@ -311,6 +316,19 @@ func envInt(key string, fallback int) int {
 	}
 
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func envInt64(key string, fallback int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		return fallback
 	}

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -15,9 +17,10 @@ import (
 )
 
 type AttachmentHandler struct {
-	attachments   services.AttachmentService
-	storageDriver string
-	storagePath   string
+	attachments    services.AttachmentService
+	storageDriver  string
+	storagePath    string
+	maxUploadBytes int64
 }
 
 type createAttachmentRequest struct {
@@ -28,17 +31,21 @@ type createAttachmentRequest struct {
 	SizeBytes     int64  `json:"size_bytes" binding:"min=0"`
 }
 
-func NewAttachmentHandler(attachments services.AttachmentService, storageDriver string, storagePath string) AttachmentHandler {
+func NewAttachmentHandler(attachments services.AttachmentService, storageDriver string, storagePath string, maxUploadBytes int64) AttachmentHandler {
 	if storageDriver == "" {
 		storageDriver = "local"
 	}
 	if storagePath == "" {
 		storagePath = "./storage"
 	}
+	if maxUploadBytes <= 0 {
+		maxUploadBytes = 25 * 1024 * 1024
+	}
 	return AttachmentHandler{
-		attachments:   attachments,
-		storageDriver: storageDriver,
-		storagePath:   storagePath,
+		attachments:    attachments,
+		storageDriver:  storageDriver,
+		storagePath:    storagePath,
+		maxUploadBytes: maxUploadBytes,
 	}
 }
 
@@ -120,11 +127,23 @@ func (h AttachmentHandler) Upload(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "create_attachment_file_failed", err.Error())
 		return
 	}
-	defer destination.Close()
 
-	sizeBytes, err := io.Copy(destination, source)
+	hasher := sha256.New()
+	sizeBytes, err := io.Copy(io.MultiWriter(destination, hasher), io.LimitReader(source, h.maxUploadBytes+1))
+	closeErr := destination.Close()
 	if err != nil {
+		_ = os.Remove(destinationPath)
 		respondError(c, http.StatusInternalServerError, "write_attachment_file_failed", err.Error())
+		return
+	}
+	if closeErr != nil {
+		_ = os.Remove(destinationPath)
+		respondError(c, http.StatusInternalServerError, "close_attachment_file_failed", closeErr.Error())
+		return
+	}
+	if sizeBytes > h.maxUploadBytes {
+		_ = os.Remove(destinationPath)
+		respondError(c, http.StatusRequestEntityTooLarge, "attachment_too_large", "attachment exceeds configured upload size limit")
 		return
 	}
 
@@ -136,8 +155,10 @@ func (h AttachmentHandler) Upload(c *gin.Context) {
 		StorageDriver:  h.storageDriver,
 		StorageKey:     storageKey,
 		SizeBytes:      sizeBytes,
+		ChecksumSHA256: hex.EncodeToString(hasher.Sum(nil)),
 	})
 	if err != nil {
+		_ = os.Remove(destinationPath)
 		respondError(c, http.StatusInternalServerError, "create_attachment_failed", err.Error())
 		return
 	}

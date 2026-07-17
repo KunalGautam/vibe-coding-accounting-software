@@ -29,6 +29,7 @@ type RouterConfig struct {
 	CORSAllowedOrigins             string
 	AttachmentStorageDriver        string
 	AttachmentStoragePath          string
+	AttachmentMaxUploadBytes       int64
 	RateLimitEnabled               bool
 	RateLimitRequests              int
 	RateLimitWindow                time.Duration
@@ -87,6 +88,7 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 		services.NewAttachmentService(cfg.DB),
 		cfg.AttachmentStorageDriver,
 		cfg.AttachmentStoragePath,
+		cfg.AttachmentMaxUploadBytes,
 	)
 	reportHandler := handlers.NewReportHandler(services.NewReportServiceWithEmail(cfg.DB, cfg.EmailSender))
 	employeeHandler := handlers.NewEmployeeHandler(services.NewEmployeeService(cfg.DB))

@@ -41,6 +41,7 @@ Defaults:
 - `DEFAULT_CURRENCY=INR`
 - `BACKUP_STORAGE_PATH=./storage/backups`
 - `BACKUP_MIRROR_PATH=` optional secondary mounted backup directory for checksum-verified backup copies
+- `ATTACHMENT_MAX_UPLOAD_BYTES=26214400` max binary upload size for local attachment uploads
 - `BACKUP_RETENTION_COUNT=7`
 - `WORKER_RUN_ONCE=false`
 - `WORKER_INTERVAL_SECONDS=3600`
@@ -99,7 +100,7 @@ The backend currently contains the first implementation slice:
 - Tax authority, rate, group, and calculation endpoints.
 - Customer and invoice endpoints with draft invoice creation and GL posting.
 - Vendor and expense endpoints with draft expense creation and GL posting.
-- Attachment metadata plus local binary upload/download endpoints for receipt and invoice PDF file references.
+- Attachment metadata plus local binary upload/download endpoints for receipt and invoice PDF file references, with configurable upload limits and SHA-256 checksum metadata.
 - Ledger-based Trial Balance, Profit & Loss, and Balance Sheet reports.
 - Posted-document Tax Liability and Tax Summary reports.
 - Employee and payroll run endpoints with GL posting, configurable India payroll preview, payslip preview, and payslip CSV export support in React.

@@ -2,6 +2,8 @@ package http
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"mime/multipart"
@@ -802,6 +804,10 @@ func TestBookkeeperCanUploadAndDownloadAttachment(t *testing.T) {
 	if attachment.SizeBytes != int64(len("hello receipt")) {
 		t.Fatalf("size bytes = %d, want %d", attachment.SizeBytes, len("hello receipt"))
 	}
+	expectedChecksum := sha256.Sum256([]byte("hello receipt"))
+	if attachment.ChecksumSHA256 != hex.EncodeToString(expectedChecksum[:]) {
+		t.Fatalf("checksum = %s, want %s", attachment.ChecksumSHA256, hex.EncodeToString(expectedChecksum[:]))
+	}
 	if !strings.Contains(attachment.StorageKey, org.ID) || !strings.Contains(attachment.StorageKey, attachment.ID) {
 		t.Fatalf("storage key = %s, want org and attachment ids", attachment.StorageKey)
 	}
@@ -824,6 +830,69 @@ func TestBookkeeperCanUploadAndDownloadAttachment(t *testing.T) {
 	}
 	if string(downloaded) != "hello receipt" {
 		t.Fatalf("downloaded body = %q, want %q", string(downloaded), "hello receipt")
+	}
+}
+
+func TestAttachmentUploadRejectsOversizeFile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := routerTestDB(t)
+	tokens := auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour)
+
+	org := domain.Organization{Name: "Acme India", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	user := domain.User{Email: "uploader-limit@example.com", Name: "Uploader", PasswordHash: "unused", IsActive: true}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	accessToken, err := tokens.NewAccessToken(user, map[string]domain.Role{org.ID: domain.RoleBookkeeper})
+	if err != nil {
+		t.Fatalf("create access token: %v", err)
+	}
+
+	router := NewRouter(RouterConfig{
+		DB:                       db,
+		SwaggerEnabled:           false,
+		Tokens:                   tokens,
+		AttachmentStorageDriver:  "local",
+		AttachmentStoragePath:    t.TempDir(),
+		AttachmentMaxUploadBytes: int64(len("hello")),
+	})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "large.txt")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("hello too large")); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/organizations/"+org.ID+"/attachments/upload",
+		&body,
+	)
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusRequestEntityTooLarge, response.Body.String())
+	}
+	var count int64
+	if err := db.Model(&domain.Attachment{}).Where("organization_id = ?", org.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count attachments: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("attachments persisted = %d, want 0", count)
 	}
 }
 

@@ -77,6 +77,7 @@ Set these for the worker:
 ```text
 BACKUP_STORAGE_PATH=/app/storage/backups
 BACKUP_MIRROR_PATH=/mnt/offsite/accounting-backups
+ATTACHMENT_MAX_UPLOAD_BYTES=26214400
 BACKUP_RETENTION_COUNT=14
 WORKER_INTERVAL_SECONDS=3600
 MARKET_DATA_IMPORT_ENABLED=false
@@ -125,7 +126,7 @@ Use both provider-level and application-level backups:
 - Set `BACKUP_MIRROR_PATH` to a second mounted target such as S3 FUSE, GCS FUSE, NFS, or another durable volume; the worker writes and checksum-verifies each mirrored JSON backup.
 - Off-host copy of `/app/storage/backups` if the worker writes to local or mounted storage and no mirror target is configured.
 
-Current attachment and backup storage is local/mounted filesystem oriented. For managed production, mount durable network storage, set `BACKUP_MIRROR_PATH` for off-host backup copies, or add an object-storage driver before relying on horizontal API replicas for uploads.
+Current attachment and backup storage is local/mounted filesystem oriented. Attachment uploads are size-limited by `ATTACHMENT_MAX_UPLOAD_BYTES` and store SHA-256 metadata, but managed production should still mount durable network storage, set `BACKUP_MIRROR_PATH` for off-host backup copies, or add an object-storage driver before relying on horizontal API replicas for uploads.
 
 Restore application JSON backups with:
 

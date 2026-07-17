@@ -574,6 +574,7 @@ type Attachment struct {
 	StorageDriver  string       `gorm:"size:64;not null;default:local" json:"storage_driver"`
 	StorageKey     string       `gorm:"size:1000;not null" json:"storage_key"`
 	SizeBytes      int64        `gorm:"not null;default:0" json:"size_bytes"`
+	ChecksumSHA256 string       `gorm:"size:64" json:"checksum_sha256,omitempty"`
 }
 
 type Expense struct {
