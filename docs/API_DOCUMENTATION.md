@@ -9,7 +9,7 @@ The generated/importable Postman collection is maintained at:
 docs/accounting-api.postman_collection.json
 ```
 
-Current API coverage is 167 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
+Current API coverage is 168 documented route/method pairs, validated against Gin handlers and the Postman collection in CI.
 
 Keep the OpenAPI file updated in the same change as any handler, request payload, response payload, or authorization behavior change.
 

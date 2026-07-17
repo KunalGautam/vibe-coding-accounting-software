@@ -552,6 +552,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importFivePaisaHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/fivepaisa-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -588,6 +599,9 @@ class AccountingApiClient {
     }
     if (request.source == 'sharekhan_holdings_csv') {
       return importSharekhanHoldingsPrices(request);
+    }
+    if (request.source == 'fivepaisa_holdings_csv') {
+      return importFivePaisaHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

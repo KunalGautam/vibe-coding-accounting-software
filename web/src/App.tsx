@@ -3235,6 +3235,9 @@ function InvestmentsPage({
         case "sharekhan":
           result = await api.importSharekhanHoldingsPrices(importInput);
           break;
+        case "fivepaisa":
+          result = await api.importFivePaisaHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

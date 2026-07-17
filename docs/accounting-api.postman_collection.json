@@ -863,6 +863,23 @@
           }
         },
         {
+          "name": "Import 5paisa Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/fivepaisa-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Symbol,ISIN,Date,LTP,Quantity\\nSBIN,INE062A01020,2026-07-31,845.70,10\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

@@ -521,6 +521,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Sharekhan price: %+v", sharekhanPrice)
 	}
 
+	fivePaisaResult, err := service.ImportFivePaisaHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"SBIN,INE062A01020,2026-07-31,845.70,10\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportFivePaisaHoldingsCSV() error = %v", err)
+	}
+	if fivePaisaResult.Imported != 1 || fivePaisaResult.Skipped != 0 {
+		t.Fatalf("unexpected 5paisa holdings import result: %+v", fivePaisaResult)
+	}
+	var fivePaisaPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "SBIN", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&fivePaisaPrice).Error; err != nil {
+		t.Fatalf("load 5paisa price: %v", err)
+	}
+	if fivePaisaPrice.PriceMinor != 84570 || fivePaisaPrice.Source != "fivepaisa_holdings_csv" {
+		t.Fatalf("unexpected 5paisa price: %+v", fivePaisaPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

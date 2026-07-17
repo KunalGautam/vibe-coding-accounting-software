@@ -6327,6 +6327,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'sharekhan_holdings_csv',
                   child: Text('Sharekhan holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'fivepaisa_holdings_csv',
+                  child: Text('5paisa holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6367,6 +6371,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'sharekhan_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nHINDUNILVR,INE030A01027,2026-07-31,2567.35,4';
+                  } else if (value == 'fivepaisa_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nSBIN,INE062A01020,2026-07-31,845.70,10';
                   }
                 });
               },
