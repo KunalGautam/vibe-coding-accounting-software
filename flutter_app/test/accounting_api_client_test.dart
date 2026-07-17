@@ -1488,6 +1488,52 @@ void main() {
     expect(result.prices.single.priceMinor, 84570);
   });
 
+  test('imports Axis Direct holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/axisdirect-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'axisdirect_holdings_csv');
+        expect(body['csv'], contains('TECHM'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-axisdirect-1',
+                'symbol': 'TECHM',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 154325,
+                'currency': 'INR',
+                'source': 'axisdirect_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importAxisDirectHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nTECHM,INE669C01036,2026-07-31,1543.25,6',
+        source: 'axisdirect_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'TECHM');
+    expect(result.prices.single.priceMinor, 154325);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

@@ -540,6 +540,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected 5paisa price: %+v", fivePaisaPrice)
 	}
 
+	axisDirectResult, err := service.ImportAxisDirectHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"TECHM,INE669C01036,2026-07-31,1543.25,6\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportAxisDirectHoldingsCSV() error = %v", err)
+	}
+	if axisDirectResult.Imported != 1 || axisDirectResult.Skipped != 0 {
+		t.Fatalf("unexpected Axis Direct holdings import result: %+v", axisDirectResult)
+	}
+	var axisDirectPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "TECHM", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&axisDirectPrice).Error; err != nil {
+		t.Fatalf("load Axis Direct price: %v", err)
+	}
+	if axisDirectPrice.PriceMinor != 154325 || axisDirectPrice.Source != "axisdirect_holdings_csv" {
+		t.Fatalf("unexpected Axis Direct price: %+v", axisDirectPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

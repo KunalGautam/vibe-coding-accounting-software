@@ -8,7 +8,7 @@ import {
 } from "../.test-build/investmentImports.js";
 
 test("investment import metadata covers every supported format", () => {
-  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa"]);
+  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect"]);
   assert.equal(investmentPriceImportMetadata("zerodha").defaultSource, "zerodha_holdings_csv");
   assert.equal(investmentPriceImportMetadata("zerodha").placeholder, "Instrument,ISIN,Date,LTP,Qty.");
   assert.equal(investmentPriceImportMetadata("groww").defaultSource, "groww_holdings_csv");
@@ -33,6 +33,8 @@ test("investment import metadata covers every supported format", () => {
   assert.equal(investmentPriceImportMetadata("sharekhan").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("fivepaisa").defaultSource, "fivepaisa_holdings_csv");
   assert.equal(investmentPriceImportMetadata("fivepaisa").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
+  assert.equal(investmentPriceImportMetadata("axisdirect").defaultSource, "axisdirect_holdings_csv");
+  assert.equal(investmentPriceImportMetadata("axisdirect").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("yahoo").requiresSingleSymbol, true);
   assert.equal(investmentPriceImportMetadata("amfi").isAMFI, true);
 });
@@ -51,5 +53,6 @@ test("nextInvestmentPriceImportSource switches managed defaults but preserves cu
   assert.equal(nextInvestmentPriceImportSource("paytmmoney_holdings_csv", "motilaloswal"), "motilaloswal_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("motilaloswal_holdings_csv", "sharekhan"), "sharekhan_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("sharekhan_holdings_csv", "fivepaisa"), "fivepaisa_holdings_csv");
+  assert.equal(nextInvestmentPriceImportSource("fivepaisa_holdings_csv", "axisdirect"), "axisdirect_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("my_custom_provider", "bse"), "my_custom_provider");
 });

@@ -3238,6 +3238,9 @@ function InvestmentsPage({
         case "fivepaisa":
           result = await api.importFivePaisaHoldingsPrices(importInput);
           break;
+        case "axisdirect":
+          result = await api.importAxisDirectHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }
