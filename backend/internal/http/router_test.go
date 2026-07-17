@@ -160,6 +160,90 @@ func TestOrganizationRoutesDenyCrossTenantAccess(t *testing.T) {
 	}
 }
 
+func TestInvestmentImportRoutePermissionMatrix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := routerTestDB(t)
+	tokens := auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour)
+	org := domain.Organization{Name: "Acme Investments", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	router := NewRouter(RouterConfig{
+		DB:             db,
+		SwaggerEnabled: false,
+		Tokens:         tokens,
+	})
+
+	tests := []struct {
+		name       string
+		role       domain.Role
+		wantStatus int
+	}{
+		{name: "viewer cannot import Zerodha prices", role: domain.RoleViewer, wantStatus: http.StatusForbidden},
+		{name: "payroll manager cannot import Zerodha prices", role: domain.RolePayrollManager, wantStatus: http.StatusForbidden},
+		{name: "bookkeeper can import Zerodha prices", role: domain.RoleBookkeeper, wantStatus: http.StatusCreated},
+		{name: "accountant can import Zerodha prices", role: domain.RoleAccountant, wantStatus: http.StatusCreated},
+		{name: "admin can import Zerodha prices", role: domain.RoleAdmin, wantStatus: http.StatusCreated},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			accessToken := mustAccessToken(t, tokens, map[string]domain.Role{org.ID: test.role})
+			request := httptest.NewRequest(
+				http.MethodPost,
+				"/api/v1/organizations/"+org.ID+"/investments/prices/import/zerodha-holdings",
+				strings.NewReader(`{"csv":"Instrument,ISIN,Date,LTP,Qty.\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4"}`),
+			)
+			request.Header.Set("Authorization", "Bearer "+accessToken)
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, test.wantStatus, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestInvestmentImportRouteDeniesCrossTenantAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := routerTestDB(t)
+	tokens := auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour)
+	orgOne := domain.Organization{Name: "Acme One", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	orgTwo := domain.Organization{Name: "Acme Two", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&orgOne).Error; err != nil {
+		t.Fatalf("create org one: %v", err)
+	}
+	if err := db.Create(&orgTwo).Error; err != nil {
+		t.Fatalf("create org two: %v", err)
+	}
+
+	router := NewRouter(RouterConfig{
+		DB:             db,
+		SwaggerEnabled: false,
+		Tokens:         tokens,
+	})
+	accessToken := mustAccessToken(t, tokens, map[string]domain.Role{orgOne.ID: domain.RoleAdmin})
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/organizations/"+orgTwo.ID+"/investments/prices/import/zerodha-holdings",
+		strings.NewReader(`{"csv":"Instrument,ISIN,Date,LTP,Qty.\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4"}`),
+	)
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), "organization_access_denied") {
+		t.Fatalf("body = %s, want organization_access_denied", response.Body.String())
+	}
+}
+
 func TestBookkeeperCanCreateAttachmentMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := routerTestDB(t)
