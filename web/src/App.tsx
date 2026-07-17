@@ -3229,6 +3229,9 @@ function InvestmentsPage({
         case "paytmmoney":
           result = await api.importPaytmMoneyHoldingsPrices(importInput);
           break;
+        case "motilaloswal":
+          result = await api.importMotilalOswalHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

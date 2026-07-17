@@ -6319,6 +6319,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'paytmmoney_holdings_csv',
                   child: Text('Paytm Money holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'motilaloswal_holdings_csv',
+                  child: Text('Motilal Oswal holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6353,6 +6357,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'paytmmoney_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nTATAMOTORS,INE155A01022,2026-07-31,1098.45,5';
+                  } else if (value == 'motilaloswal_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nASIANPAINT,INE021A01026,2026-07-31,2987.60,3';
                   }
                 });
               },

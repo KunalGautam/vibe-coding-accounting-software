@@ -829,6 +829,23 @@
           }
         },
         {
+          "name": "Import Motilal Oswal Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/motilaloswal-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Symbol,ISIN,Date,LTP,Quantity\\nASIANPAINT,INE021A01026,2026-07-31,2987.60,3\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

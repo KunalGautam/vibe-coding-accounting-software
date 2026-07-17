@@ -1350,6 +1350,52 @@ void main() {
     expect(result.prices.single.priceMinor, 109845);
   });
 
+  test('imports Motilal Oswal holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/motilaloswal-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'motilaloswal_holdings_csv');
+        expect(body['csv'], contains('ASIANPAINT'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-motilaloswal-1',
+                'symbol': 'ASIANPAINT',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 298760,
+                'currency': 'INR',
+                'source': 'motilaloswal_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importMotilalOswalHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nASIANPAINT,INE021A01026,2026-07-31,2987.60,3',
+        source: 'motilaloswal_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'ASIANPAINT');
+    expect(result.prices.single.priceMinor, 298760);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

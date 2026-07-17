@@ -208,6 +208,11 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for Paytm Money holdings CSV", err)
 	}
+
+	cfg.MarketDataImportFormat = "motilaloswal_holdings_csv"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil for Motilal Oswal holdings CSV", err)
+	}
 }
 
 func TestConfigValidateEmailDeliverySettings(t *testing.T) {

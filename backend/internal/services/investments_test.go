@@ -483,6 +483,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Paytm Money price: %+v", paytmMoneyPrice)
 	}
 
+	motilalOswalResult, err := service.ImportMotilalOswalHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"ASIANPAINT,INE021A01026,2026-07-31,2987.60,3\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportMotilalOswalHoldingsCSV() error = %v", err)
+	}
+	if motilalOswalResult.Imported != 1 || motilalOswalResult.Skipped != 0 {
+		t.Fatalf("unexpected Motilal Oswal holdings import result: %+v", motilalOswalResult)
+	}
+	var motilalOswalPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "ASIANPAINT", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&motilalOswalPrice).Error; err != nil {
+		t.Fatalf("load Motilal Oswal price: %v", err)
+	}
+	if motilalOswalPrice.PriceMinor != 298760 || motilalOswalPrice.Source != "motilaloswal_holdings_csv" {
+		t.Fatalf("unexpected Motilal Oswal price: %+v", motilalOswalPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

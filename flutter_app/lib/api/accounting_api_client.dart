@@ -530,6 +530,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importMotilalOswalHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/motilaloswal-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -560,6 +571,9 @@ class AccountingApiClient {
     }
     if (request.source == 'paytmmoney_holdings_csv') {
       return importPaytmMoneyHoldingsPrices(request);
+    }
+    if (request.source == 'motilaloswal_holdings_csv') {
+      return importMotilalOswalHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

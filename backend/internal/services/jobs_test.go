@@ -646,6 +646,40 @@ func TestJobServiceImportScheduledMarketDataSupportsPaytmMoneyHoldingsCSV(t *tes
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsMotilalOswalHoldingsCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Acme Motilal Oswal", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "motilaloswal.csv")
+	if err := os.WriteFile(path, []byte("Symbol,ISIN,Date,LTP,Quantity\nASIANPAINT,INE021A01026,2026-07-31,2987.60,3\n"), 0o600); err != nil {
+		t.Fatalf("write Motilal Oswal CSV: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		OrganizationID: org.ID,
+		Path:           path,
+		Format:         "motilaloswal_holdings_csv",
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected job result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "ASIANPAINT").First(&price).Error; err != nil {
+		t.Fatalf("load Motilal Oswal price: %v", err)
+	}
+	if price.PriceMinor != 298760 || price.Source != "motilaloswal_holdings_csv" {
+		t.Fatalf("unexpected Motilal Oswal price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
