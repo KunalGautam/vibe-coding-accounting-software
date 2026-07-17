@@ -3217,6 +3217,9 @@ function InvestmentsPage({
         case "dhan":
           result = await api.importDhanHoldingsPrices(importInput);
           break;
+        case "icicidirect":
+          result = await api.importICICIDirectHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

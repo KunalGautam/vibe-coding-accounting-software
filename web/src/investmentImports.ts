@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -21,7 +21,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "groww",
   "upstox",
   "angelone",
-  "dhan"
+  "dhan",
+  "icicidirect"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -118,6 +119,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     buttonLabel: "Import Dhan holdings",
     defaultSource: "dhan_holdings_csv",
     placeholder: "Trading Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  icicidirect: {
+    label: "ICICI Direct holdings CSV",
+    buttonLabel: "Import ICICI Direct holdings",
+    defaultSource: "icicidirect_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,Market Price,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false
   }

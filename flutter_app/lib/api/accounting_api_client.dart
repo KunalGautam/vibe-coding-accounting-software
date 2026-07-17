@@ -486,6 +486,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importICICIDirectHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/icicidirect-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -504,6 +515,9 @@ class AccountingApiClient {
     }
     if (request.source == 'dhan_holdings_csv') {
       return importDhanHoldingsPrices(request);
+    }
+    if (request.source == 'icicidirect_holdings_csv') {
+      return importICICIDirectHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

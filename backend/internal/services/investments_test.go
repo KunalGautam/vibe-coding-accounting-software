@@ -407,6 +407,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Dhan price: %+v", dhanPrice)
 	}
 
+	iciciDirectResult, err := service.ImportICICIDirectHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,Market Price,Quantity\n" +
+			"LT,INE018A01030,2026-07-31,3620.80,2\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportICICIDirectHoldingsCSV() error = %v", err)
+	}
+	if iciciDirectResult.Imported != 1 || iciciDirectResult.Skipped != 0 {
+		t.Fatalf("unexpected ICICI Direct holdings import result: %+v", iciciDirectResult)
+	}
+	var iciciDirectPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "LT", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&iciciDirectPrice).Error; err != nil {
+		t.Fatalf("load ICICI Direct price: %v", err)
+	}
+	if iciciDirectPrice.PriceMinor != 362080 || iciciDirectPrice.Source != "icicidirect_holdings_csv" {
+		t.Fatalf("unexpected ICICI Direct price: %+v", iciciDirectPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
