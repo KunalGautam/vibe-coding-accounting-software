@@ -765,6 +765,32 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueBillPost(String billId) async {
+    final operation = syncQueue.enqueueBillPost(billId: billId.trim());
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Bill posting queued for sync: ${operation.id}';
+    });
+  }
+
+  Future<void> queueVendorPayment(VendorPaymentInput input) async {
+    final operation = syncQueue.enqueueVendorPayment(
+      billId: input.billId.trim(),
+      paymentNumber: input.paymentNumber.trim().isEmpty
+          ? 'VPAY-MOB-${DateTime.now().millisecondsSinceEpoch}'
+          : input.paymentNumber.trim(),
+      paymentDate: input.paymentDate,
+      amountMinor: input.amountMinor,
+      paymentAccountId: input.paymentAccountId.trim(),
+      paymentMethod: input.paymentMethod.trim(),
+      reference: input.reference.trim(),
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Vendor payment queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> queueBrokerHoldingsImport(String csv) async {
     final operation = syncQueue.enqueueBrokerHoldingsPriceImport(csv: csv);
     await repository.savePending(syncQueue.pending);
@@ -2603,6 +2629,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchARAgingComparison: fetchARAgingComparison,
         onFetchAPAging: fetchAPAging,
         onFetchAPAgingComparison: fetchAPAgingComparison,
+        onQueueBillPost: queueBillPost,
+        onQueueVendorPayment: queueVendorPayment,
         onFetchTaxLiability: fetchTaxLiabilityReport,
         onFetchTaxLiabilityComparison: fetchTaxLiabilityComparison,
         onFetchTaxSummary: fetchTaxSummaryReport,
@@ -3014,6 +3042,26 @@ class CustomerPaymentInput {
   });
 
   final String invoiceId;
+  final String paymentNumber;
+  final DateTime paymentDate;
+  final int amountMinor;
+  final String paymentAccountId;
+  final String paymentMethod;
+  final String reference;
+}
+
+class VendorPaymentInput {
+  const VendorPaymentInput({
+    required this.billId,
+    required this.paymentNumber,
+    required this.paymentDate,
+    required this.amountMinor,
+    required this.paymentAccountId,
+    this.paymentMethod = '',
+    this.reference = '',
+  });
+
+  final String billId;
   final String paymentNumber;
   final DateTime paymentDate;
   final int amountMinor;
@@ -6296,6 +6344,8 @@ class ReportsPage extends StatelessWidget {
     required this.onFetchARAgingComparison,
     required this.onFetchAPAging,
     required this.onFetchAPAgingComparison,
+    required this.onQueueBillPost,
+    required this.onQueueVendorPayment,
     required this.onFetchTaxLiability,
     required this.onFetchTaxLiabilityComparison,
     required this.onFetchTaxSummary,
@@ -6344,6 +6394,8 @@ class ReportsPage extends StatelessWidget {
   final Future<void> Function(DateTime asOf) onFetchARAgingComparison;
   final Future<void> Function(DateTime asOf) onFetchAPAging;
   final Future<void> Function(DateTime asOf) onFetchAPAgingComparison;
+  final Future<void> Function(String billId) onQueueBillPost;
+  final Future<void> Function(VendorPaymentInput input) onQueueVendorPayment;
   final Future<void> Function(DateTime from, DateTime to) onFetchTaxLiability;
   final Future<void> Function(DateTime from, DateTime to)
   onFetchTaxLiabilityComparison;
@@ -6631,6 +6683,12 @@ class ReportsPage extends StatelessWidget {
               ],
               const SizedBox(height: 8),
               _APAgingRows(rows: apAging!.rows),
+              const SizedBox(height: 8),
+              APAgingActionsCard(
+                rows: apAging!.rows,
+                onQueueBillPost: onQueueBillPost,
+                onQueueVendorPayment: onQueueVendorPayment,
+              ),
             ],
           ],
         ),
@@ -7493,6 +7551,234 @@ class _APAgingRows extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class APAgingActionsCard extends StatefulWidget {
+  const APAgingActionsCard({
+    required this.rows,
+    required this.onQueueBillPost,
+    required this.onQueueVendorPayment,
+    super.key,
+  });
+
+  final List<APAgingRow> rows;
+  final Future<void> Function(String billId) onQueueBillPost;
+  final Future<void> Function(VendorPaymentInput input) onQueueVendorPayment;
+
+  @override
+  State<APAgingActionsCard> createState() => _APAgingActionsCardState();
+}
+
+class _APAgingActionsCardState extends State<APAgingActionsCard> {
+  late final TextEditingController billIdController;
+  late final TextEditingController paymentNumberController;
+  late final TextEditingController paymentDateController;
+  late final TextEditingController amountController;
+  late final TextEditingController paymentAccountController;
+  late final TextEditingController paymentMethodController;
+  late final TextEditingController referenceController;
+  String? validationMessage;
+  bool isQueueing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    billIdController = TextEditingController();
+    paymentNumberController = TextEditingController(
+      text: 'VPAY-MOB-${now.millisecondsSinceEpoch}',
+    );
+    paymentDateController = TextEditingController(text: formatDateOnly(now));
+    amountController = TextEditingController(text: '0.00');
+    paymentAccountController = TextEditingController();
+    paymentMethodController = TextEditingController(text: 'bank_transfer');
+    referenceController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    billIdController.dispose();
+    paymentNumberController.dispose();
+    paymentDateController.dispose();
+    amountController.dispose();
+    paymentAccountController.dispose();
+    paymentMethodController.dispose();
+    referenceController.dispose();
+    super.dispose();
+  }
+
+  int parseRupeesToPaise(String value) {
+    final normalized = value.trim().replaceAll(',', '');
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    final rupees = double.tryParse(normalized) ?? 0;
+    return (rupees * 100).round();
+  }
+
+  void applyRow(APAgingRow row) {
+    billIdController.text = row.billId;
+    amountController.text = formatMinorAsInput(row.outstandingMinor);
+    setState(() {
+      validationMessage = 'Selected ${row.billNumber}.';
+    });
+  }
+
+  Future<void> queueBillPost() async {
+    final billId = billIdController.text.trim();
+    if (billId.isEmpty) {
+      setState(() {
+        validationMessage = 'Select or enter a bill ID before posting.';
+      });
+      return;
+    }
+    await widget.onQueueBillPost(billId);
+  }
+
+  Future<void> queueVendorPayment() async {
+    if (isQueueing) {
+      return;
+    }
+    final paymentDate = parseIsoDateOnlyUtc(paymentDateController.text.trim());
+    final amountMinor = parseRupeesToPaise(amountController.text);
+    if (billIdController.text.trim().isEmpty ||
+        paymentNumberController.text.trim().isEmpty ||
+        paymentAccountController.text.trim().isEmpty ||
+        paymentDate == null ||
+        amountMinor <= 0) {
+      setState(() {
+        validationMessage =
+            'Enter bill ID, payment number, payment date, amount, and payment account ID.';
+      });
+      return;
+    }
+    setState(() {
+      isQueueing = true;
+      validationMessage = null;
+    });
+    try {
+      await widget.onQueueVendorPayment(
+        VendorPaymentInput(
+          billId: billIdController.text.trim(),
+          paymentNumber: paymentNumberController.text.trim(),
+          paymentDate: paymentDate,
+          amountMinor: amountMinor,
+          paymentAccountId: paymentAccountController.text.trim(),
+          paymentMethod: paymentMethodController.text.trim(),
+          reference: referenceController.text.trim(),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withAlpha(80),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('AP actions', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            const Text(
+              'Queue bill posting or vendor payments from cached AP aging rows.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: billIdController,
+              decoration: const InputDecoration(labelText: 'Action bill ID'),
+            ),
+            if (widget.rows.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final row in widget.rows.take(6))
+                    ActionChip(
+                      label: Text('${row.billNumber} · ${row.billId}'),
+                      onPressed: () => applyRow(row),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: queueBillPost,
+              icon: const Icon(Icons.publish_outlined),
+              label: const Text('Queue bill posting'),
+            ),
+            const Divider(height: 28),
+            TextField(
+              controller: paymentNumberController,
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment number',
+              ),
+            ),
+            TextField(
+              controller: paymentDateController,
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment date',
+                hintText: '2026-07-17',
+              ),
+            ),
+            TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment amount in INR',
+              ),
+            ),
+            TextField(
+              controller: paymentAccountController,
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment account ID',
+              ),
+            ),
+            TextField(
+              controller: paymentMethodController,
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment method',
+                helperText: 'Optional, for example bank_transfer, upi, cash.',
+              ),
+            ),
+            TextField(
+              controller: referenceController,
+              decoration: const InputDecoration(
+                labelText: 'Vendor payment reference',
+              ),
+            ),
+            if (validationMessage != null) Text(validationMessage!),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queueVendorPayment,
+              icon: const Icon(Icons.payments_outlined),
+              label: Text(
+                isQueueing
+                    ? 'Queueing vendor payment...'
+                    : 'Queue vendor payment',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

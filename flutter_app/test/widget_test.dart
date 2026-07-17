@@ -1524,6 +1524,107 @@ void main() {
     },
   );
 
+  testWidgets('queues bill posting and vendor payments from AP aging rows', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final repository = MemorySyncOperationRepository();
+    final reportCacheRepository = MemoryReportCacheRepository(
+      ReportCacheSnapshot(
+        apAging: APAgingReport(
+          asOfDate: DateTime.utc(2026, 7, 17),
+          rows: [
+            APAgingRow(
+              vendorId: 'vendor-1',
+              vendorName: 'Office Supplies Co',
+              billId: 'bill-action-1',
+              billNumber: 'BILL-ACTION-001',
+              dueDate: DateTime.utc(2026, 7),
+              daysOverdue: 16,
+              outstandingMinor: 147500,
+              currentMinor: 0,
+              oneToThirtyMinor: 147500,
+              thirtyOneToSixtyMinor: 0,
+              sixtyOneToNinetyMinor: 0,
+              overNinetyMinor: 0,
+            ),
+          ],
+          totalCurrentMinor: 0,
+          totalOneToThirtyMinor: 147500,
+          totalThirtyOneToSixtyMinor: 0,
+          totalSixtyOneToNinetyMinor: 0,
+          totalOverNinetyMinor: 0,
+          totalOutstandingMinor: 147500,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      AccountingApp(
+        syncRepository: repository,
+        reportCacheRepository: reportCacheRepository,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Reports'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('BILL-ACTION-001 · bill-action-1'));
+    await tester.tap(find.text('BILL-ACTION-001 · bill-action-1'));
+    await tester.pump();
+    expect(find.text('Selected BILL-ACTION-001.'), findsOneWidget);
+
+    await tester.tap(find.text('Queue bill posting'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Vendor payment number'),
+      'VPAY-ACTION-001',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Vendor payment date'),
+      '2026-07-17',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Vendor payment account ID'),
+      'bank-1',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Vendor payment reference'),
+      'NEFT-REF-1',
+    );
+    await tester.tap(find.text('Queue vendor payment'));
+    await tester.pumpAndSettle();
+
+    final pending = await repository.loadPending();
+    final billPosts = pending
+        .where(
+          (operation) =>
+              operation.module == 'ledger' && operation.action == 'post_bill',
+        )
+        .toList(growable: false);
+    final payments = pending
+        .where(
+          (operation) =>
+              operation.module == 'payments' &&
+              operation.action == 'record_vendor',
+        )
+        .toList(growable: false);
+    expect(billPosts, hasLength(1));
+    expect(billPosts.single.payload['bill_id'], 'bill-action-1');
+    expect(payments, hasLength(1));
+    expect(payments.single.payload['bill_id'], 'bill-action-1');
+    expect(payments.single.payload['payment_number'], 'VPAY-ACTION-001');
+    expect(payments.single.payload['payment_date'], '2026-07-17');
+    expect(payments.single.payload['amount_minor'], 147500);
+    expect(payments.single.payload['payment_account_id'], 'bank-1');
+    expect(payments.single.payload['payment_method'], 'bank_transfer');
+    expect(payments.single.payload['reference'], 'NEFT-REF-1');
+    expect(
+      find.textContaining('Vendor payment queued for sync:'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('downloads invoice PDF attachments from invoice rows', (
     tester,
   ) async {
