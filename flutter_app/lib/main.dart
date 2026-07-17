@@ -6335,6 +6335,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'axisdirect_holdings_csv',
                   child: Text('Axis Direct holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'sbisecurities_holdings_csv',
+                  child: Text('SBI Securities holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6381,6 +6385,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'axisdirect_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nTECHM,INE669C01036,2026-07-31,1543.25,6';
+                  } else if (value == 'sbisecurities_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nINFY,INE009A01021,2026-07-31,1499.95,9';
                   }
                 });
               },

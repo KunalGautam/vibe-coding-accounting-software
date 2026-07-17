@@ -574,6 +574,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importSBISecuritiesHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/sbisecurities-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -616,6 +627,9 @@ class AccountingApiClient {
     }
     if (request.source == 'axisdirect_holdings_csv') {
       return importAxisDirectHoldingsPrices(request);
+    }
+    if (request.source == 'sbisecurities_holdings_csv') {
+      return importSBISecuritiesHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

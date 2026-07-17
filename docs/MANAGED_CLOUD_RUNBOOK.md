@@ -81,7 +81,7 @@ WORKER_INTERVAL_SECONDS=3600
 MARKET_DATA_IMPORT_ENABLED=false
 ```
 
-If scheduled market-data import is enabled, set one of `MARKET_DATA_IMPORT_PATH` or `MARKET_DATA_IMPORT_URL`, plus `MARKET_DATA_IMPORT_FORMAT`. Supported formats are `amfi`, `csv`, `nse_equity_csv`, `bse_equity_csv`, `yahoo_finance_csv`, `alpha_vantage_csv`, `broker_holdings_csv`, `zerodha_holdings_csv`, `groww_holdings_csv`, `upstox_holdings_csv`, `angelone_holdings_csv`, `dhan_holdings_csv`, `icicidirect_holdings_csv`, `hdfcsky_holdings_csv`, `kotakneo_holdings_csv`, `paytmmoney_holdings_csv`, `motilaloswal_holdings_csv`, `sharekhan_holdings_csv`, `fivepaisa_holdings_csv`, and `axisdirect_holdings_csv`.
+If scheduled market-data import is enabled, set one of `MARKET_DATA_IMPORT_PATH` or `MARKET_DATA_IMPORT_URL`, plus `MARKET_DATA_IMPORT_FORMAT`. Supported formats are `amfi`, `csv`, `nse_equity_csv`, `bse_equity_csv`, `yahoo_finance_csv`, `alpha_vantage_csv`, `broker_holdings_csv`, `zerodha_holdings_csv`, `groww_holdings_csv`, `upstox_holdings_csv`, `angelone_holdings_csv`, `dhan_holdings_csv`, `icicidirect_holdings_csv`, `hdfcsky_holdings_csv`, `kotakneo_holdings_csv`, `paytmmoney_holdings_csv`, `motilaloswal_holdings_csv`, `sharekhan_holdings_csv`, `fivepaisa_holdings_csv`, `axisdirect_holdings_csv`, and `sbisecurities_holdings_csv`.
 
 ## Deployment Flow
 

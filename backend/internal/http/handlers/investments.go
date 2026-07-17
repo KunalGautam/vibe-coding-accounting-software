@@ -130,6 +130,7 @@ func (h InvestmentHandler) RegisterWriteRoutes(router gin.IRoutes) {
 	router.POST("/investments/prices/import/sharekhan-holdings", h.ImportSharekhanHoldingsCSV)
 	router.POST("/investments/prices/import/fivepaisa-holdings", h.ImportFivePaisaHoldingsCSV)
 	router.POST("/investments/prices/import/axisdirect-holdings", h.ImportAxisDirectHoldingsCSV)
+	router.POST("/investments/prices/import/sbisecurities-holdings", h.ImportSBISecuritiesHoldingsCSV)
 	router.POST("/investments/dividends", h.CreateDividend)
 	router.POST("/investments/corporate-actions", h.CreateCorporateAction)
 }
@@ -584,6 +585,26 @@ func (h InvestmentHandler) ImportAxisDirectHoldingsCSV(c *gin.Context) {
 	}
 
 	result, err := h.investments.ImportAxisDirectHoldingsCSV(c.Request.Context(), services.ImportInvestmentPricesInput{
+		OrganizationID: c.Param("organizationId"),
+		CSV:            request.CSV,
+		Source:         request.Source,
+	})
+	if err != nil {
+		status, code := investmentErrorStatus(err)
+		respondError(c, status, code, err.Error())
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h InvestmentHandler) ImportSBISecuritiesHoldingsCSV(c *gin.Context) {
+	var request importInvestmentPricesRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	result, err := h.investments.ImportSBISecuritiesHoldingsCSV(c.Request.Context(), services.ImportInvestmentPricesInput{
 		OrganizationID: c.Param("organizationId"),
 		CSV:            request.CSV,
 		Source:         request.Source,

@@ -1534,6 +1534,52 @@ void main() {
     expect(result.prices.single.priceMinor, 154325);
   });
 
+  test('imports SBI Securities holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/sbisecurities-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'sbisecurities_holdings_csv');
+        expect(body['csv'], contains('INFY'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-sbisecurities-1',
+                'symbol': 'INFY',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 149995,
+                'currency': 'INR',
+                'source': 'sbisecurities_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importSBISecuritiesHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nINFY,INE009A01021,2026-07-31,1499.95,9',
+        source: 'sbisecurities_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'INFY');
+    expect(result.prices.single.priceMinor, 149995);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

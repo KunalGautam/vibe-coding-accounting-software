@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -29,7 +29,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "motilaloswal",
   "sharekhan",
   "fivepaisa",
-  "axisdirect"
+  "axisdirect",
+  "sbisecurities"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -189,6 +190,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "Axis Direct holdings CSV",
     buttonLabel: "Import Axis Direct holdings",
     defaultSource: "axisdirect_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  sbisecurities: {
+    label: "SBI Securities holdings CSV",
+    buttonLabel: "Import SBI Securities holdings",
+    defaultSource: "sbisecurities_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

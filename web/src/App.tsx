@@ -3241,6 +3241,9 @@ function InvestmentsPage({
         case "axisdirect":
           result = await api.importAxisDirectHoldingsPrices(importInput);
           break;
+        case "sbisecurities":
+          result = await api.importSBISecuritiesHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

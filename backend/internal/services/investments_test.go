@@ -559,6 +559,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Axis Direct price: %+v", axisDirectPrice)
 	}
 
+	sbiSecuritiesResult, err := service.ImportSBISecuritiesHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"INFY,INE009A01021,2026-07-31,1499.95,9\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportSBISecuritiesHoldingsCSV() error = %v", err)
+	}
+	if sbiSecuritiesResult.Imported != 1 || sbiSecuritiesResult.Skipped != 0 {
+		t.Fatalf("unexpected SBI Securities holdings import result: %+v", sbiSecuritiesResult)
+	}
+	var sbiSecuritiesPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "INFY", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&sbiSecuritiesPrice).Error; err != nil {
+		t.Fatalf("load SBI Securities price: %v", err)
+	}
+	if sbiSecuritiesPrice.PriceMinor != 149995 || sbiSecuritiesPrice.Source != "sbisecurities_holdings_csv" {
+		t.Fatalf("unexpected SBI Securities price: %+v", sbiSecuritiesPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
