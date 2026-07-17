@@ -618,6 +618,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importFYERSHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/fyers-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -672,6 +683,9 @@ class AccountingApiClient {
     }
     if (request.source == 'iiflsecurities_holdings_csv') {
       return importIIFLSecuritiesHoldingsPrices(request);
+    }
+    if (request.source == 'fyers_holdings_csv') {
+      return importFYERSHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

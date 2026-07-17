@@ -3253,6 +3253,9 @@ function InvestmentsPage({
         case "iiflsecurities":
           result = await api.importIIFLSecuritiesHoldingsPrices(importInput);
           break;
+        case "fyers":
+          result = await api.importFYERSHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

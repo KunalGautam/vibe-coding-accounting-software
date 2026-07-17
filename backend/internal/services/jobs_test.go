@@ -918,6 +918,40 @@ func TestJobServiceImportScheduledMarketDataSupportsIIFLSecuritiesHoldingsCSV(t 
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsFYERSHoldingsCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Acme FYERS", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "fyers.csv")
+	if err := os.WriteFile(path, []byte("Symbol,ISIN,Date,LTP,Quantity\nSBIN,INE062A01020,2026-07-31,820.45,8\n"), 0o600); err != nil {
+		t.Fatalf("write FYERS CSV: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		OrganizationID: org.ID,
+		Path:           path,
+		Format:         "fyers_holdings_csv",
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected job result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "SBIN").First(&price).Error; err != nil {
+		t.Fatalf("load FYERS price: %v", err)
+	}
+	if price.PriceMinor != 82045 || price.Source != "fyers_holdings_csv" {
+		t.Fatalf("unexpected FYERS price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

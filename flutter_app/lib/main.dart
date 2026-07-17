@@ -6351,6 +6351,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'iiflsecurities_holdings_csv',
                   child: Text('IIFL Securities holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'fyers_holdings_csv',
+                  child: Text('FYERS holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6409,6 +6413,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'iiflsecurities_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nTITAN,INE280A01028,2026-07-31,3520.15,2';
+                  } else if (value == 'fyers_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nSBIN,INE062A01020,2026-07-31,820.45,8';
                   }
                 });
               },

@@ -635,6 +635,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected IIFL Securities price: %+v", iiflSecuritiesPrice)
 	}
 
+	fyersResult, err := service.ImportFYERSHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"SBIN,INE062A01020,2026-07-31,820.45,8\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportFYERSHoldingsCSV() error = %v", err)
+	}
+	if fyersResult.Imported != 1 || fyersResult.Skipped != 0 {
+		t.Fatalf("unexpected FYERS holdings import result: %+v", fyersResult)
+	}
+	var fyersPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "SBIN", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&fyersPrice).Error; err != nil {
+		t.Fatalf("load FYERS price: %v", err)
+	}
+	if fyersPrice.PriceMinor != 82045 || fyersPrice.Source != "fyers_holdings_csv" {
+		t.Fatalf("unexpected FYERS price: %+v", fyersPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

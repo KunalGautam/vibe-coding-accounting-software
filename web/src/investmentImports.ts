@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities" | "fyers";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -33,7 +33,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "sbisecurities",
   "nuvama",
   "geojit",
-  "iiflsecurities"
+  "iiflsecurities",
+  "fyers"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -225,6 +226,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "IIFL Securities holdings CSV",
     buttonLabel: "Import IIFL Securities holdings",
     defaultSource: "iiflsecurities_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  fyers: {
+    label: "FYERS holdings CSV",
+    buttonLabel: "Import FYERS holdings",
+    defaultSource: "fyers_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

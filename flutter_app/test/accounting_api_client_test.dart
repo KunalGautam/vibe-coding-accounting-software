@@ -1718,6 +1718,52 @@ void main() {
     expect(result.prices.single.priceMinor, 352015);
   });
 
+  test('imports FYERS holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/fyers-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'fyers_holdings_csv');
+        expect(body['csv'], contains('SBIN'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-fyers-1',
+                'symbol': 'SBIN',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 82045,
+                'currency': 'INR',
+                'source': 'fyers_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importFYERSHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nSBIN,INE062A01020,2026-07-31,820.45,8',
+        source: 'fyers_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'SBIN');
+    expect(result.prices.single.priceMinor, 82045);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,
