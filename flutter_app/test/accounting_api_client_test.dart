@@ -1948,6 +1948,52 @@ void main() {
     expect(result.prices.single.priceMinor, 1123455);
   });
 
+  test('imports Religare holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/religare-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'religare_holdings_csv');
+        expect(body['csv'], contains('ADANIPORTS'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-religare-1',
+                'symbol': 'ADANIPORTS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 132575,
+                'currency': 'INR',
+                'source': 'religare_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importReligareHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nADANIPORTS,INE742F01042,2026-07-31,1325.75,5',
+        source: 'religare_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'ADANIPORTS');
+    expect(result.prices.single.priceMinor, 132575);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

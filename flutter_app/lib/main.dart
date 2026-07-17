@@ -6371,6 +6371,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'choice_holdings_csv',
                   child: Text('Choice holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'religare_holdings_csv',
+                  child: Text('Religare holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6444,6 +6448,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'choice_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nULTRACEMCO,INE481G01011,2026-07-31,11234.55,1';
+                  } else if (value == 'religare_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nADANIPORTS,INE742F01042,2026-07-31,1325.75,5';
                   }
                 });
               },

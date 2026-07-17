@@ -730,6 +730,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Choice price: %+v", choicePrice)
 	}
 
+	religareResult, err := service.ImportReligareHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"ADANIPORTS,INE742F01042,2026-07-31,1325.75,5\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportReligareHoldingsCSV() error = %v", err)
+	}
+	if religareResult.Imported != 1 || religareResult.Skipped != 0 {
+		t.Fatalf("unexpected Religare holdings import result: %+v", religareResult)
+	}
+	var religarePrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "ADANIPORTS", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&religarePrice).Error; err != nil {
+		t.Fatalf("load Religare price: %v", err)
+	}
+	if religarePrice.PriceMinor != 132575 || religarePrice.Source != "religare_holdings_csv" {
+		t.Fatalf("unexpected Religare price: %+v", religarePrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

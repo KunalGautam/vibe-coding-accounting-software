@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 178 route/method pairs.
+- API route/Postman coverage validators for 179 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -257,6 +257,7 @@ Supported market-data formats are:
 - `aliceblue_holdings_csv`: Alice Blue holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `aliceblue_holdings_csv`.
 - `samco_holdings_csv`: Samco holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `samco_holdings_csv`.
 - `choice_holdings_csv`: Choice holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `choice_holdings_csv`.
+- `religare_holdings_csv`: Religare holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `religare_holdings_csv`.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 

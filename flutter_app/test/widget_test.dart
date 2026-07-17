@@ -2849,6 +2849,32 @@ void main() {
     expect(pending.last.payload['csv'], contains('ULTRACEMCO'));
   });
 
+  testWidgets('queues Religare holdings imports from the investments page', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final syncRepository = MemorySyncOperationRepository();
+
+    await tester.pumpWidget(AccountingApp(syncRepository: syncRepository));
+    await tester.tap(find.text('Investments'));
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Generic broker holdings CSV'));
+    await tester.tap(find.text('Generic broker holdings CSV'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Religare holdings CSV').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Queue broker holdings import'));
+    await tester.tap(find.text('Queue broker holdings import'));
+    await tester.pumpAndSettle();
+
+    final pending = await syncRepository.loadPending();
+    expect(pending.last.module, 'investments');
+    expect(pending.last.action, 'import_broker_holdings');
+    expect(pending.last.payload['source'], 'religare_holdings_csv');
+    expect(pending.last.payload['csv'], contains('ADANIPORTS'));
+  });
+
   testWidgets('queues investment lots from the investments page', (
     tester,
   ) async {

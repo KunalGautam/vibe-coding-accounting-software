@@ -3182,6 +3182,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/religare-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Religare holdings price CSV
+      description: Parses Religare holdings exports with Symbol/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `religare_holdings_csv`.
+      operationId: importReligareHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Religare holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]
