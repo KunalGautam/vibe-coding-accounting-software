@@ -422,6 +422,79 @@ void main() {
     expect(find.text('Pending local operations: 1'), findsOneWidget);
   });
 
+  testWidgets('clears failed sync state from the sync review queue', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final repository = MemorySyncOperationRepository([
+      SyncOperation(
+        id: 'conflicted-lot-1',
+        module: 'investments',
+        action: 'create_lot',
+        createdAt: DateTime.utc(2026, 7, 12),
+        retryCount: 2,
+        lastAttemptAt: DateTime.utc(2026, 7, 12, 9),
+        lastError: 'lot already exists',
+        conflictReason: 'lot already exists',
+      ),
+    ]);
+
+    await tester.pumpWidget(AccountingApp(syncRepository: repository));
+    await tester.pump();
+    await tester.tap(find.text('Sync'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sync review queue'), findsOneWidget);
+    expect(find.text('Conflict: lot already exists'), findsOneWidget);
+
+    await tester.tap(find.text('Clear retry state'));
+    await tester.pumpAndSettle();
+
+    final pending = await repository.loadPending();
+    expect(pending.single.retryCount, 0);
+    expect(pending.single.lastAttemptAt, isNull);
+    expect(pending.single.lastError, isNull);
+    expect(pending.single.conflictReason, isNull);
+    expect(
+      find.text('Retry and conflict state cleared for the queued operation.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('No sync conflicts or failed retries need review.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('discards failed sync operations from the sync review queue', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final repository = MemorySyncOperationRepository([
+      SyncOperation(
+        id: 'failed-price-1',
+        module: 'investments',
+        action: 'create_price',
+        createdAt: DateTime.utc(2026, 7, 12),
+        retryCount: 1,
+        lastError: 'network timeout',
+      ),
+    ]);
+
+    await tester.pumpWidget(AccountingApp(syncRepository: repository));
+    await tester.pump();
+    await tester.tap(find.text('Sync'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last error: network timeout'), findsOneWidget);
+
+    await tester.tap(find.text('Discard operation'));
+    await tester.pumpAndSettle();
+
+    expect(await repository.loadPending(), isEmpty);
+    expect(find.text('Queued operation discarded.'), findsOneWidget);
+    expect(find.text('Pending local operations: 0'), findsOneWidget);
+  });
+
   testWidgets('saves sync settings locally from the sync page', (tester) async {
     useTallTestViewport(tester);
     final settingsRepository = MemorySyncSettingsRepository();

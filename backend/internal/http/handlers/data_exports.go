@@ -15,6 +15,7 @@ type DataExportHandler struct {
 
 type createBackupSnapshotRequest struct {
 	StoragePath    string `json:"storage_path"`
+	MirrorPath     string `json:"mirror_path"`
 	RetentionCount int    `json:"retention_count"`
 }
 
@@ -62,6 +63,7 @@ func (h DataExportHandler) CreateBackup(c *gin.Context) {
 	snapshot, err := h.exports.CreateBackupSnapshot(c.Request.Context(), services.CreateBackupSnapshotInput{
 		OrganizationID: c.Param("organizationId"),
 		StoragePath:    request.StoragePath,
+		MirrorPath:     request.MirrorPath,
 		RetentionCount: request.RetentionCount,
 	})
 	if err != nil {

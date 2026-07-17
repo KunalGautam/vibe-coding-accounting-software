@@ -45,6 +45,7 @@ type Config struct {
 	AttachmentStoragePath          string
 	AttachmentStorageDriver        string
 	BackupStoragePath              string
+	BackupMirrorPath               string
 	BackupRetentionCount           int
 	WorkerRunOnce                  bool
 	WorkerIntervalSeconds          int
@@ -96,6 +97,7 @@ func Load() Config {
 		AttachmentStorageDriver:        env("ATTACHMENT_STORAGE_DRIVER", "local"),
 		AttachmentStoragePath:          env("ATTACHMENT_STORAGE_PATH", "./storage"),
 		BackupStoragePath:              env("BACKUP_STORAGE_PATH", "./storage/backups"),
+		BackupMirrorPath:               env("BACKUP_MIRROR_PATH", ""),
 		BackupRetentionCount:           envInt("BACKUP_RETENTION_COUNT", 7),
 		WorkerRunOnce:                  envBool("WORKER_RUN_ONCE", false),
 		WorkerIntervalSeconds:          envInt("WORKER_INTERVAL_SECONDS", 3600),
@@ -172,6 +174,12 @@ func (c Config) validate(runtime bool) error {
 	}
 	if c.RateLimitEnabled && (c.RateLimitRequests <= 0 || c.RateLimitWindowSeconds <= 0) {
 		problems = append(problems, errors.New("rate limit settings must be positive when RATE_LIMIT_ENABLED=true"))
+	}
+	if c.BackupRetentionCount <= 0 {
+		problems = append(problems, errors.New("BACKUP_RETENTION_COUNT must be positive in production"))
+	}
+	if strings.TrimSpace(c.BackupMirrorPath) != "" && strings.TrimSpace(c.BackupMirrorPath) == strings.TrimSpace(c.BackupStoragePath) {
+		problems = append(problems, errors.New("BACKUP_MIRROR_PATH must be different from BACKUP_STORAGE_PATH"))
 	}
 	if c.MarketDataImportEnabled {
 		if strings.TrimSpace(c.MarketDataImportPath) == "" && strings.TrimSpace(c.MarketDataImportURL) == "" {

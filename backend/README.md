@@ -40,6 +40,7 @@ Defaults:
 - `DEFAULT_COUNTRY=IN`
 - `DEFAULT_CURRENCY=INR`
 - `BACKUP_STORAGE_PATH=./storage/backups`
+- `BACKUP_MIRROR_PATH=` optional secondary mounted backup directory for checksum-verified backup copies
 - `BACKUP_RETENTION_COUNT=7`
 - `WORKER_RUN_ONCE=false`
 - `WORKER_INTERVAL_SECONDS=3600`
@@ -107,8 +108,8 @@ The backend currently contains the first implementation slice:
 - Exchange-rate storage, base-currency ledger split support, and unrealized FX revaluation posting.
 - Fiscal year close posting to retained earnings.
 - Investment lots, specific-lot and average-cost sale tracking, GL sale posting, market prices, CSV/AMFI NAV/NSE/BSE/Yahoo/Alpha Vantage/broker-holdings imports, scheduled worker market-data file imports, valuation, tax-adjustment candidates, and realized gain/loss reporting.
-- Admin/Accountant organization JSON data export plus local backup snapshot endpoints for portable backups.
-- Cron-style background worker for due recurring invoice draft generation, scheduled local backup snapshots, and optional scheduled investment market-data file imports.
+- Admin/Accountant organization JSON data export plus local backup snapshot endpoints for portable backups with optional checksum-verified mirror copies.
+- Cron-style background worker for due recurring invoice draft generation, scheduled local/mirrored backup snapshots, and optional scheduled investment market-data file imports.
 - Explicit migration CLI at `cmd/migrate`, restore CLI at `cmd/restore`, plus Docker/Compose deployment scaffolding for MySQL-backed API, worker, and React web.
 - Audit log service and audit log listing endpoint for key posting/reconciliation workflows.
 - Admin-managed organization user creation and membership role assignment.

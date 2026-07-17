@@ -59,6 +59,7 @@ type OrganizationDataExport struct {
 type CreateBackupSnapshotInput struct {
 	OrganizationID string
 	StoragePath    string
+	MirrorPath     string
 	RetentionCount int
 }
 
@@ -109,6 +110,12 @@ func (s DataExportService) CreateBackupSnapshot(ctx context.Context, input Creat
 		return domain.BackupSnapshot{}, err
 	}
 	sum := sha256.Sum256(payload)
+	if input.MirrorPath != "" {
+		if err := mirrorBackupFile(input.MirrorPath, fileName, payload, sum[:]); err != nil {
+			_ = os.Remove(fullPath)
+			return domain.BackupSnapshot{}, err
+		}
+	}
 	now := time.Now().UTC()
 	snapshot := domain.BackupSnapshot{
 		OrganizationID: input.OrganizationID,
@@ -123,11 +130,42 @@ func (s DataExportService) CreateBackupSnapshot(ctx context.Context, input Creat
 		return domain.BackupSnapshot{}, err
 	}
 	if input.RetentionCount > 0 {
-		if err := s.pruneBackups(ctx, input.OrganizationID, input.RetentionCount); err != nil {
+		if err := s.pruneBackups(ctx, input.OrganizationID, input.RetentionCount, input.MirrorPath); err != nil {
 			return domain.BackupSnapshot{}, err
 		}
 	}
 	return snapshot, nil
+}
+
+func mirrorBackupFile(mirrorPath string, fileName string, payload []byte, expectedSHA []byte) error {
+	if err := os.MkdirAll(mirrorPath, 0o755); err != nil {
+		return err
+	}
+	mirrorFile := filepath.Join(mirrorPath, fileName)
+	if err := os.WriteFile(mirrorFile, payload, 0o600); err != nil {
+		return err
+	}
+	mirroredPayload, err := os.ReadFile(mirrorFile)
+	if err != nil {
+		return err
+	}
+	mirroredSHA := sha256.Sum256(mirroredPayload)
+	if !equalBytes(mirroredSHA[:], expectedSHA) {
+		_ = os.Remove(mirrorFile)
+		return fmt.Errorf("mirrored backup checksum mismatch for %s", mirrorFile)
+	}
+	return nil
+}
+
+func equalBytes(left []byte, right []byte) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	var diff byte
+	for index := range left {
+		diff |= left[index] ^ right[index]
+	}
+	return diff == 0
 }
 
 func (s DataExportService) ExportOrganization(ctx context.Context, organizationID string) (OrganizationDataExport, error) {
@@ -345,7 +383,7 @@ func (s DataExportService) preloadLines(ctx context.Context, organizationID stri
 		Error
 }
 
-func (s DataExportService) pruneBackups(ctx context.Context, organizationID string, retentionCount int) error {
+func (s DataExportService) pruneBackups(ctx context.Context, organizationID string, retentionCount int, mirrorPath string) error {
 	var snapshots []domain.BackupSnapshot
 	if err := s.db.WithContext(ctx).
 		Where("organization_id = ?", organizationID).
@@ -356,6 +394,9 @@ func (s DataExportService) pruneBackups(ctx context.Context, organizationID stri
 	}
 	for _, snapshot := range snapshots[retentionCount:] {
 		_ = os.Remove(snapshot.StoragePath)
+		if mirrorPath != "" {
+			_ = os.Remove(filepath.Join(mirrorPath, snapshot.FileName))
+		}
 		if err := s.db.WithContext(ctx).Delete(&snapshot).Error; err != nil {
 			return err
 		}

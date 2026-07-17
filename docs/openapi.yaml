@@ -4206,6 +4206,9 @@ components:
         storage_path:
           type: string
           description: Optional local backup directory. Defaults to server backup storage configuration.
+        mirror_path:
+          type: string
+          description: Optional secondary mounted backup directory. When set, the backup file is copied and checksum-verified there too.
         retention_count:
           type: integer
           description: Optional count of newest snapshots to retain for this organization.

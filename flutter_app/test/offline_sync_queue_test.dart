@@ -195,6 +195,29 @@ void main() {
     expect(operation.conflictReason, isNull);
   });
 
+  test('clears sync state for any pending operation', () {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'investment-price-1',
+        module: 'investments',
+        action: 'create_price',
+        createdAt: DateTime.utc(2026, 7, 11),
+        retryCount: 4,
+        lastAttemptAt: DateTime.utc(2026, 7, 12),
+        lastError: 'stale market price',
+        conflictReason: 'stale market price',
+      ),
+    ]);
+
+    queue.clearSyncState('investment-price-1');
+
+    final operation = queue.pending.single;
+    expect(operation.retryCount, 0);
+    expect(operation.lastAttemptAt, isNull);
+    expect(operation.lastError, isNull);
+    expect(operation.conflictReason, isNull);
+  });
+
   test('serializes and hydrates sync operations', () {
     final operation = SyncOperation(
       id: 'expense-1',

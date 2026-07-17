@@ -943,6 +943,14 @@ class OfflineSyncQueue {
     _operations[index] = operation;
   }
 
+  void clearSyncState(String id) {
+    final index = _operations.indexWhere((operation) => operation.id == id);
+    if (index == -1) {
+      return;
+    }
+    _operations[index] = _operations[index].clearSyncState();
+  }
+
   void markSynced(String id) {
     remove(id);
   }

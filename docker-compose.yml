@@ -63,6 +63,7 @@ services:
       METRICS_ENABLED: ${METRICS_ENABLED:-true}
       ATTACHMENT_STORAGE_PATH: /app/storage/attachments
       BACKUP_STORAGE_PATH: /app/storage/backups
+      BACKUP_MIRROR_PATH: ${BACKUP_MIRROR_PATH:-}
     volumes:
       - app_storage:/app/storage
     ports:
@@ -88,6 +89,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       PASSWORD_RESET_BASE_URL: ${PASSWORD_RESET_BASE_URL:-http://localhost:3000/reset-password}
       BACKUP_STORAGE_PATH: /app/storage/backups
+      BACKUP_MIRROR_PATH: ${BACKUP_MIRROR_PATH:-}
       BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-14}
       WORKER_INTERVAL_SECONDS: ${WORKER_INTERVAL_SECONDS:-3600}
       MARKET_DATA_IMPORT_ENABLED: ${MARKET_DATA_IMPORT_ENABLED:-false}

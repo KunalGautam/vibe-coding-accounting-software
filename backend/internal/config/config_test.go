@@ -28,6 +28,7 @@ func TestConfigValidateRejectsProductionDefaults(t *testing.T) {
 		RateLimitEnabled:       true,
 		RateLimitRequests:      0,
 		RateLimitWindowSeconds: 0,
+		BackupRetentionCount:   0,
 	}
 	err := cfg.ValidateRuntime()
 	if err == nil {
@@ -41,6 +42,7 @@ func TestConfigValidateRejectsProductionDefaults(t *testing.T) {
 		"SWAGGER_ENABLED",
 		"AUTO_MIGRATE",
 		"rate limit",
+		"BACKUP_RETENTION_COUNT",
 		"MFA_ENCRYPTION_KEY",
 	} {
 		if !strings.Contains(err.Error(), expected) {
@@ -63,6 +65,7 @@ func TestConfigValidateAllowsHardenedProduction(t *testing.T) {
 		RateLimitEnabled:       true,
 		RateLimitRequests:      20,
 		RateLimitWindowSeconds: 60,
+		BackupRetentionCount:   7,
 		LogFormat:              "json",
 		LogLevel:               "info",
 	}
@@ -85,6 +88,7 @@ func TestConfigValidateAllowsProductionMigrationWithAutoMigrate(t *testing.T) {
 		RateLimitEnabled:       true,
 		RateLimitRequests:      20,
 		RateLimitWindowSeconds: 60,
+		BackupRetentionCount:   7,
 		LogFormat:              "json",
 		LogLevel:               "info",
 	}
@@ -110,6 +114,7 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 		RateLimitEnabled:        true,
 		RateLimitRequests:       20,
 		RateLimitWindowSeconds:  60,
+		BackupRetentionCount:    7,
 		LogFormat:               "json",
 		LogLevel:                "info",
 		MarketDataImportEnabled: true,
@@ -297,6 +302,7 @@ func TestConfigValidateEmailDeliverySettings(t *testing.T) {
 		RateLimitEnabled:         true,
 		RateLimitRequests:        20,
 		RateLimitWindowSeconds:   60,
+		BackupRetentionCount:     7,
 		LogFormat:                "json",
 		LogLevel:                 "info",
 		EmailDeliveryEnabled:     true,
@@ -311,6 +317,38 @@ func TestConfigValidateEmailDeliverySettings(t *testing.T) {
 	cfg.SMTPHost = "smtp.example.com"
 	cfg.SMTPFrom = "no-reply@example.com"
 	cfg.PasswordResetBaseURL = "https://app.example.com/reset-password"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil", err)
+	}
+}
+
+func TestConfigValidateBackupMirrorSettings(t *testing.T) {
+	cfg := Config{
+		AppEnv:                 "production",
+		DatabaseDriver:         "mysql",
+		MySQLDSN:               "user:pass@tcp(mysql:3306)/accounting?parseTime=true",
+		JWTAccessSecret:        "access-secret-with-enough-entropy",
+		JWTRefreshSecret:       "refresh-secret-with-enough-entropy",
+		MFAEncryptionKey:       testMFAEncryptionKey,
+		SwaggerEnabled:         false,
+		CORSAllowedOrigins:     "https://app.example.com",
+		AutoMigrate:            false,
+		RateLimitEnabled:       true,
+		RateLimitRequests:      20,
+		RateLimitWindowSeconds: 60,
+		BackupStoragePath:      "/app/storage/backups",
+		BackupMirrorPath:       "/app/storage/backups",
+		BackupRetentionCount:   7,
+		LogFormat:              "json",
+		LogLevel:               "info",
+	}
+
+	err := cfg.ValidateRuntime()
+	if err == nil || !strings.Contains(err.Error(), "BACKUP_MIRROR_PATH") {
+		t.Fatalf("ValidateRuntime() error = %v, want BACKUP_MIRROR_PATH error", err)
+	}
+
+	cfg.BackupMirrorPath = "/mnt/offsite/accounting-backups"
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil", err)
 	}

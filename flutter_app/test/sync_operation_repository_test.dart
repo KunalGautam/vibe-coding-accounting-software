@@ -173,4 +173,39 @@ void main() {
     expect(pending.single.conflictReason, 'invoice already paid');
     expect(pending.single.hasConflict, true);
   });
+
+  test('sqlite repository persists conflict triage updates', () async {
+    final database = await databaseFactoryFfi.openDatabase(
+      inMemoryDatabasePath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (database, _) => createOfflineSyncTables(database),
+      ),
+    );
+    addTearDown(database.close);
+    final repository = SqliteSyncOperationRepository(database);
+
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'lot-conflict',
+        module: 'investments',
+        action: 'create_lot',
+        createdAt: DateTime.utc(2026, 7, 12, 9),
+        retryCount: 1,
+        lastAttemptAt: DateTime.utc(2026, 7, 12, 10),
+        lastError: 'lot already exists',
+        conflictReason: 'lot already exists',
+      ),
+    ]);
+    queue.clearSyncState('lot-conflict');
+
+    await repository.savePending(queue.pending);
+
+    final pending = await repository.loadPending();
+    expect(pending.single.id, 'lot-conflict');
+    expect(pending.single.retryCount, 0);
+    expect(pending.single.lastAttemptAt, isNull);
+    expect(pending.single.lastError, isNull);
+    expect(pending.single.conflictReason, isNull);
+  });
 }

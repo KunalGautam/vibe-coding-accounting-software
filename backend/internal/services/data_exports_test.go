@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -219,5 +220,48 @@ func TestDataExportServiceCreateBackupSnapshotPrunesRetention(t *testing.T) {
 	}
 	if _, err := os.Stat(first.StoragePath); !os.IsNotExist(err) {
 		t.Fatalf("expected first backup file to be pruned, stat error = %v", err)
+	}
+}
+
+func TestDataExportServiceCreateBackupSnapshotMirrorsAndPrunesRetention(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Mirror Backup Co", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	service := NewDataExportService(db)
+	storagePath := t.TempDir()
+	mirrorPath := t.TempDir()
+	first, err := service.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
+		OrganizationID: org.ID,
+		StoragePath:    storagePath,
+		MirrorPath:     mirrorPath,
+		RetentionCount: 1,
+	})
+	if err != nil {
+		t.Fatalf("CreateBackupSnapshot(first) error = %v", err)
+	}
+	firstMirrorPath := filepath.Join(mirrorPath, first.FileName)
+	if _, err := os.Stat(firstMirrorPath); err != nil {
+		t.Fatalf("expected first mirrored backup file to exist: %v", err)
+	}
+
+	second, err := service.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
+		OrganizationID: org.ID,
+		StoragePath:    storagePath,
+		MirrorPath:     mirrorPath,
+		RetentionCount: 1,
+	})
+	if err != nil {
+		t.Fatalf("CreateBackupSnapshot(second) error = %v", err)
+	}
+	secondMirrorPath := filepath.Join(mirrorPath, second.FileName)
+	if _, err := os.Stat(secondMirrorPath); err != nil {
+		t.Fatalf("expected second mirrored backup file to exist: %v", err)
+	}
+	if _, err := os.Stat(firstMirrorPath); !os.IsNotExist(err) {
+		t.Fatalf("expected first mirrored backup file to be pruned, stat error = %v", err)
 	}
 }

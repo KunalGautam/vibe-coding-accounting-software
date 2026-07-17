@@ -960,6 +960,25 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> discardPendingOperation(String operationId) async {
+    syncQueue.remove(operationId);
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      if (editingDraft?.id == operationId) {
+        editingDraft = null;
+      }
+      syncNotice = 'Queued operation discarded.';
+    });
+  }
+
+  Future<void> clearPendingOperationSyncState(String operationId) async {
+    syncQueue.clearSyncState(operationId);
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Retry and conflict state cleared for the queued operation.';
+    });
+  }
+
   Future<void> updatePendingDraft(
     String operationId,
     DraftExpenseInput input,
@@ -2648,10 +2667,13 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         settings: settings,
         offlineMode: offlineMode,
         queuedChanges: syncQueue.pendingCount,
+        pendingOperations: syncQueue.pending,
         lastSyncResult: lastSyncResult,
         notice: syncNotice,
         onOfflineModeChanged: (value) => setState(() => offlineMode = value),
         onSyncPressed: syncPending,
+        onClearOperationState: clearPendingOperationSyncState,
+        onDiscardOperation: discardPendingOperation,
         onSettingsChanged: saveSettings,
         onFetchAccounts: fetchAccounts,
         discoveredAccounts: discoveredAccounts,
@@ -8009,10 +8031,13 @@ class SyncPage extends StatelessWidget {
     required this.settings,
     required this.offlineMode,
     required this.queuedChanges,
+    required this.pendingOperations,
     required this.lastSyncResult,
     required this.notice,
     required this.onOfflineModeChanged,
     required this.onSyncPressed,
+    required this.onClearOperationState,
+    required this.onDiscardOperation,
     required this.onSettingsChanged,
     required this.onFetchAccounts,
     required this.discoveredAccounts,
@@ -8044,10 +8069,13 @@ class SyncPage extends StatelessWidget {
   final SyncSettings settings;
   final bool offlineMode;
   final int queuedChanges;
+  final List<SyncOperation> pendingOperations;
   final SyncResult? lastSyncResult;
   final String? notice;
   final ValueChanged<bool> onOfflineModeChanged;
   final Future<void> Function() onSyncPressed;
+  final Future<void> Function(String operationId) onClearOperationState;
+  final Future<void> Function(String operationId) onDiscardOperation;
   final Future<void> Function(SyncSettings settings) onSettingsChanged;
   final Future<void> Function() onFetchAccounts;
   final List<AccountSummary> discoveredAccounts;
@@ -8204,6 +8232,12 @@ class SyncPage extends StatelessWidget {
                     '${lastSyncResult!.conflicts} need review.',
                   ),
                 ],
+                const SizedBox(height: 12),
+                SyncReviewPanel(
+                  operations: pendingOperations,
+                  onClearOperationState: onClearOperationState,
+                  onDiscardOperation: onDiscardOperation,
+                ),
               ],
             ),
           ),
@@ -8215,6 +8249,94 @@ class SyncPage extends StatelessWidget {
           actionLabel: 'Import/export pending',
           onPressed: null,
         ),
+      ],
+    );
+  }
+}
+
+class SyncReviewPanel extends StatelessWidget {
+  const SyncReviewPanel({
+    required this.operations,
+    required this.onClearOperationState,
+    required this.onDiscardOperation,
+    super.key,
+  });
+
+  final List<SyncOperation> operations;
+  final Future<void> Function(String operationId) onClearOperationState;
+  final Future<void> Function(String operationId) onDiscardOperation;
+
+  @override
+  Widget build(BuildContext context) {
+    final needsReview = operations
+        .where(
+          (operation) =>
+              operation.hasConflict ||
+              (operation.lastError?.trim().isNotEmpty ?? false),
+        )
+        .toList(growable: false);
+
+    if (needsReview.isEmpty) {
+      return const Text('No sync conflicts or failed retries need review.');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sync review queue',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        for (final operation in needsReview)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.errorContainer.withAlpha(90),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${operation.module}.${operation.action}'),
+                    Text('Operation ID: ${operation.id}'),
+                    Text('Attempts: ${operation.retryCount}'),
+                    if (operation.lastAttemptAt != null)
+                      Text(
+                        'Last attempted: ${formatDateTime(operation.lastAttemptAt!)}',
+                      ),
+                    if (operation.conflictReason?.trim().isNotEmpty ?? false)
+                      Text('Conflict: ${operation.conflictReason}'),
+                    if (!operation.hasConflict &&
+                        (operation.lastError?.trim().isNotEmpty ?? false))
+                      Text('Last error: ${operation.lastError}'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => onClearOperationState(operation.id),
+                          icon: const Icon(Icons.refresh_outlined),
+                          label: const Text('Clear retry state'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => onDiscardOperation(operation.id),
+                          icon: const Icon(Icons.delete_forever_outlined),
+                          label: const Text('Discard operation'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

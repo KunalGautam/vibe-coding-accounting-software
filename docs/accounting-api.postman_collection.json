@@ -384,7 +384,7 @@
             "url": "{{base_url}}/organizations/{{organization_id}}/data/backups",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storage_path\": \"./storage/backups\",\n  \"retention_count\": 7\n}"
+              "raw": "{\n  \"storage_path\": \"./storage/backups\",\n  \"mirror_path\": \"./storage/backup-mirror\",\n  \"retention_count\": 7\n}"
             }
           }
         }

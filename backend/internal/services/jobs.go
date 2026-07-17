@@ -451,7 +451,7 @@ func marketDataPayload(ctx context.Context, input MarketDataImportJobInput) ([]b
 	return io.ReadAll(response.Body)
 }
 
-func (s JobService) CreateScheduledBackups(ctx context.Context, storagePath string, retentionCount int) (BackupJobResult, error) {
+func (s JobService) CreateScheduledBackups(ctx context.Context, storagePath string, mirrorPath string, retentionCount int) (BackupJobResult, error) {
 	var organizations []domain.Organization
 	if err := s.db.WithContext(ctx).Order("name ASC").Find(&organizations).Error; err != nil {
 		return BackupJobResult{}, err
@@ -463,6 +463,7 @@ func (s JobService) CreateScheduledBackups(ctx context.Context, storagePath stri
 		if _, err := exports.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
 			OrganizationID: organization.ID,
 			StoragePath:    storagePath,
+			MirrorPath:     mirrorPath,
 			RetentionCount: retentionCount,
 		}); err != nil {
 			return BackupJobResult{}, err

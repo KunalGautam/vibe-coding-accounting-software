@@ -72,7 +72,7 @@ func main() {
 			slog.Int("failed", scheduledReportResult.FailedCount),
 		)
 
-		backupResult, err := jobs.CreateScheduledBackups(ctx, cfg.BackupStoragePath, cfg.BackupRetentionCount)
+		backupResult, err := jobs.CreateScheduledBackups(ctx, cfg.BackupStoragePath, cfg.BackupMirrorPath, cfg.BackupRetentionCount)
 		if err != nil {
 			logger.Error("scheduled_backups_failed", slog.Any("error", err))
 			return
