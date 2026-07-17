@@ -415,6 +415,7 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
   SyncOperation? editingDraft;
   List<AccountSummary> discoveredAccounts = const [];
   List<InvoiceSummary> cachedInvoices = const [];
+  InvoiceSummary? editingInvoiceDraft;
   List<CustomerSummary> cachedCustomers = const [];
   List<VendorSummary> cachedVendors = const [];
   TrialBalanceReport? cachedTrialBalanceReport;
@@ -682,6 +683,59 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     await repository.savePending(syncQueue.pending);
     setState(() {
       syncNotice = 'Draft invoice queued for sync: ${operation.id}';
+    });
+  }
+
+  Future<void> queueInvoiceDraftUpdate(
+    String invoiceId,
+    InvoiceDraftInput input,
+  ) async {
+    final operation = syncQueue.enqueueInvoiceDraftUpdate(
+      invoiceId: invoiceId,
+      customerId: input.customerId.trim(),
+      invoiceNumber: input.invoiceNumber.trim().isEmpty
+          ? 'INV-MOB-${DateTime.now().millisecondsSinceEpoch}'
+          : input.invoiceNumber.trim(),
+      accountsReceivableId: input.accountsReceivableId.trim(),
+      description: input.description.trim().isEmpty
+          ? 'Mobile invoice line'
+          : input.description.trim(),
+      unitPriceMinor: input.unitPriceMinor,
+      incomeAccountId: input.incomeAccountId.trim(),
+      issueDate: input.issueDate,
+      dueDate: input.dueDate,
+      quantityMillis: input.quantityMillis,
+      pdfAttachmentId: input.pdfAttachmentId.trim().isEmpty
+          ? null
+          : input.pdfAttachmentId.trim(),
+      taxRateId: input.taxRateId.trim().isEmpty
+          ? settings.defaultTaxRateId.trim().isEmpty
+                ? null
+                : settings.defaultTaxRateId.trim()
+          : input.taxRateId.trim(),
+      taxGroupId: input.taxGroupId.trim().isEmpty
+          ? settings.defaultTaxGroupId.trim().isEmpty
+                ? null
+                : settings.defaultTaxGroupId.trim()
+          : input.taxGroupId.trim(),
+      taxInclusive: input.taxInclusive,
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      editingInvoiceDraft = null;
+      syncNotice = 'Draft invoice update queued for sync: ${operation.id}';
+    });
+  }
+
+  void editInvoiceDraft(InvoiceSummary invoice) {
+    setState(() {
+      editingInvoiceDraft = invoice;
+    });
+  }
+
+  void cancelInvoiceDraftEdit() {
+    setState(() {
+      editingInvoiceDraft = null;
     });
   }
 
@@ -2458,11 +2512,15 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         invoices: cachedInvoices,
         customers: cachedCustomers,
         attachments: discoveredAttachments,
+        editingInvoiceDraft: editingInvoiceDraft,
         cachedBinaryAttachmentIds: cachedAttachmentBinaryIds,
         isLoading: isLoadingInvoices,
         notice: syncNotice,
         onFetchInvoices: fetchInvoices,
         onQueueInvoiceDraft: queueInvoiceDraft,
+        onQueueInvoiceDraftUpdate: queueInvoiceDraftUpdate,
+        onEditInvoiceDraft: editInvoiceDraft,
+        onCancelInvoiceDraftEdit: cancelInvoiceDraftEdit,
         onDownloadAttachment: downloadAttachment,
         onInspectCachedAttachment: inspectCachedAttachment,
       ),
@@ -3597,11 +3655,15 @@ class InvoicesPage extends StatelessWidget {
     required this.invoices,
     required this.customers,
     required this.attachments,
+    required this.editingInvoiceDraft,
     required this.cachedBinaryAttachmentIds,
     required this.isLoading,
     required this.notice,
     required this.onFetchInvoices,
     required this.onQueueInvoiceDraft,
+    required this.onQueueInvoiceDraftUpdate,
+    required this.onEditInvoiceDraft,
+    required this.onCancelInvoiceDraftEdit,
     required this.onDownloadAttachment,
     required this.onInspectCachedAttachment,
     super.key,
@@ -3610,11 +3672,16 @@ class InvoicesPage extends StatelessWidget {
   final List<InvoiceSummary> invoices;
   final List<CustomerSummary> customers;
   final List<AttachmentSummary> attachments;
+  final InvoiceSummary? editingInvoiceDraft;
   final Set<String> cachedBinaryAttachmentIds;
   final bool isLoading;
   final String? notice;
   final Future<void> Function() onFetchInvoices;
   final Future<void> Function(InvoiceDraftInput input) onQueueInvoiceDraft;
+  final Future<void> Function(String invoiceId, InvoiceDraftInput input)
+  onQueueInvoiceDraftUpdate;
+  final ValueChanged<InvoiceSummary> onEditInvoiceDraft;
+  final VoidCallback onCancelInvoiceDraftEdit;
   final Future<void> Function(AttachmentSummary attachment)
   onDownloadAttachment;
   final Future<void> Function(AttachmentSummary attachment)
@@ -3636,12 +3703,16 @@ class InvoicesPage extends StatelessWidget {
         InvoiceDraftForm(
           customers: customers,
           attachments: attachments,
+          editingInvoice: editingInvoiceDraft,
           onSubmit: onQueueInvoiceDraft,
+          onUpdate: onQueueInvoiceDraftUpdate,
+          onCancelEdit: onCancelInvoiceDraftEdit,
         ),
         InvoiceCachePanel(
           invoices: invoices,
           attachments: attachments,
           cachedBinaryAttachmentIds: cachedBinaryAttachmentIds,
+          onEditInvoiceDraft: onEditInvoiceDraft,
           onDownloadAttachment: onDownloadAttachment,
           onInspectCachedAttachment: onInspectCachedAttachment,
         ),
@@ -3651,6 +3722,7 @@ class InvoicesPage extends StatelessWidget {
             'Target API: GET /invoices',
             'Cached locally for read-only offline review',
             'New one-line invoice drafts queue offline through invoices.create_draft',
+            'Cached draft invoices can prefill the form and queue updates through invoices.update_draft',
             'PDF attachment bytes can be downloaded and inspected from the invoice row when attachment metadata is present',
           ],
         ),
@@ -3663,13 +3735,20 @@ class InvoiceDraftForm extends StatefulWidget {
   const InvoiceDraftForm({
     required this.customers,
     required this.attachments,
+    required this.editingInvoice,
     required this.onSubmit,
+    required this.onUpdate,
+    required this.onCancelEdit,
     super.key,
   });
 
   final List<CustomerSummary> customers;
   final List<AttachmentSummary> attachments;
+  final InvoiceSummary? editingInvoice;
   final Future<void> Function(InvoiceDraftInput input) onSubmit;
+  final Future<void> Function(String invoiceId, InvoiceDraftInput input)
+  onUpdate;
+  final VoidCallback onCancelEdit;
 
   @override
   State<InvoiceDraftForm> createState() => _InvoiceDraftFormState();
@@ -3712,6 +3791,15 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
     pdfAttachmentController = TextEditingController();
     taxRateController = TextEditingController();
     taxGroupController = TextEditingController();
+    applyInvoice(widget.editingInvoice);
+  }
+
+  @override
+  void didUpdateWidget(covariant InvoiceDraftForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.editingInvoice?.id != widget.editingInvoice?.id) {
+      applyInvoice(widget.editingInvoice);
+    }
   }
 
   @override
@@ -3760,6 +3848,52 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
     });
   }
 
+  void applyInvoice(InvoiceSummary? invoice) {
+    if (invoice == null) {
+      final now = DateTime.now();
+      customerIdController.clear();
+      invoiceNumberController.text = 'INV-MOB-${now.millisecondsSinceEpoch}';
+      issueDateController.text = formatDateOnly(now);
+      dueDateController.text = formatDateOnly(
+        now.add(const Duration(days: 30)),
+      );
+      accountsReceivableController.clear();
+      descriptionController.text = 'Mobile invoice line';
+      quantityMillisController.text = '1000';
+      unitPriceController.text = '0.00';
+      incomeAccountController.clear();
+      pdfAttachmentController.clear();
+      taxRateController.clear();
+      taxGroupController.clear();
+      setState(() {
+        taxInclusive = false;
+        validationMessage = null;
+      });
+      return;
+    }
+
+    final firstLine = invoice.lines.isEmpty ? null : invoice.lines.first;
+    invoiceNumberController.text = invoice.invoiceNumber;
+    descriptionController.text =
+        firstLine?.description ?? 'Mobile invoice line';
+    quantityMillisController.text = (firstLine?.quantityMillis ?? 1000)
+        .toString();
+    unitPriceController.text = formatMinorAsInput(
+      firstLine?.unitPriceMinor ?? invoice.subtotalMinor,
+    );
+    incomeAccountController.text = firstLine?.incomeAccountId ?? '';
+    pdfAttachmentController.text = invoice.pdfAttachmentId ?? '';
+    taxGroupController.text = firstLine?.taxGroupId ?? '';
+    taxRateController.text = firstLine?.taxGroupId == null
+        ? firstLine?.taxRateId ?? ''
+        : '';
+    setState(() {
+      taxInclusive = false;
+      validationMessage =
+          'Editing ${invoice.invoiceNumber}. Add customer and AR account IDs before queueing.';
+    });
+  }
+
   Future<void> queueDraft() async {
     if (isQueueing) {
       return;
@@ -3797,23 +3931,27 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
       validationMessage = null;
     });
     try {
-      await widget.onSubmit(
-        InvoiceDraftInput(
-          customerId: customerIdController.text.trim(),
-          invoiceNumber: invoiceNumberController.text.trim(),
-          issueDate: issueDate,
-          dueDate: dueDate,
-          accountsReceivableId: accountsReceivableController.text.trim(),
-          description: descriptionController.text.trim(),
-          quantityMillis: quantityMillis,
-          unitPriceMinor: unitPriceMinor,
-          incomeAccountId: incomeAccountController.text.trim(),
-          pdfAttachmentId: pdfAttachmentController.text.trim(),
-          taxRateId: taxRateId,
-          taxGroupId: taxGroupId,
-          taxInclusive: taxInclusive,
-        ),
+      final input = InvoiceDraftInput(
+        customerId: customerIdController.text.trim(),
+        invoiceNumber: invoiceNumberController.text.trim(),
+        issueDate: issueDate,
+        dueDate: dueDate,
+        accountsReceivableId: accountsReceivableController.text.trim(),
+        description: descriptionController.text.trim(),
+        quantityMillis: quantityMillis,
+        unitPriceMinor: unitPriceMinor,
+        incomeAccountId: incomeAccountController.text.trim(),
+        pdfAttachmentId: pdfAttachmentController.text.trim(),
+        taxRateId: taxRateId,
+        taxGroupId: taxGroupId,
+        taxInclusive: taxInclusive,
       );
+      final editingInvoice = widget.editingInvoice;
+      if (editingInvoice == null) {
+        await widget.onSubmit(input);
+      } else {
+        await widget.onUpdate(editingInvoice.id, input);
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -3836,7 +3974,9 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Draft invoice',
+              widget.editingInvoice == null
+                  ? 'Draft invoice'
+                  : 'Edit draft invoice',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
@@ -3972,9 +4112,19 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
               onPressed: isQueueing ? null : queueDraft,
               icon: const Icon(Icons.note_add_outlined),
               label: Text(
-                isQueueing ? 'Queueing invoice...' : 'Queue invoice draft',
+                isQueueing
+                    ? 'Queueing invoice...'
+                    : widget.editingInvoice == null
+                    ? 'Queue invoice draft'
+                    : 'Queue invoice update',
               ),
             ),
+            if (widget.editingInvoice != null)
+              TextButton.icon(
+                onPressed: widget.onCancelEdit,
+                icon: const Icon(Icons.close),
+                label: const Text('Cancel invoice edit'),
+              ),
           ],
         ),
       ),
@@ -3987,6 +4137,7 @@ class InvoiceCachePanel extends StatelessWidget {
     required this.invoices,
     required this.attachments,
     required this.cachedBinaryAttachmentIds,
+    required this.onEditInvoiceDraft,
     required this.onDownloadAttachment,
     required this.onInspectCachedAttachment,
     super.key,
@@ -3995,6 +4146,7 @@ class InvoiceCachePanel extends StatelessWidget {
   final List<InvoiceSummary> invoices;
   final List<AttachmentSummary> attachments;
   final Set<String> cachedBinaryAttachmentIds;
+  final ValueChanged<InvoiceSummary> onEditInvoiceDraft;
   final Future<void> Function(AttachmentSummary attachment)
   onDownloadAttachment;
   final Future<void> Function(AttachmentSummary attachment)
@@ -4107,6 +4259,14 @@ class InvoiceCachePanel extends StatelessWidget {
                             const SizedBox(height: 4),
                             for (final line in invoice.lines)
                               _InvoiceLineSummaryRow(line: line),
+                          ],
+                          if (invoice.status == 'draft') ...[
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: () => onEditInvoiceDraft(invoice),
+                              icon: const Icon(Icons.edit_note_outlined),
+                              label: const Text('Edit draft invoice'),
+                            ),
                           ],
                           SelectableText(invoice.id),
                         ],

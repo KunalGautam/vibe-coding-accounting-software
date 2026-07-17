@@ -1340,6 +1340,104 @@ void main() {
     );
   });
 
+  testWidgets('queues draft invoice updates from cached draft rows', (
+    tester,
+  ) async {
+    useTallTestViewport(tester);
+    final repository = MemorySyncOperationRepository();
+    final invoiceCacheRepository = MemoryInvoiceCacheRepository([
+      const InvoiceSummary(
+        id: 'inv-draft-1',
+        invoiceNumber: 'INV-DRAFT-001',
+        status: 'draft',
+        subtotalMinor: 100000,
+        taxTotalMinor: 18000,
+        totalMinor: 118000,
+        currency: 'INR',
+        pdfAttachmentId: 'pdf-draft',
+        lines: [
+          InvoiceLineSummary(
+            id: 'line-draft-1',
+            description: 'Original work',
+            quantityMillis: 1000,
+            unitPriceMinor: 100000,
+            lineSubtotalMinor: 100000,
+            taxAmountMinor: 18000,
+            lineTotalMinor: 118000,
+            incomeAccountId: 'income-original',
+            taxRateId: 'tax-rate-original',
+          ),
+        ],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      AccountingApp(
+        syncRepository: repository,
+        invoiceCacheRepository: invoiceCacheRepository,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Invoices'));
+    await tester.pump();
+    await tester.tap(find.text('Edit draft invoice'));
+    await tester.pump();
+
+    expect(find.text('Edit draft invoice'), findsNWidgets(2));
+    expect(
+      find.text(
+        'Editing INV-DRAFT-001. Add customer and AR account IDs before queueing.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Invoice customer ID'),
+      'customer-edit',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Accounts receivable account ID'),
+      'acct-ar-edit',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Line description'),
+      'Updated implementation',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Unit price in INR'),
+      '1500.75',
+    );
+    await tester.tap(find.text('Queue invoice update'));
+    await tester.pumpAndSettle();
+
+    final pending = await repository.loadPending();
+    final invoiceUpdates = pending
+        .where(
+          (operation) =>
+              operation.module == 'invoices' &&
+              operation.action == 'update_draft',
+        )
+        .toList(growable: false);
+    expect(invoiceUpdates, hasLength(1));
+    final operation = invoiceUpdates.single;
+    expect(operation.payload['invoice_id'], 'inv-draft-1');
+    expect(operation.payload['customer_id'], 'customer-edit');
+    expect(operation.payload['invoice_number'], 'INV-DRAFT-001');
+    expect(operation.payload['accounts_receivable_id'], 'acct-ar-edit');
+    expect(operation.payload['pdf_attachment_id'], 'pdf-draft');
+    final lines = operation.payload['lines']! as List<Map<String, Object?>>;
+    expect(lines.single['description'], 'Updated implementation');
+    expect(lines.single['quantity_millis'], 1000);
+    expect(lines.single['unit_price_minor'], 150075);
+    expect(lines.single['income_account_id'], 'income-original');
+    expect(lines.single['tax_rate_id'], 'tax-rate-original');
+    expect(
+      find.textContaining('Draft invoice update queued for sync:'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('downloads invoice PDF attachments from invoice rows', (
     tester,
   ) async {
