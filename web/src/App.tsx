@@ -3247,6 +3247,9 @@ function InvestmentsPage({
         case "nuvama":
           result = await api.importNuvamaHoldingsPrices(importInput);
           break;
+        case "geojit":
+          result = await api.importGeojitHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

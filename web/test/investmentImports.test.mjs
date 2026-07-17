@@ -8,7 +8,7 @@ import {
 } from "../.test-build/investmentImports.js";
 
 test("investment import metadata covers every supported format", () => {
-  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama"]);
+  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama", "geojit"]);
   assert.equal(investmentPriceImportMetadata("zerodha").defaultSource, "zerodha_holdings_csv");
   assert.equal(investmentPriceImportMetadata("zerodha").placeholder, "Instrument,ISIN,Date,LTP,Qty.");
   assert.equal(investmentPriceImportMetadata("groww").defaultSource, "groww_holdings_csv");
@@ -39,6 +39,8 @@ test("investment import metadata covers every supported format", () => {
   assert.equal(investmentPriceImportMetadata("sbisecurities").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("nuvama").defaultSource, "nuvama_holdings_csv");
   assert.equal(investmentPriceImportMetadata("nuvama").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
+  assert.equal(investmentPriceImportMetadata("geojit").defaultSource, "geojit_holdings_csv");
+  assert.equal(investmentPriceImportMetadata("geojit").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("yahoo").requiresSingleSymbol, true);
   assert.equal(investmentPriceImportMetadata("amfi").isAMFI, true);
 });
@@ -60,5 +62,6 @@ test("nextInvestmentPriceImportSource switches managed defaults but preserves cu
   assert.equal(nextInvestmentPriceImportSource("fivepaisa_holdings_csv", "axisdirect"), "axisdirect_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("axisdirect_holdings_csv", "sbisecurities"), "sbisecurities_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("sbisecurities_holdings_csv", "nuvama"), "nuvama_holdings_csv");
+  assert.equal(nextInvestmentPriceImportSource("nuvama_holdings_csv", "geojit"), "geojit_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("my_custom_provider", "bse"), "my_custom_provider");
 });

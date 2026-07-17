@@ -6343,6 +6343,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'nuvama_holdings_csv',
                   child: Text('Nuvama holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'geojit_holdings_csv',
+                  child: Text('Geojit holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6395,6 +6399,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'nuvama_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nWIPRO,INE075A01022,2026-07-31,512.40,11';
+                  } else if (value == 'geojit_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nHCLTECH,INE860A01027,2026-07-31,1444.80,7';
                   }
                 });
               },

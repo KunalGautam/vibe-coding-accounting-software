@@ -596,6 +596,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importGeojitHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/geojit-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -644,6 +655,9 @@ class AccountingApiClient {
     }
     if (request.source == 'nuvama_holdings_csv') {
       return importNuvamaHoldingsPrices(request);
+    }
+    if (request.source == 'geojit_holdings_csv') {
+      return importGeojitHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

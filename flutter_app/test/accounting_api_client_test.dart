@@ -1626,6 +1626,52 @@ void main() {
     expect(result.prices.single.priceMinor, 51240);
   });
 
+  test('imports Geojit holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/geojit-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'geojit_holdings_csv');
+        expect(body['csv'], contains('HCLTECH'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-geojit-1',
+                'symbol': 'HCLTECH',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 144480,
+                'currency': 'INR',
+                'source': 'geojit_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importGeojitHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nHCLTECH,INE860A01027,2026-07-31,1444.80,7',
+        source: 'geojit_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'HCLTECH');
+    expect(result.prices.single.priceMinor, 144480);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

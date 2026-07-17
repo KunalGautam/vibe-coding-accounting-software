@@ -597,6 +597,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Nuvama price: %+v", nuvamaPrice)
 	}
 
+	geojitResult, err := service.ImportGeojitHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"HCLTECH,INE860A01027,2026-07-31,1444.80,7\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportGeojitHoldingsCSV() error = %v", err)
+	}
+	if geojitResult.Imported != 1 || geojitResult.Skipped != 0 {
+		t.Fatalf("unexpected Geojit holdings import result: %+v", geojitResult)
+	}
+	var geojitPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "HCLTECH", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&geojitPrice).Error; err != nil {
+		t.Fatalf("load Geojit price: %v", err)
+	}
+	if geojitPrice.PriceMinor != 144480 || geojitPrice.Source != "geojit_holdings_csv" {
+		t.Fatalf("unexpected Geojit price: %+v", geojitPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

@@ -931,6 +931,23 @@
           }
         },
         {
+          "name": "Import Geojit Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/geojit-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Symbol,ISIN,Date,LTP,Quantity\\nHCLTECH,INE860A01027,2026-07-31,1444.80,7\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

@@ -2224,6 +2224,61 @@ void main() {
     expect(result.hasFailures, false);
     expect(queue.pendingCount, 0);
   });
+
+  test('syncs queued Geojit holdings price imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'geojit-holdings-import-local-1',
+        module: 'investments',
+        action: 'import_broker_holdings',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'csv':
+              'Symbol,ISIN,Date,LTP,Quantity\nHCLTECH,INE860A01027,2026-07-31,1444.80,7',
+          'source': 'geojit_holdings_csv',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/geojit-holdings',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'geojit_holdings_csv');
+        expect(body['csv'], contains('HCLTECH'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-geojit-1',
+                'symbol': 'HCLTECH',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 144480,
+                'currency': 'INR',
+                'source': 'geojit_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+  });
 }
 
 Map<String, Object?> _bankImportJson({
