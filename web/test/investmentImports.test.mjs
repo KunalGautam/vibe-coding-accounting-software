@@ -8,7 +8,7 @@ import {
 } from "../.test-build/investmentImports.js";
 
 test("investment import metadata covers every supported format", () => {
-  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky"]);
+  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo"]);
   assert.equal(investmentPriceImportMetadata("zerodha").defaultSource, "zerodha_holdings_csv");
   assert.equal(investmentPriceImportMetadata("zerodha").placeholder, "Instrument,ISIN,Date,LTP,Qty.");
   assert.equal(investmentPriceImportMetadata("groww").defaultSource, "groww_holdings_csv");
@@ -23,6 +23,8 @@ test("investment import metadata covers every supported format", () => {
   assert.equal(investmentPriceImportMetadata("icicidirect").placeholder, "Symbol,ISIN,Date,Market Price,Quantity");
   assert.equal(investmentPriceImportMetadata("hdfcsky").defaultSource, "hdfcsky_holdings_csv");
   assert.equal(investmentPriceImportMetadata("hdfcsky").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
+  assert.equal(investmentPriceImportMetadata("kotakneo").defaultSource, "kotakneo_holdings_csv");
+  assert.equal(investmentPriceImportMetadata("kotakneo").placeholder, "Trading Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("yahoo").requiresSingleSymbol, true);
   assert.equal(investmentPriceImportMetadata("amfi").isAMFI, true);
 });
@@ -36,5 +38,6 @@ test("nextInvestmentPriceImportSource switches managed defaults but preserves cu
   assert.equal(nextInvestmentPriceImportSource("angelone_holdings_csv", "dhan"), "dhan_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("dhan_holdings_csv", "icicidirect"), "icicidirect_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("icicidirect_holdings_csv", "hdfcsky"), "hdfcsky_holdings_csv");
+  assert.equal(nextInvestmentPriceImportSource("hdfcsky_holdings_csv", "kotakneo"), "kotakneo_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("my_custom_provider", "bse"), "my_custom_provider");
 });

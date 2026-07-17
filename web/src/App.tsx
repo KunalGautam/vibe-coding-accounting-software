@@ -3223,6 +3223,9 @@ function InvestmentsPage({
         case "hdfcsky":
           result = await api.importHDFCSkyHoldingsPrices(importInput);
           break;
+        case "kotakneo":
+          result = await api.importKotakNeoHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

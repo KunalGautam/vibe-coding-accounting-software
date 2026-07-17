@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -23,7 +23,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "angelone",
   "dhan",
   "icicidirect",
-  "hdfcsky"
+  "hdfcsky",
+  "kotakneo"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -136,6 +137,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     buttonLabel: "Import HDFC Sky holdings",
     defaultSource: "hdfcsky_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  kotakneo: {
+    label: "Kotak Neo holdings CSV",
+    buttonLabel: "Import Kotak Neo holdings",
+    defaultSource: "kotakneo_holdings_csv",
+    placeholder: "Trading Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false
   }

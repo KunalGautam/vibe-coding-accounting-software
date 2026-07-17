@@ -1258,6 +1258,52 @@ void main() {
     expect(result.prices.single.priceMinor, 1287565);
   });
 
+  test('imports Kotak Neo holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/kotakneo-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'kotakneo_holdings_csv');
+        expect(body['csv'], contains('BAJFINANCE'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-kotakneo-1',
+                'symbol': 'BAJFINANCE',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 934210,
+                'currency': 'INR',
+                'source': 'kotakneo_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importKotakNeoHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Trading Symbol,ISIN,Date,LTP,Quantity\nBAJFINANCE,INE296A01024,2026-07-31,9342.10,2',
+        source: 'kotakneo_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'BAJFINANCE');
+    expect(result.prices.single.priceMinor, 934210);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

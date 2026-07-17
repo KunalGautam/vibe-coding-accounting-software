@@ -795,6 +795,23 @@
           }
         },
         {
+          "name": "Import Kotak Neo Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/kotakneo-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Trading Symbol,ISIN,Date,LTP,Quantity\\nBAJFINANCE,INE296A01024,2026-07-31,9342.10,2\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

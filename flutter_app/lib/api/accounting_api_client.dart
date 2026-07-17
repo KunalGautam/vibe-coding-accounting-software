@@ -508,6 +508,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importKotakNeoHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/kotakneo-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -532,6 +543,9 @@ class AccountingApiClient {
     }
     if (request.source == 'hdfcsky_holdings_csv') {
       return importHDFCSkyHoldingsPrices(request);
+    }
+    if (request.source == 'kotakneo_holdings_csv') {
+      return importKotakNeoHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

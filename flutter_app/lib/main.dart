@@ -6311,6 +6311,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'hdfcsky_holdings_csv',
                   child: Text('HDFC Sky holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'kotakneo_holdings_csv',
+                  child: Text('Kotak Neo holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6339,6 +6343,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'hdfcsky_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nMARUTI,INE585B01010,2026-07-31,12875.65,1';
+                  } else if (value == 'kotakneo_holdings_csv') {
+                    controller.text =
+                        'Trading Symbol,ISIN,Date,LTP,Quantity\nBAJFINANCE,INE296A01024,2026-07-31,9342.10,2';
                   }
                 });
               },

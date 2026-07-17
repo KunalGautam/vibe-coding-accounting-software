@@ -445,6 +445,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected HDFC Sky price: %+v", hdfcSkyPrice)
 	}
 
+	kotakNeoResult, err := service.ImportKotakNeoHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Trading Symbol,ISIN,Date,LTP,Quantity\n" +
+			"BAJFINANCE,INE296A01024,2026-07-31,9342.10,2\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportKotakNeoHoldingsCSV() error = %v", err)
+	}
+	if kotakNeoResult.Imported != 1 || kotakNeoResult.Skipped != 0 {
+		t.Fatalf("unexpected Kotak Neo holdings import result: %+v", kotakNeoResult)
+	}
+	var kotakNeoPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "BAJFINANCE", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&kotakNeoPrice).Error; err != nil {
+		t.Fatalf("load Kotak Neo price: %v", err)
+	}
+	if kotakNeoPrice.PriceMinor != 934210 || kotakNeoPrice.Source != "kotakneo_holdings_csv" {
+		t.Fatalf("unexpected Kotak Neo price: %+v", kotakNeoPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

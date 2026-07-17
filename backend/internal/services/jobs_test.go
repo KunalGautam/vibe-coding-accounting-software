@@ -578,6 +578,40 @@ func TestJobServiceImportScheduledMarketDataSupportsHDFCSkyHoldingsCSV(t *testin
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsKotakNeoHoldingsCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Acme Kotak Neo", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "kotakneo.csv")
+	if err := os.WriteFile(path, []byte("Trading Symbol,ISIN,Date,LTP,Quantity\nBAJFINANCE,INE296A01024,2026-07-31,9342.10,2\n"), 0o600); err != nil {
+		t.Fatalf("write Kotak Neo CSV: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		OrganizationID: org.ID,
+		Path:           path,
+		Format:         "kotakneo_holdings_csv",
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected job result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "BAJFINANCE").First(&price).Error; err != nil {
+		t.Fatalf("load Kotak Neo price: %v", err)
+	}
+	if price.PriceMinor != 934210 || price.Source != "kotakneo_holdings_csv" {
+		t.Fatalf("unexpected Kotak Neo price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
