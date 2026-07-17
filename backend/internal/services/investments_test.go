@@ -749,6 +749,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Religare price: %+v", religarePrice)
 	}
 
+	jainamResult, err := service.ImportJainamHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"POWERGRID,INE752E01010,2026-07-31,298.65,20\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportJainamHoldingsCSV() error = %v", err)
+	}
+	if jainamResult.Imported != 1 || jainamResult.Skipped != 0 {
+		t.Fatalf("unexpected Jainam holdings import result: %+v", jainamResult)
+	}
+	var jainamPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "POWERGRID", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&jainamPrice).Error; err != nil {
+		t.Fatalf("load Jainam price: %v", err)
+	}
+	if jainamPrice.PriceMinor != 29865 || jainamPrice.Source != "jainam_holdings_csv" {
+		t.Fatalf("unexpected Jainam price: %+v", jainamPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

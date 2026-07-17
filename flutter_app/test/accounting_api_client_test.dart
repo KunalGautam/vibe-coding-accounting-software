@@ -1994,6 +1994,52 @@ void main() {
     expect(result.prices.single.priceMinor, 132575);
   });
 
+  test('imports Jainam holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/jainam-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'jainam_holdings_csv');
+        expect(body['csv'], contains('POWERGRID'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-jainam-1',
+                'symbol': 'POWERGRID',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 29865,
+                'currency': 'INR',
+                'source': 'jainam_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importJainamHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nPOWERGRID,INE752E01010,2026-07-31,298.65,20',
+        source: 'jainam_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'POWERGRID');
+    expect(result.prices.single.priceMinor, 29865);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

@@ -3271,6 +3271,9 @@ function InvestmentsPage({
         case "religare":
           result = await api.importReligareHoldingsPrices(importInput);
           break;
+        case "jainam":
+          result = await api.importJainamHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

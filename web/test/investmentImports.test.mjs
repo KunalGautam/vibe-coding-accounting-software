@@ -8,7 +8,7 @@ import {
 } from "../.test-build/investmentImports.js";
 
 test("investment import metadata covers every supported format", () => {
-  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama", "geojit", "iiflsecurities", "fyers", "edelweiss", "aliceblue", "samco", "choice", "religare"]);
+  assert.deepEqual(investmentPriceImportFormats, ["csv", "amfi", "nse", "bse", "yahoo", "alphavantage", "broker", "zerodha", "groww", "upstox", "angelone", "dhan", "icicidirect", "hdfcsky", "kotakneo", "paytmmoney", "motilaloswal", "sharekhan", "fivepaisa", "axisdirect", "sbisecurities", "nuvama", "geojit", "iiflsecurities", "fyers", "edelweiss", "aliceblue", "samco", "choice", "religare", "jainam"]);
   assert.equal(investmentPriceImportMetadata("zerodha").defaultSource, "zerodha_holdings_csv");
   assert.equal(investmentPriceImportMetadata("zerodha").placeholder, "Instrument,ISIN,Date,LTP,Qty.");
   assert.equal(investmentPriceImportMetadata("groww").defaultSource, "groww_holdings_csv");
@@ -55,6 +55,8 @@ test("investment import metadata covers every supported format", () => {
   assert.equal(investmentPriceImportMetadata("choice").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("religare").defaultSource, "religare_holdings_csv");
   assert.equal(investmentPriceImportMetadata("religare").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
+  assert.equal(investmentPriceImportMetadata("jainam").defaultSource, "jainam_holdings_csv");
+  assert.equal(investmentPriceImportMetadata("jainam").placeholder, "Symbol,ISIN,Date,LTP,Quantity");
   assert.equal(investmentPriceImportMetadata("yahoo").requiresSingleSymbol, true);
   assert.equal(investmentPriceImportMetadata("amfi").isAMFI, true);
 });
@@ -84,5 +86,6 @@ test("nextInvestmentPriceImportSource switches managed defaults but preserves cu
   assert.equal(nextInvestmentPriceImportSource("aliceblue_holdings_csv", "samco"), "samco_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("samco_holdings_csv", "choice"), "choice_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("choice_holdings_csv", "religare"), "religare_holdings_csv");
+  assert.equal(nextInvestmentPriceImportSource("religare_holdings_csv", "jainam"), "jainam_holdings_csv");
   assert.equal(nextInvestmentPriceImportSource("my_custom_provider", "bse"), "my_custom_provider");
 });

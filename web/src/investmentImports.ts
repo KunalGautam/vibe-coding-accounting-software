@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities" | "fyers" | "edelweiss" | "aliceblue" | "samco" | "choice" | "religare";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan" | "fivepaisa" | "axisdirect" | "sbisecurities" | "nuvama" | "geojit" | "iiflsecurities" | "fyers" | "edelweiss" | "aliceblue" | "samco" | "choice" | "religare" | "jainam";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -39,7 +39,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "aliceblue",
   "samco",
   "choice",
-  "religare"
+  "religare",
+  "jainam"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -279,6 +280,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "Religare holdings CSV",
     buttonLabel: "Import Religare holdings",
     defaultSource: "religare_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  jainam: {
+    label: "Jainam holdings CSV",
+    buttonLabel: "Import Jainam holdings",
+    defaultSource: "jainam_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

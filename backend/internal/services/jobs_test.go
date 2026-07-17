@@ -1122,6 +1122,40 @@ func TestJobServiceImportScheduledMarketDataSupportsReligareHoldingsCSV(t *testi
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsJainamHoldingsCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Acme Jainam", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "jainam.csv")
+	if err := os.WriteFile(path, []byte("Symbol,ISIN,Date,LTP,Quantity\nPOWERGRID,INE752E01010,2026-07-31,298.65,20\n"), 0o600); err != nil {
+		t.Fatalf("write Jainam CSV: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		OrganizationID: org.ID,
+		Path:           path,
+		Format:         "jainam_holdings_csv",
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected job result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "POWERGRID").First(&price).Error; err != nil {
+		t.Fatalf("load Jainam price: %v", err)
+	}
+	if price.PriceMinor != 29865 || price.Source != "jainam_holdings_csv" {
+		t.Fatalf("unexpected Jainam price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

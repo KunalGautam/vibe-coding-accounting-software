@@ -684,6 +684,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importJainamHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/jainam-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -756,6 +767,9 @@ class AccountingApiClient {
     }
     if (request.source == 'religare_holdings_csv') {
       return importReligareHoldingsPrices(request);
+    }
+    if (request.source == 'jainam_holdings_csv') {
+      return importJainamHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

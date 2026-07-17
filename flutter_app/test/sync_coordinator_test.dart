@@ -2664,6 +2664,61 @@ void main() {
     expect(result.hasFailures, false);
     expect(queue.pendingCount, 0);
   });
+
+  test('syncs queued Jainam holdings price imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'jainam-holdings-import-local-1',
+        module: 'investments',
+        action: 'import_broker_holdings',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'csv':
+              'Symbol,ISIN,Date,LTP,Quantity\nPOWERGRID,INE752E01010,2026-07-31,298.65,20',
+          'source': 'jainam_holdings_csv',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/jainam-holdings',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'jainam_holdings_csv');
+        expect(body['csv'], contains('POWERGRID'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-jainam-1',
+                'symbol': 'POWERGRID',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 29865,
+                'currency': 'INR',
+                'source': 'jainam_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+  });
 }
 
 Map<String, Object?> _bankImportJson({

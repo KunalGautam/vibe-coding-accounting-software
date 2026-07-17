@@ -6375,6 +6375,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'religare_holdings_csv',
                   child: Text('Religare holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'jainam_holdings_csv',
+                  child: Text('Jainam holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6451,6 +6455,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'religare_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nADANIPORTS,INE742F01042,2026-07-31,1325.75,5';
+                  } else if (value == 'jainam_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nPOWERGRID,INE752E01010,2026-07-31,298.65,20';
                   }
                 });
               },
