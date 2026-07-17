@@ -8,5 +8,5 @@
     "outDir": ".test-build",
     "rootDir": "src"
   },
-  "include": ["src/accountSecurity.ts", "src/reconciliation.ts"]
+  "include": ["src/accountSecurity.ts", "src/investmentImports.ts", "src/reconciliation.ts"]
 }
