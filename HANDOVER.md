@@ -110,7 +110,7 @@ Current API coverage: `180` OpenAPI route/method pairs, matched to Gin handlers 
 - Keep OpenAPI and Postman updated in the same change as API behavior.
 - Preserve offline-first direction for React and Flutter.
 - Production Compose uses a one-shot `/app/migrate -direction=up` container; API/worker should run with `AUTO_MIGRATE=false` outside local development.
-- Backup restore is available with `backend/cmd/restore` or `/app/restore -file /app/storage/backups/<file>.json`; it refuses to overwrite an existing organization ID.
+- Backup restore is available with `backend/cmd/restore` or `/app/restore -file /app/storage/backups/<file>.json`; use `-sha256 <expected>` and `-dry-run` for preflight checks, and the restore path refuses to overwrite an existing organization ID.
 - Set `BACKUP_MIRROR_PATH` to mirror manual/scheduled JSON backups to a second mounted target; mirrored files are checksum-verified and pruned with retention.
 - Public auth/bootstrap endpoints use configurable in-memory rate limiting (`RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_SECONDS`).
 - API responses include configurable browser security headers (`SECURITY_HEADERS_ENABLED`) with optional HSTS (`SECURITY_HSTS_MAX_AGE_SECONDS`).

@@ -29,6 +29,7 @@ go run ./cmd/migrate -direction=up
 Restore an organization export/backup into a database where that organization ID does not already exist:
 
 ```bash
+go run ./cmd/restore -file ./storage/backups/organization-<id>-backup-<timestamp>.json -sha256 <expected-sha256> -dry-run
 go run ./cmd/restore -file ./storage/backups/organization-<id>-backup-<timestamp>.json
 ```
 
