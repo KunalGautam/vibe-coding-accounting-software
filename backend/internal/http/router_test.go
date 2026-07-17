@@ -204,6 +204,22 @@ func TestInvestmentImportRoutePermissionMatrix(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("accountant can import Groww prices", func(t *testing.T) {
+		accessToken := mustAccessToken(t, tokens, map[string]domain.Role{org.ID: domain.RoleAccountant})
+		request := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/organizations/"+org.ID+"/investments/prices/import/groww-holdings",
+			strings.NewReader(`{"csv":"Company Name,ISIN,Date,LTP,Quantity\nReliance Industries,INE002A01018,2026-07-31,1410.55,3"}`),
+		)
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusCreated {
+			t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusCreated, response.Body.String())
+		}
+	})
 }
 
 func TestInvestmentImportRouteDeniesCrossTenantAccess(t *testing.T) {

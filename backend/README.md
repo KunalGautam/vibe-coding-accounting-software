@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 156 route/method pairs.
+- API route/Postman coverage validators for 158 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -235,6 +235,8 @@ Supported market-data formats are:
 - `yahoo_finance_csv`: Yahoo Finance historical CSV rows with `Date` and `Close`; set `MARKET_DATA_SYMBOL` for raw single-symbol downloads, or include a `Symbol`/`Ticker` column in multi-symbol files.
 - `alpha_vantage_csv`: Alpha Vantage daily CSV rows with `timestamp` and `close`; set `MARKET_DATA_SYMBOL` for raw single-symbol downloads, or include a `Symbol`/`Ticker` column in multi-symbol files.
 - `broker_holdings_csv`: Broker holdings exports with symbol/trading-symbol/ticker or ISIN plus LTP/current/last-traded price columns; if no date column is present, the current UTC date is used.
+- `zerodha_holdings_csv`: Zerodha Console holdings exports with Instrument/ISIN plus LTP/current price columns; defaults the source to `zerodha_holdings_csv`.
+- `groww_holdings_csv`: Groww holdings exports with Company Name/ISIN plus LTP/current price columns; if no ticker column is present, the ISIN is used as the local investment symbol.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 

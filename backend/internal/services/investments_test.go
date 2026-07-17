@@ -331,6 +331,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Zerodha price: %+v", zerodhaPrice)
 	}
 
+	growwResult, err := service.ImportGrowwHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Company Name,ISIN,Date,LTP,Quantity\n" +
+			"Reliance Industries,INE002A01018,2026-07-31,1410.55,3\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportGrowwHoldingsCSV() error = %v", err)
+	}
+	if growwResult.Imported != 1 || growwResult.Skipped != 0 {
+		t.Fatalf("unexpected Groww holdings import result: %+v", growwResult)
+	}
+	var growwPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "INE002A01018", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&growwPrice).Error; err != nil {
+		t.Fatalf("load Groww price: %v", err)
+	}
+	if growwPrice.PriceMinor != 141055 || growwPrice.Source != "groww_holdings_csv" {
+		t.Fatalf("unexpected Groww price: %+v", growwPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

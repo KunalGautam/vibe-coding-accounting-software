@@ -442,12 +442,26 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importGrowwHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/groww-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
     final request = ImportInvestmentPricesRequest.fromSyncOperation(operation);
     if (request.source == 'zerodha_holdings_csv') {
       return importZerodhaHoldingsPrices(request);
+    }
+    if (request.source == 'groww_holdings_csv') {
+      return importGrowwHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

@@ -6287,6 +6287,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'zerodha_holdings_csv',
                   child: Text('Zerodha holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'groww_holdings_csv',
+                  child: Text('Groww holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6297,6 +6301,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   if (value == 'zerodha_holdings_csv') {
                     controller.text =
                         'Instrument,ISIN,Date,LTP,Qty.\nHDFCBANK,INE040A01034,2026-07-31,1575.20,4';
+                  } else if (value == 'groww_holdings_csv') {
+                    controller.text =
+                        'Company Name,ISIN,Date,LTP,Quantity\nReliance Industries,INE002A01018,2026-07-31,1410.55,3';
                   }
                 });
               },

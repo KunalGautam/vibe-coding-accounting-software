@@ -982,6 +982,52 @@ void main() {
     expect(result.prices.single.priceMinor, 157520);
   });
 
+  test('imports Groww holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/groww-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'groww_holdings_csv');
+        expect(body['csv'], contains('Company Name'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-groww-1',
+                'symbol': 'INE002A01018',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 141055,
+                'currency': 'INR',
+                'source': 'groww_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importGrowwHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Company Name,ISIN,Date,LTP,Quantity\nReliance Industries,INE002A01018,2026-07-31,1410.55,3',
+        source: 'groww_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'INE002A01018');
+    expect(result.prices.single.priceMinor, 141055);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

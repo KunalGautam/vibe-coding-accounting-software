@@ -693,6 +693,23 @@
           }
         },
         {
+          "name": "Import Groww Holdings Prices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/organizations/{{organization_id}}/investments/prices/import/groww-holdings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csv\": \"Company Name,ISIN,Date,LTP,Quantity\\nReliance Industries,INE002A01018,2026-07-31,1410.55,3\"\n}"
+            }
+          }
+        },
+        {
           "name": "Import BSE Equity Prices",
           "request": {
             "method": "POST",

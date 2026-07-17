@@ -3196,6 +3196,8 @@ function InvestmentsPage({
                   ? await api.importBrokerHoldingsPrices(importInput)
                   : priceImportForm.format === "zerodha"
                     ? await api.importZerodhaHoldingsPrices(importInput)
+                    : priceImportForm.format === "groww"
+                      ? await api.importGrowwHoldingsPrices(importInput)
                     : await api.importInvestmentPrices(importInput);
       const suffix = result.errors.length > 0 ? ` ${result.errors.length} row issue(s) need review.` : "";
       setInvestmentNotice(`Imported ${result.imported} price row(s), skipped ${result.skipped}.${suffix}`);
