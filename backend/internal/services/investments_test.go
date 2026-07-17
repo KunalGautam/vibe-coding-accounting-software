@@ -388,6 +388,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Angel One price: %+v", angelOnePrice)
 	}
 
+	dhanResult, err := service.ImportDhanHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Trading Symbol,ISIN,Date,LTP,Quantity\n" +
+			"AXISBANK,INE238A01034,2026-07-31,1188.40,8\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportDhanHoldingsCSV() error = %v", err)
+	}
+	if dhanResult.Imported != 1 || dhanResult.Skipped != 0 {
+		t.Fatalf("unexpected Dhan holdings import result: %+v", dhanResult)
+	}
+	var dhanPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "AXISBANK", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&dhanPrice).Error; err != nil {
+		t.Fatalf("load Dhan price: %v", err)
+	}
+	if dhanPrice.PriceMinor != 118840 || dhanPrice.Source != "dhan_holdings_csv" {
+		t.Fatalf("unexpected Dhan price: %+v", dhanPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
