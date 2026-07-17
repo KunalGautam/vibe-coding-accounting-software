@@ -265,3 +265,42 @@ func TestDataExportServiceCreateBackupSnapshotMirrorsAndPrunesRetention(t *testi
 		t.Fatalf("expected first mirrored backup file to be pruned, stat error = %v", err)
 	}
 }
+
+func TestDataExportServiceCreateBackupSnapshotCleansFilesWhenMetadataInsertFails(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Cleanup Backup Co", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	service := NewDataExportService(db)
+	storagePath := t.TempDir()
+	mirrorPath := t.TempDir()
+	if err := db.Callback().Create().Before("gorm:create").Register("fail_backup_snapshot_metadata", func(tx *gorm.DB) {
+		if tx.Statement != nil && tx.Statement.Schema != nil && tx.Statement.Schema.Name == "BackupSnapshot" {
+			tx.AddError(errors.New("forced backup snapshot metadata failure"))
+		}
+	}); err != nil {
+		t.Fatalf("register create callback: %v", err)
+	}
+
+	_, err := service.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
+		OrganizationID: org.ID,
+		StoragePath:    storagePath,
+		MirrorPath:     mirrorPath,
+	})
+	if err == nil {
+		t.Fatalf("CreateBackupSnapshot() error = nil, want metadata insert failure")
+	}
+	if entries, readErr := os.ReadDir(storagePath); readErr != nil {
+		t.Fatalf("read storage dir: %v", readErr)
+	} else if len(entries) != 0 {
+		t.Fatalf("primary backup files left behind: %+v", entries)
+	}
+	if entries, readErr := os.ReadDir(mirrorPath); readErr != nil {
+		t.Fatalf("read mirror dir: %v", readErr)
+	} else if len(entries) != 0 {
+		t.Fatalf("mirrored backup files left behind: %+v", entries)
+	}
+}

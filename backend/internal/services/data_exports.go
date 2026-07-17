@@ -127,6 +127,10 @@ func (s DataExportService) CreateBackupSnapshot(ctx context.Context, input Creat
 		CompletedAt:    &now,
 	}
 	if err := s.db.WithContext(ctx).Create(&snapshot).Error; err != nil {
+		_ = os.Remove(fullPath)
+		if input.MirrorPath != "" {
+			_ = os.Remove(filepath.Join(input.MirrorPath, fileName))
+		}
 		return domain.BackupSnapshot{}, err
 	}
 	if input.RetentionCount > 0 {
