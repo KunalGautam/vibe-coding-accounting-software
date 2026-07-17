@@ -739,6 +739,32 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
     });
   }
 
+  Future<void> queueInvoicePost(String invoiceId) async {
+    final operation = syncQueue.enqueueInvoicePost(invoiceId: invoiceId.trim());
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Invoice posting queued for sync: ${operation.id}';
+    });
+  }
+
+  Future<void> queueCustomerPayment(CustomerPaymentInput input) async {
+    final operation = syncQueue.enqueueCustomerPayment(
+      invoiceId: input.invoiceId.trim(),
+      paymentNumber: input.paymentNumber.trim().isEmpty
+          ? 'PAY-MOB-${DateTime.now().millisecondsSinceEpoch}'
+          : input.paymentNumber.trim(),
+      paymentDate: input.paymentDate,
+      amountMinor: input.amountMinor,
+      paymentAccountId: input.paymentAccountId.trim(),
+      paymentMethod: input.paymentMethod.trim(),
+      reference: input.reference.trim(),
+    );
+    await repository.savePending(syncQueue.pending);
+    setState(() {
+      syncNotice = 'Customer payment queued for sync: ${operation.id}';
+    });
+  }
+
   Future<void> queueBrokerHoldingsImport(String csv) async {
     final operation = syncQueue.enqueueBrokerHoldingsPriceImport(csv: csv);
     await repository.savePending(syncQueue.pending);
@@ -2519,6 +2545,8 @@ class _MobileDeskShellState extends State<MobileDeskShell> {
         onFetchInvoices: fetchInvoices,
         onQueueInvoiceDraft: queueInvoiceDraft,
         onQueueInvoiceDraftUpdate: queueInvoiceDraftUpdate,
+        onQueueInvoicePost: queueInvoicePost,
+        onQueueCustomerPayment: queueCustomerPayment,
         onEditInvoiceDraft: editInvoiceDraft,
         onCancelInvoiceDraftEdit: cancelInvoiceDraftEdit,
         onDownloadAttachment: downloadAttachment,
@@ -2972,6 +3000,26 @@ class InvoiceDraftInput {
   final String taxRateId;
   final String taxGroupId;
   final bool taxInclusive;
+}
+
+class CustomerPaymentInput {
+  const CustomerPaymentInput({
+    required this.invoiceId,
+    required this.paymentNumber,
+    required this.paymentDate,
+    required this.amountMinor,
+    required this.paymentAccountId,
+    this.paymentMethod = '',
+    this.reference = '',
+  });
+
+  final String invoiceId;
+  final String paymentNumber;
+  final DateTime paymentDate;
+  final int amountMinor;
+  final String paymentAccountId;
+  final String paymentMethod;
+  final String reference;
 }
 
 class ExpensesPage extends StatelessWidget {
@@ -3662,6 +3710,8 @@ class InvoicesPage extends StatelessWidget {
     required this.onFetchInvoices,
     required this.onQueueInvoiceDraft,
     required this.onQueueInvoiceDraftUpdate,
+    required this.onQueueInvoicePost,
+    required this.onQueueCustomerPayment,
     required this.onEditInvoiceDraft,
     required this.onCancelInvoiceDraftEdit,
     required this.onDownloadAttachment,
@@ -3680,6 +3730,9 @@ class InvoicesPage extends StatelessWidget {
   final Future<void> Function(InvoiceDraftInput input) onQueueInvoiceDraft;
   final Future<void> Function(String invoiceId, InvoiceDraftInput input)
   onQueueInvoiceDraftUpdate;
+  final Future<void> Function(String invoiceId) onQueueInvoicePost;
+  final Future<void> Function(CustomerPaymentInput input)
+  onQueueCustomerPayment;
   final ValueChanged<InvoiceSummary> onEditInvoiceDraft;
   final VoidCallback onCancelInvoiceDraftEdit;
   final Future<void> Function(AttachmentSummary attachment)
@@ -3708,6 +3761,11 @@ class InvoicesPage extends StatelessWidget {
           onUpdate: onQueueInvoiceDraftUpdate,
           onCancelEdit: onCancelInvoiceDraftEdit,
         ),
+        InvoiceActionsCard(
+          invoices: invoices,
+          onQueueInvoicePost: onQueueInvoicePost,
+          onQueueCustomerPayment: onQueueCustomerPayment,
+        ),
         InvoiceCachePanel(
           invoices: invoices,
           attachments: attachments,
@@ -3723,6 +3781,7 @@ class InvoicesPage extends StatelessWidget {
             'Cached locally for read-only offline review',
             'New one-line invoice drafts queue offline through invoices.create_draft',
             'Cached draft invoices can prefill the form and queue updates through invoices.update_draft',
+            'Cached invoice rows can queue posting and customer-payment actions for offline replay',
             'PDF attachment bytes can be downloaded and inspected from the invoice row when attachment metadata is present',
           ],
         ),
@@ -4125,6 +4184,232 @@ class _InvoiceDraftFormState extends State<InvoiceDraftForm> {
                 icon: const Icon(Icons.close),
                 label: const Text('Cancel invoice edit'),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InvoiceActionsCard extends StatefulWidget {
+  const InvoiceActionsCard({
+    required this.invoices,
+    required this.onQueueInvoicePost,
+    required this.onQueueCustomerPayment,
+    super.key,
+  });
+
+  final List<InvoiceSummary> invoices;
+  final Future<void> Function(String invoiceId) onQueueInvoicePost;
+  final Future<void> Function(CustomerPaymentInput input)
+  onQueueCustomerPayment;
+
+  @override
+  State<InvoiceActionsCard> createState() => _InvoiceActionsCardState();
+}
+
+class _InvoiceActionsCardState extends State<InvoiceActionsCard> {
+  late final TextEditingController invoiceIdController;
+  late final TextEditingController paymentNumberController;
+  late final TextEditingController paymentDateController;
+  late final TextEditingController amountController;
+  late final TextEditingController paymentAccountController;
+  late final TextEditingController paymentMethodController;
+  late final TextEditingController referenceController;
+  String? validationMessage;
+  bool isQueueing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    invoiceIdController = TextEditingController();
+    paymentNumberController = TextEditingController(
+      text: 'PAY-MOB-${now.millisecondsSinceEpoch}',
+    );
+    paymentDateController = TextEditingController(text: formatDateOnly(now));
+    amountController = TextEditingController(text: '0.00');
+    paymentAccountController = TextEditingController();
+    paymentMethodController = TextEditingController(text: 'upi');
+    referenceController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    invoiceIdController.dispose();
+    paymentNumberController.dispose();
+    paymentDateController.dispose();
+    amountController.dispose();
+    paymentAccountController.dispose();
+    paymentMethodController.dispose();
+    referenceController.dispose();
+    super.dispose();
+  }
+
+  int parseRupeesToPaise(String value) {
+    final normalized = value.trim().replaceAll(',', '');
+    if (normalized.isEmpty) {
+      return 0;
+    }
+    final rupees = double.tryParse(normalized) ?? 0;
+    return (rupees * 100).round();
+  }
+
+  void applyInvoice(InvoiceSummary invoice) {
+    invoiceIdController.text = invoice.id;
+    amountController.text = formatMinorAsInput(invoice.totalMinor);
+    setState(() {
+      validationMessage = 'Selected ${invoice.invoiceNumber}.';
+    });
+  }
+
+  Future<void> queueInvoicePost() async {
+    final invoiceId = invoiceIdController.text.trim();
+    if (invoiceId.isEmpty) {
+      setState(() {
+        validationMessage = 'Select or enter an invoice ID before posting.';
+      });
+      return;
+    }
+    await widget.onQueueInvoicePost(invoiceId);
+  }
+
+  Future<void> queuePayment() async {
+    if (isQueueing) {
+      return;
+    }
+    final paymentDate = parseIsoDateOnlyUtc(paymentDateController.text.trim());
+    final amountMinor = parseRupeesToPaise(amountController.text);
+    if (invoiceIdController.text.trim().isEmpty ||
+        paymentNumberController.text.trim().isEmpty ||
+        paymentAccountController.text.trim().isEmpty ||
+        paymentDate == null ||
+        amountMinor <= 0) {
+      setState(() {
+        validationMessage =
+            'Enter invoice ID, payment number, payment date, amount, and payment account ID.';
+      });
+      return;
+    }
+
+    setState(() {
+      isQueueing = true;
+      validationMessage = null;
+    });
+    try {
+      await widget.onQueueCustomerPayment(
+        CustomerPaymentInput(
+          invoiceId: invoiceIdController.text.trim(),
+          paymentNumber: paymentNumberController.text.trim(),
+          paymentDate: paymentDate,
+          amountMinor: amountMinor,
+          paymentAccountId: paymentAccountController.text.trim(),
+          paymentMethod: paymentMethodController.text.trim(),
+          reference: referenceController.text.trim(),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isQueueing = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Invoice actions',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Queue posting or customer-payment actions against cached invoices while offline.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: invoiceIdController,
+              decoration: const InputDecoration(labelText: 'Action invoice ID'),
+            ),
+            if (widget.invoices.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Cached invoice actions',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final invoice in widget.invoices.take(6))
+                    ActionChip(
+                      label: Text('${invoice.invoiceNumber} · ${invoice.id}'),
+                      onPressed: () => applyInvoice(invoice),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: queueInvoicePost,
+              icon: const Icon(Icons.publish_outlined),
+              label: const Text('Queue invoice posting'),
+            ),
+            const Divider(height: 28),
+            TextField(
+              controller: paymentNumberController,
+              decoration: const InputDecoration(labelText: 'Payment number'),
+            ),
+            TextField(
+              controller: paymentDateController,
+              decoration: const InputDecoration(
+                labelText: 'Payment date',
+                hintText: '2026-07-17',
+              ),
+            ),
+            TextField(
+              controller: amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Payment amount in INR',
+              ),
+            ),
+            TextField(
+              controller: paymentAccountController,
+              decoration: const InputDecoration(
+                labelText: 'Payment account ID',
+              ),
+            ),
+            TextField(
+              controller: paymentMethodController,
+              decoration: const InputDecoration(
+                labelText: 'Payment method',
+                helperText: 'Optional, for example upi, bank_transfer, cash.',
+              ),
+            ),
+            TextField(
+              controller: referenceController,
+              decoration: const InputDecoration(labelText: 'Payment reference'),
+            ),
+            if (validationMessage != null) Text(validationMessage!),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: isQueueing ? null : queuePayment,
+              icon: const Icon(Icons.payments_outlined),
+              label: Text(
+                isQueueing ? 'Queueing payment...' : 'Queue customer payment',
+              ),
+            ),
           ],
         ),
       ),

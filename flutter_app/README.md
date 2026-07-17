@@ -54,6 +54,7 @@ flutter test
 - Tax preview for draft expenses using configured API tax rates/groups before queueing.
 - Expense capture entry point for receipt and reimbursable workflows.
 - Invoice draft creation/edit form that queues one-line AR drafts through `invoices.create_draft` and cached draft updates through `invoices.update_draft`.
+- Invoice action form that queues cached invoice posting and customer payment replay.
 - Invoice cache refresh for offline AR snapshots with line-level GST/VAT tax context visible while offline.
 - Invoice PDF attachment ID metadata preserved for offline invoice review.
 - Invoice PDF attachment download and cached-byte inspection directly from cached invoice rows.

@@ -1438,6 +1438,92 @@ void main() {
     );
   });
 
+  testWidgets(
+    'queues invoice posting and customer payments from invoice rows',
+    (tester) async {
+      useTallTestViewport(tester);
+      final repository = MemorySyncOperationRepository();
+      final invoiceCacheRepository = MemoryInvoiceCacheRepository([
+        const InvoiceSummary(
+          id: 'inv-action-1',
+          invoiceNumber: 'INV-ACTION-001',
+          status: 'draft',
+          subtotalMinor: 250000,
+          taxTotalMinor: 45000,
+          totalMinor: 295000,
+          currency: 'INR',
+          lines: [],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        AccountingApp(
+          syncRepository: repository,
+          invoiceCacheRepository: invoiceCacheRepository,
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Invoices'));
+      await tester.pump();
+
+      await tester.tap(find.text('INV-ACTION-001 · inv-action-1'));
+      await tester.pump();
+      expect(find.text('Selected INV-ACTION-001.'), findsOneWidget);
+
+      await tester.tap(find.text('Queue invoice posting'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Payment number'),
+        'PAY-ACTION-001',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Payment date'),
+        '2026-07-17',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Payment account ID'),
+        'bank-1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Payment reference'),
+        'UPI-REF-1',
+      );
+      await tester.tap(find.text('Queue customer payment'));
+      await tester.pumpAndSettle();
+
+      final pending = await repository.loadPending();
+      final invoicePosts = pending
+          .where(
+            (operation) =>
+                operation.module == 'ledger' &&
+                operation.action == 'post_invoice',
+          )
+          .toList(growable: false);
+      final payments = pending
+          .where(
+            (operation) =>
+                operation.module == 'payments' &&
+                operation.action == 'record_customer',
+          )
+          .toList(growable: false);
+      expect(invoicePosts, hasLength(1));
+      expect(invoicePosts.single.payload['invoice_id'], 'inv-action-1');
+      expect(payments, hasLength(1));
+      expect(payments.single.payload['invoice_id'], 'inv-action-1');
+      expect(payments.single.payload['payment_number'], 'PAY-ACTION-001');
+      expect(payments.single.payload['payment_date'], '2026-07-17');
+      expect(payments.single.payload['amount_minor'], 295000);
+      expect(payments.single.payload['payment_account_id'], 'bank-1');
+      expect(payments.single.payload['payment_method'], 'upi');
+      expect(payments.single.payload['reference'], 'UPI-REF-1');
+      expect(
+        find.textContaining('Customer payment queued for sync:'),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('downloads invoice PDF attachments from invoice rows', (
     tester,
   ) async {
