@@ -31,6 +31,19 @@ export function connectionReadinessChecks(config: Pick<ApiConfig, "baseUrl" | "a
   ];
 }
 
+export function organizationUserOnboardingChecks(input: { name: string; email: string; password: string; role: Role }): ReadinessCheck[] {
+  const email = input.email.trim();
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordLooksReady = input.password.length >= 12;
+  return [
+    { label: "Name entered", ok: Boolean(input.name.trim()) },
+    { label: "Email looks valid", ok: emailLooksValid },
+    { label: "Temporary password has 12+ characters", ok: passwordLooksReady },
+    { label: "Role selected", ok: Boolean(input.role) },
+    { label: "Ready to share securely", ok: emailLooksValid && passwordLooksReady }
+  ];
+}
+
 export function extractPasswordResetToken(rawUrl: string) {
   let url: URL;
   try {

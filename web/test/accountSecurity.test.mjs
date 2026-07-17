@@ -5,6 +5,7 @@ import {
   connectionReadinessChecks,
   extractPasswordResetToken,
   generateTemporaryPassword,
+  organizationUserOnboardingChecks,
   passwordChangeChecks,
   passwordStrengthChecks,
   roleDescription,
@@ -40,6 +41,27 @@ test("extractPasswordResetToken reads query, hash, and path reset links", () => 
   assert.equal(extractPasswordResetToken("https://app.example.com/#/reset-password/hash-path-token"), "hash-path-token");
   assert.equal(extractPasswordResetToken("https://app.example.com/reset-password/path-token"), "path-token");
   assert.equal(extractPasswordResetToken("not a url"), "");
+});
+
+test("organizationUserOnboardingChecks catches incomplete invite details", () => {
+  assert.deepEqual(
+    organizationUserOnboardingChecks({
+      name: "Book Keeper",
+      email: "bookkeeper@example.com",
+      password: "Temporary-123",
+      role: "bookkeeper"
+    }).map((check) => check.ok),
+    [true, true, true, true, true]
+  );
+  assert.deepEqual(
+    organizationUserOnboardingChecks({
+      name: "",
+      email: "not-an-email",
+      password: "short",
+      role: "viewer"
+    }).map((check) => check.ok),
+    [false, false, false, true, false]
+  );
 });
 
 test("roleDescription returns useful role guidance", () => {

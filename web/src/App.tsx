@@ -1,7 +1,7 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { ApiClient, type Account, type AccountDrilldownReport, type AccountInput, type ApiConfig, type APAgingReport, type ARAgingReport, type Attachment, type AuditLog, type BalanceSheetReport, type BankStatementLine, type Bill, type BillLine, type BootstrapFirstAdminInput, type Budget, type BudgetVsActualReport, type BudgetVsActualReportRow, type CashFlowReport, type ChangePasswordInput, type CloseFiscalYearInput, type CreateAttachmentInput, type CreateBillInput, type CreateBudgetInput, type CreateCreditNoteInput, type CreateEstimateInput, type CreateExchangeRateInput, type CreateExpenseInput, type CreateInvestmentCorporateActionInput, type CreateInvestmentDividendInput, type CreateInvestmentLotInput, type CreateInvoiceInput, type CreateOrganizationInput, type CreateOrganizationUserInput, type CreatePayrollComponentInput, type CreatePayrollRunInput, type CreatePurchaseOrderInput, type CreateRecurringInvoiceTemplateInput, type CreateScheduledReportInput, type CreateTaxAuthorityInput, type CreateTaxGroupInput, type CreateTaxRateInput, type CreditNote, type CurrentUserProfile, type Customer, type CustomerInput, type CustomerPayment, type Employee, type EmployeeInput, type Estimate, type EstimateLine, type ExchangeRate, type Expense, type FiscalClose, type ImportAMFINAVInput, type ImportBankStatementInput, type ImportInvestmentPricesInput, type IndiaPayrollPreview, type IndiaProfessionalTaxPreset, type IndiaSeedResult, type InvestmentCorporateAction, type InvestmentCorporateActionReport, type InvestmentDividend, type InvestmentDividendReport, type InvestmentLot, type InvestmentTaxAdjustmentReport, type InvestmentTaxLotReport, type Invoice, type InvoiceLine, type JournalTransaction, type JournalTransactionInput, type LedgerSplit, type LoginInput, type MFASetupResponse, type Organization, type OrganizationUser, type PayrollRun, type PayrollSummaryReport, type PayslipPreview, type PostRevaluationInput, type ProfitAndLossReport, type PurchaseOrder, type PurchaseOrderLine, type RealizedGainsReport, type RecordPaymentInput, type RecurringInvoiceTemplate, type RegisterOrganizationInput, type ReportRow, type RevaluationPreview, type Role, type ScheduledReport, type ScheduledReportRun, type SellInvestmentLotInput, type TaxAuthority, type TaxCalculation, type TaxGroup, type TaxLiabilityReport, type TaxRate, type TaxReportRow, type TaxSummaryReport, type TrialBalanceReport, type UpdateOrganizationUserInput, type Vendor, type VendorInput, type VendorPayment } from "./api/client";
 import { clearReportSnapshot, loadAccountDrafts, loadAccountingSnapshot, loadConfig, loadJournalDrafts, loadReportSnapshot, saveAccountDrafts, saveAccountingSnapshot, saveConfig, saveJournalDrafts, saveReportSnapshot, type QueuedAccountDraft, type QueuedJournalDraft, type ReportSnapshot } from "./api/storage";
-import { connectionReadinessChecks, extractPasswordResetToken, generateTemporaryPassword, passwordChangeChecks, passwordStrengthChecks, roleDescription, safeFilenamePart } from "./accountSecurity";
+import { connectionReadinessChecks, extractPasswordResetToken, generateTemporaryPassword, organizationUserOnboardingChecks, passwordChangeChecks, passwordStrengthChecks, roleDescription, safeFilenamePart } from "./accountSecurity";
 import { importNotice, mapCsvStatementLines, summarizeReconciliation, suggestReconciliationMatches } from "./reconciliation";
 
 type View = "dashboard" | "accounts" | "ledger" | "tax" | "reports" | "budgets" | "investments" | "payroll" | "invoices" | "expenses" | "documents" | "reconciliation" | "admin";
@@ -7521,15 +7521,11 @@ function AdminPage({
   const canCreateRate = Boolean(rateForm.from_currency.trim().length === 3 && rateForm.to_currency.trim().length === 3 && rateForm.rate_date && rateForm.numerator > 0 && rateForm.denominator > 0);
   const canCloseYear = Boolean(closeForm.fiscal_year_start && closeForm.fiscal_year_end && closeForm.retained_earnings_account_id);
   const canPostRevaluation = Boolean(revaluationForm.as_of_date && revaluationForm.gain_loss_account_id && revaluationPreview && revaluationPreview.rows.length > 0);
-  const canCreateUser = Boolean(userForm.name.trim() && userForm.email.trim() && userForm.password.length >= 12 && userForm.role);
   const activeOrganizationUsers = organizationUsers.filter((user) => user.is_active).length;
   const inviteEmailsSent = organizationUsers.filter((user) => user.invite_email_sent).length;
   const inviteEmailsFailed = organizationUsers.filter((user) => user.invite_email_error).length;
-  const userPasswordChecks = [
-    { label: "At least 12 characters", ok: userForm.password.length >= 12 },
-    { label: "Generated or manually entered", ok: Boolean(userForm.password) },
-    { label: "Ready to share securely", ok: Boolean(userForm.password && userForm.email.trim()) }
-  ];
+  const userOnboardingChecks = organizationUserOnboardingChecks(userForm);
+  const canCreateUser = userOnboardingChecks.every((check) => check.ok);
 
   function generateUserTemporaryPassword() {
     const password = generateTemporaryPassword();
@@ -7857,7 +7853,7 @@ function AdminPage({
         <button disabled={!canCreateUser || loading === "create-user"}>{loading === "create-user" ? "Creating..." : "Create user"}</button>
         <div className="full-span">
           <div className="security-checklist">
-            {userPasswordChecks.map((check) => (
+            {userOnboardingChecks.map((check) => (
               <span key={check.label} className={check.ok ? "check-good" : "check-warn"}>
                 {check.ok ? "OK" : "Need"} · {check.label}
               </span>
