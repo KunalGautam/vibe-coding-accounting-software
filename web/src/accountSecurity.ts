@@ -34,11 +34,12 @@ export function connectionReadinessChecks(config: Pick<ApiConfig, "baseUrl" | "a
 export function organizationUserOnboardingChecks(input: { name: string; email: string; password: string; role: Role }): ReadinessCheck[] {
   const email = input.email.trim();
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const passwordLooksReady = input.password.length >= 12;
+  const passwordChecks = passwordStrengthChecks(input.password);
+  const passwordLooksReady = passwordChecks.every((check) => check.ok);
   return [
     { label: "Name entered", ok: Boolean(input.name.trim()) },
     { label: "Email looks valid", ok: emailLooksValid },
-    { label: "Temporary password has 12+ characters", ok: passwordLooksReady },
+    ...passwordChecks.map((check) => ({ label: `Temporary password: ${check.label.toLowerCase()}`, ok: check.ok })),
     { label: "Role selected", ok: Boolean(input.role) },
     { label: "Ready to share securely", ok: emailLooksValid && passwordLooksReady }
   ];
@@ -103,6 +104,10 @@ export function safeFilenamePart(value: string, fallback = "employee") {
 }
 
 export function generateTemporaryPassword(randomValues?: Uint32Array) {
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const symbols = "!@#$%*-_=+";
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_=+";
   const values = randomValues ?? new Uint32Array(18);
   if (!randomValues) {
@@ -114,5 +119,10 @@ export function generateTemporaryPassword(randomValues?: Uint32Array) {
       }
     }
   }
-  return Array.from(values, (value) => alphabet[value % alphabet.length]).join("");
+  const groups = [uppercase, lowercase, numbers, symbols];
+  return Array.from(values, (value, index) => {
+    const group = groups[index];
+    const source = group ?? alphabet;
+    return source[value % source.length];
+  }).join("");
 }

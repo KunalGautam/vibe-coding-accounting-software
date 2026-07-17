@@ -51,7 +51,7 @@ test("organizationUserOnboardingChecks catches incomplete invite details", () =>
       password: "Temporary-123",
       role: "bookkeeper"
     }).map((check) => check.ok),
-    [true, true, true, true, true]
+    [true, true, true, true, true, true, true, true]
   );
   assert.deepEqual(
     organizationUserOnboardingChecks({
@@ -60,7 +60,16 @@ test("organizationUserOnboardingChecks catches incomplete invite details", () =>
       password: "short",
       role: "viewer"
     }).map((check) => check.ok),
-    [false, false, false, true, false]
+    [false, false, false, false, false, false, true, false]
+  );
+  assert.deepEqual(
+    organizationUserOnboardingChecks({
+      name: "Weak User",
+      email: "weak@example.com",
+      password: "longbutnosymbol1",
+      role: "viewer"
+    }).map((check) => check.ok),
+    [true, true, true, false, true, false, true, false]
   );
 });
 
@@ -75,5 +84,10 @@ test("safeFilenamePart normalizes unsafe labels", () => {
 });
 
 test("generateTemporaryPassword supports deterministic test values", () => {
-  assert.equal(generateTemporaryPassword(new Uint32Array([0, 1, 2, 3])), "ABCD");
+  assert.equal(generateTemporaryPassword(new Uint32Array([0, 1, 2, 3])), "Ab4$");
+});
+
+test("generateTemporaryPassword creates onboarding-ready passwords", () => {
+  const password = generateTemporaryPassword(new Uint32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));
+  assert.deepEqual(passwordStrengthChecks(password).map((check) => check.ok), [true, true, true, true]);
 });
