@@ -1304,6 +1304,52 @@ void main() {
     expect(result.prices.single.priceMinor, 934210);
   });
 
+  test('imports Paytm Money holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/paytmmoney-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'paytmmoney_holdings_csv');
+        expect(body['csv'], contains('TATAMOTORS'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-paytmmoney-1',
+                'symbol': 'TATAMOTORS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 109845,
+                'currency': 'INR',
+                'source': 'paytmmoney_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importPaytmMoneyHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nTATAMOTORS,INE155A01022,2026-07-31,1098.45,5',
+        source: 'paytmmoney_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'TATAMOTORS');
+    expect(result.prices.single.priceMinor, 109845);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

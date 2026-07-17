@@ -1839,6 +1839,61 @@ void main() {
     expect(result.hasFailures, false);
     expect(queue.pendingCount, 0);
   });
+
+  test('syncs queued Paytm Money holdings price imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'paytmmoney-holdings-import-local-1',
+        module: 'investments',
+        action: 'import_broker_holdings',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'csv':
+              'Symbol,ISIN,Date,LTP,Quantity\nTATAMOTORS,INE155A01022,2026-07-31,1098.45,5',
+          'source': 'paytmmoney_holdings_csv',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/paytmmoney-holdings',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'paytmmoney_holdings_csv');
+        expect(body['csv'], contains('TATAMOTORS'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-paytmmoney-1',
+                'symbol': 'TATAMOTORS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 109845,
+                'currency': 'INR',
+                'source': 'paytmmoney_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+  });
 }
 
 Map<String, Object?> _bankImportJson({

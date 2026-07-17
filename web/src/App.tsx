@@ -3226,6 +3226,9 @@ function InvestmentsPage({
         case "kotakneo":
           result = await api.importKotakNeoHoldingsPrices(importInput);
           break;
+        case "paytmmoney":
+          result = await api.importPaytmMoneyHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

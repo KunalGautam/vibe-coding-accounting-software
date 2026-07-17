@@ -6315,6 +6315,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'kotakneo_holdings_csv',
                   child: Text('Kotak Neo holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'paytmmoney_holdings_csv',
+                  child: Text('Paytm Money holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6346,6 +6350,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'kotakneo_holdings_csv') {
                     controller.text =
                         'Trading Symbol,ISIN,Date,LTP,Quantity\nBAJFINANCE,INE296A01024,2026-07-31,9342.10,2';
+                  } else if (value == 'paytmmoney_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nTATAMOTORS,INE155A01022,2026-07-31,1098.45,5';
                   }
                 });
               },

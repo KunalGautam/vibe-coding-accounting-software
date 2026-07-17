@@ -464,6 +464,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Kotak Neo price: %+v", kotakNeoPrice)
 	}
 
+	paytmMoneyResult, err := service.ImportPaytmMoneyHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"TATAMOTORS,INE155A01022,2026-07-31,1098.45,5\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportPaytmMoneyHoldingsCSV() error = %v", err)
+	}
+	if paytmMoneyResult.Imported != 1 || paytmMoneyResult.Skipped != 0 {
+		t.Fatalf("unexpected Paytm Money holdings import result: %+v", paytmMoneyResult)
+	}
+	var paytmMoneyPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "TATAMOTORS", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&paytmMoneyPrice).Error; err != nil {
+		t.Fatalf("load Paytm Money price: %v", err)
+	}
+	if paytmMoneyPrice.PriceMinor != 109845 || paytmMoneyPrice.Source != "paytmmoney_holdings_csv" {
+		t.Fatalf("unexpected Paytm Money price: %+v", paytmMoneyPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

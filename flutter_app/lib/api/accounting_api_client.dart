@@ -519,6 +519,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importPaytmMoneyHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/paytmmoney-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -546,6 +557,9 @@ class AccountingApiClient {
     }
     if (request.source == 'kotakneo_holdings_csv') {
       return importKotakNeoHoldingsPrices(request);
+    }
+    if (request.source == 'paytmmoney_holdings_csv') {
+      return importPaytmMoneyHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }
