@@ -6323,6 +6323,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'motilaloswal_holdings_csv',
                   child: Text('Motilal Oswal holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'sharekhan_holdings_csv',
+                  child: Text('Sharekhan holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6360,6 +6364,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'motilaloswal_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nASIANPAINT,INE021A01026,2026-07-31,2987.60,3';
+                  } else if (value == 'sharekhan_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nHINDUNILVR,INE030A01027,2026-07-31,2567.35,4';
                   }
                 });
               },

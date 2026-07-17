@@ -502,6 +502,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Motilal Oswal price: %+v", motilalOswalPrice)
 	}
 
+	sharekhanResult, err := service.ImportSharekhanHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"HINDUNILVR,INE030A01027,2026-07-31,2567.35,4\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportSharekhanHoldingsCSV() error = %v", err)
+	}
+	if sharekhanResult.Imported != 1 || sharekhanResult.Skipped != 0 {
+		t.Fatalf("unexpected Sharekhan holdings import result: %+v", sharekhanResult)
+	}
+	var sharekhanPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "HINDUNILVR", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&sharekhanPrice).Error; err != nil {
+		t.Fatalf("load Sharekhan price: %v", err)
+	}
+	if sharekhanPrice.PriceMinor != 256735 || sharekhanPrice.Source != "sharekhan_holdings_csv" {
+		t.Fatalf("unexpected Sharekhan price: %+v", sharekhanPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

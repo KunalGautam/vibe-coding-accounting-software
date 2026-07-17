@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky" | "kotakneo" | "paytmmoney" | "motilaloswal" | "sharekhan";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -26,7 +26,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "hdfcsky",
   "kotakneo",
   "paytmmoney",
-  "motilaloswal"
+  "motilaloswal",
+  "sharekhan"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -162,6 +163,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     label: "Motilal Oswal holdings CSV",
     buttonLabel: "Import Motilal Oswal holdings",
     defaultSource: "motilaloswal_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  sharekhan: {
+    label: "Sharekhan holdings CSV",
+    buttonLabel: "Import Sharekhan holdings",
+    defaultSource: "sharekhan_holdings_csv",
     placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false

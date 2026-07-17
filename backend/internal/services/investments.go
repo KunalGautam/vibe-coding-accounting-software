@@ -875,6 +875,13 @@ func (s InvestmentService) ImportMotilalOswalHoldingsCSV(ctx context.Context, in
 	return s.ImportBrokerHoldingsCSV(ctx, input)
 }
 
+func (s InvestmentService) ImportSharekhanHoldingsCSV(ctx context.Context, input ImportInvestmentPricesInput) (InvestmentPriceImportResult, error) {
+	if strings.TrimSpace(input.Source) == "" {
+		input.Source = "sharekhan_holdings_csv"
+	}
+	return s.ImportBrokerHoldingsCSV(ctx, input)
+}
+
 func (s InvestmentService) ImportBSEEquityCSV(ctx context.Context, input ImportInvestmentPricesInput) (InvestmentPriceImportResult, error) {
 	if strings.TrimSpace(input.CSV) == "" {
 		return InvestmentPriceImportResult{}, ErrInvestmentPriceImportInvalid

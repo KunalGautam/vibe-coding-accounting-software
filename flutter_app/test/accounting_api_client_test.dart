@@ -1396,6 +1396,52 @@ void main() {
     expect(result.prices.single.priceMinor, 298760);
   });
 
+  test('imports Sharekhan holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/sharekhan-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'sharekhan_holdings_csv');
+        expect(body['csv'], contains('HINDUNILVR'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-sharekhan-1',
+                'symbol': 'HINDUNILVR',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 256735,
+                'currency': 'INR',
+                'source': 'sharekhan_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importSharekhanHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nHINDUNILVR,INE030A01027,2026-07-31,2567.35,4',
+        source: 'sharekhan_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'HINDUNILVR');
+    expect(result.prices.single.priceMinor, 256735);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

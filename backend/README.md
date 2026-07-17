@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 166 route/method pairs.
+- API route/Postman coverage validators for 167 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -245,6 +245,7 @@ Supported market-data formats are:
 - `kotakneo_holdings_csv`: Kotak Neo holdings exports with Trading Symbol/Symbol/ISIN plus LTP/current price columns; defaults the source to `kotakneo_holdings_csv`.
 - `paytmmoney_holdings_csv`: Paytm Money holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `paytmmoney_holdings_csv`.
 - `motilaloswal_holdings_csv`: Motilal Oswal holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `motilaloswal_holdings_csv`.
+- `sharekhan_holdings_csv`: Sharekhan holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `sharekhan_holdings_csv`.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 
