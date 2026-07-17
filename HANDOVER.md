@@ -113,7 +113,8 @@ Current API coverage: `180` OpenAPI route/method pairs, matched to Gin handlers 
 - Backup restore is available with `backend/cmd/restore` or `/app/restore -file /app/storage/backups/<file>.json`; it refuses to overwrite an existing organization ID.
 - Set `BACKUP_MIRROR_PATH` to mirror manual/scheduled JSON backups to a second mounted target; mirrored files are checksum-verified and pruned with retention.
 - Public auth/bootstrap endpoints use configurable in-memory rate limiting (`RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_SECONDS`).
-- `APP_ENV=production` validates unsafe runtime defaults and rejects dev JWT secrets, wildcard CORS, Swagger, SQLite, missing MySQL DSN, and API/worker auto-migration.
+- API responses include configurable browser security headers (`SECURITY_HEADERS_ENABLED`) with optional HSTS (`SECURITY_HSTS_MAX_AGE_SECONDS`).
+- `APP_ENV=production` validates unsafe runtime defaults and rejects dev JWT secrets, wildcard CORS, disabled security headers, Swagger, SQLite, missing MySQL DSN, and API/worker auto-migration.
 - TOTP MFA secrets are encrypted at rest with `MFA_ENCRYPTION_KEY`; set it to 32 random bytes encoded as base64, for example `openssl rand -base64 32`.
 - Password reset and organization invitation email delivery are available with `EMAIL_DELIVERY_ENABLED=true`, SMTP settings, `PASSWORD_RESET_BASE_URL`, and `INVITATION_BASE_URL`; reset tokens are hidden from API responses unless `EXPOSE_PASSWORD_RESET_TOKEN=true`.
 - Self-service organization registration is available at `POST /api/v1/auth/register` only when `SELF_SERVICE_REGISTRATION_ENABLED=true`; keep it disabled for invitation-only deployments.

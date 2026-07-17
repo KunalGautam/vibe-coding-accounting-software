@@ -59,6 +59,20 @@ func CORSMiddleware(allowedOrigins string) gin.HandlerFunc {
 	}
 }
 
+func SecurityHeadersMiddleware(hstsMaxAge time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		c.Header("Cross-Origin-Resource-Policy", "same-origin")
+		if hstsMaxAge > 0 {
+			c.Header("Strict-Transport-Security", "max-age="+strconv.Itoa(int(hstsMaxAge.Seconds()))+"; includeSubDomains")
+		}
+		c.Next()
+	}
+}
+
 func StructuredLoggerMiddleware(logger *slog.Logger) gin.HandlerFunc {
 	if logger == nil {
 		logger = slog.Default()

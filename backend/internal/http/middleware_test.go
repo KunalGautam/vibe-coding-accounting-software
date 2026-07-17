@@ -52,6 +52,52 @@ func TestCORSMiddlewarePreflight(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersMiddlewareAddsBrowserHardeningHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(SecurityHeadersMiddleware(0))
+	router.GET("/ping", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	expectedHeaders := map[string]string{
+		"X-Content-Type-Options":       "nosniff",
+		"X-Frame-Options":              "DENY",
+		"Referrer-Policy":              "no-referrer",
+		"Permissions-Policy":           "camera=(), microphone=(), geolocation=()",
+		"Cross-Origin-Resource-Policy": "same-origin",
+	}
+	for header, expected := range expectedHeaders {
+		if response.Header().Get(header) != expected {
+			t.Fatalf("%s = %q, want %q", header, response.Header().Get(header), expected)
+		}
+	}
+	if response.Header().Get("Strict-Transport-Security") != "" {
+		t.Fatalf("Strict-Transport-Security = %q, want empty when HSTS max age is zero", response.Header().Get("Strict-Transport-Security"))
+	}
+}
+
+func TestSecurityHeadersMiddlewareAddsHSTSWhenConfigured(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(SecurityHeadersMiddleware(365 * 24 * time.Hour))
+	router.GET("/ping", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Header().Get("Strict-Transport-Security") != "max-age=31536000; includeSubDomains" {
+		t.Fatalf("Strict-Transport-Security = %q", response.Header().Get("Strict-Transport-Security"))
+	}
+}
+
 func TestRateLimitMiddlewareLimitsByRouteAndClient(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

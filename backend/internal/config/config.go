@@ -64,6 +64,8 @@ type Config struct {
 	RateLimitEnabled               bool
 	RateLimitRequests              int
 	RateLimitWindowSeconds         int
+	SecurityHeadersEnabled         bool
+	SecurityHSTSMaxAgeSeconds      int
 	LogFormat                      string
 	LogLevel                       string
 	MetricsEnabled                 bool
@@ -117,6 +119,8 @@ func Load() Config {
 		RateLimitEnabled:               envBool("RATE_LIMIT_ENABLED", true),
 		RateLimitRequests:              envInt("RATE_LIMIT_REQUESTS", 20),
 		RateLimitWindowSeconds:         envInt("RATE_LIMIT_WINDOW_SECONDS", 60),
+		SecurityHeadersEnabled:         envBool("SECURITY_HEADERS_ENABLED", true),
+		SecurityHSTSMaxAgeSeconds:      envInt("SECURITY_HSTS_MAX_AGE_SECONDS", 0),
 		LogFormat:                      env("LOG_FORMAT", "text"),
 		LogLevel:                       env("LOG_LEVEL", "info"),
 		MetricsEnabled:                 envBool("METRICS_ENABLED", true),
@@ -176,6 +180,12 @@ func (c Config) validate(runtime bool) error {
 	}
 	if c.RateLimitEnabled && (c.RateLimitRequests <= 0 || c.RateLimitWindowSeconds <= 0) {
 		problems = append(problems, errors.New("rate limit settings must be positive when RATE_LIMIT_ENABLED=true"))
+	}
+	if !c.SecurityHeadersEnabled {
+		problems = append(problems, errors.New("SECURITY_HEADERS_ENABLED must be true in production"))
+	}
+	if c.SecurityHSTSMaxAgeSeconds < 0 {
+		problems = append(problems, errors.New("SECURITY_HSTS_MAX_AGE_SECONDS must be zero or positive"))
 	}
 	if c.BackupRetentionCount <= 0 {
 		problems = append(problems, errors.New("BACKUP_RETENTION_COUNT must be positive in production"))

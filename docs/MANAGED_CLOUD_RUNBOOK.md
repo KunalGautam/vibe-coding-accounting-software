@@ -52,6 +52,8 @@ CORS_ALLOWED_ORIGINS=https://app.example.com
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_REQUESTS=20
 RATE_LIMIT_WINDOW_SECONDS=60
+SECURITY_HEADERS_ENABLED=true
+SECURITY_HSTS_MAX_AGE_SECONDS=31536000
 ```
 
 Set these for the API:
@@ -186,6 +188,7 @@ For failed background jobs:
 - Production config validation passes with `APP_ENV=production`.
 - `SWAGGER_ENABLED=false`.
 - `CORS_ALLOWED_ORIGINS` lists only production origins.
+- `SECURITY_HEADERS_ENABLED=true`; set `SECURITY_HSTS_MAX_AGE_SECONDS` only behind HTTPS.
 - MySQL is private, encrypted, backed up, and monitored.
 - `AUTO_MIGRATE=false` on long-running API/worker containers.
 - Migration job is part of the release process.

@@ -33,6 +33,8 @@ type RouterConfig struct {
 	RateLimitEnabled               bool
 	RateLimitRequests              int
 	RateLimitWindow                time.Duration
+	SecurityHeadersEnabled         bool
+	SecurityHSTSMaxAge             time.Duration
 	Logger                         *slog.Logger
 	MetricsEnabled                 bool
 	Metrics                        *HTTPMetrics
@@ -45,6 +47,9 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 		metrics = NewHTTPMetrics()
 	}
 	middleware := []gin.HandlerFunc{RequestIDMiddleware(), CORSMiddleware(cfg.CORSAllowedOrigins)}
+	if cfg.SecurityHeadersEnabled {
+		middleware = append(middleware, SecurityHeadersMiddleware(cfg.SecurityHSTSMaxAge))
+	}
 	if cfg.MetricsEnabled {
 		middleware = append(middleware, MetricsMiddleware(metrics))
 	}

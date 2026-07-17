@@ -42,6 +42,8 @@ Defaults:
 - `BACKUP_STORAGE_PATH=./storage/backups`
 - `BACKUP_MIRROR_PATH=` optional secondary mounted backup directory for checksum-verified backup copies
 - `ATTACHMENT_MAX_UPLOAD_BYTES=26214400` max binary upload size for local attachment uploads
+- `SECURITY_HEADERS_ENABLED=true` enables browser security response headers
+- `SECURITY_HSTS_MAX_AGE_SECONDS=0` optional HSTS max age; set a positive value only behind HTTPS
 - `BACKUP_RETENTION_COUNT=7`
 - `WORKER_RUN_ONCE=false`
 - `WORKER_INTERVAL_SECONDS=3600`

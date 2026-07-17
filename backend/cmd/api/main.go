@@ -62,6 +62,8 @@ func main() {
 		RateLimitEnabled:               cfg.RateLimitEnabled,
 		RateLimitRequests:              cfg.RateLimitRequests,
 		RateLimitWindow:                time.Duration(cfg.RateLimitWindowSeconds) * time.Second,
+		SecurityHeadersEnabled:         cfg.SecurityHeadersEnabled,
+		SecurityHSTSMaxAge:             time.Duration(cfg.SecurityHSTSMaxAgeSeconds) * time.Second,
 		Logger:                         logger,
 		MetricsEnabled:                 cfg.MetricsEnabled,
 		Tokens: auth.NewTokenManager(
