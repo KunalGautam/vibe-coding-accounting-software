@@ -31,6 +31,42 @@ export function connectionReadinessChecks(config: Pick<ApiConfig, "baseUrl" | "a
   ];
 }
 
+export function extractPasswordResetToken(rawUrl: string) {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return "";
+  }
+
+  const queryToken = url.searchParams.get("reset_token") ?? url.searchParams.get("token");
+  if (queryToken) {
+    return queryToken.trim();
+  }
+
+  const hashText = url.hash.replace(/^#/, "");
+  if (hashText) {
+    const hashQuery = hashText.includes("?") ? hashText.slice(hashText.indexOf("?") + 1) : hashText;
+    const hashParams = new URLSearchParams(hashQuery);
+    const hashToken = hashParams.get("reset_token") ?? hashParams.get("token");
+    if (hashToken) {
+      return hashToken.trim();
+    }
+    const hashPathParts = hashText.split("?")[0].split("/").map((part) => decodeURIComponent(part)).filter(Boolean);
+    const hashResetIndex = hashPathParts.findIndex((part) => part === "reset-password" || part === "password-reset");
+    if (hashResetIndex >= 0 && hashPathParts[hashResetIndex + 1]) {
+      return hashPathParts[hashResetIndex + 1].trim();
+    }
+  }
+
+  const pathParts = url.pathname.split("/").map((part) => decodeURIComponent(part)).filter(Boolean);
+  const resetIndex = pathParts.findIndex((part) => part === "reset-password" || part === "password-reset");
+  if (resetIndex >= 0 && pathParts[resetIndex + 1]) {
+    return pathParts[resetIndex + 1].trim();
+  }
+  return "";
+}
+
 export function roleDescription(role: Role) {
   switch (role) {
     case "admin":

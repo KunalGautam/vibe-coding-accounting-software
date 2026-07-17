@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   connectionReadinessChecks,
+  extractPasswordResetToken,
   generateTemporaryPassword,
   passwordChangeChecks,
   passwordStrengthChecks,
@@ -31,6 +32,14 @@ test("connectionReadinessChecks reports missing session pieces", () => {
     organizationId: ""
   });
   assert.deepEqual(checks.map((check) => check.ok), [true, false, true, false]);
+});
+
+test("extractPasswordResetToken reads query, hash, and path reset links", () => {
+  assert.equal(extractPasswordResetToken("https://app.example.com/reset-password?token=query-token"), "query-token");
+  assert.equal(extractPasswordResetToken("https://app.example.com/#/reset-password?reset_token=hash-token"), "hash-token");
+  assert.equal(extractPasswordResetToken("https://app.example.com/#/reset-password/hash-path-token"), "hash-path-token");
+  assert.equal(extractPasswordResetToken("https://app.example.com/reset-password/path-token"), "path-token");
+  assert.equal(extractPasswordResetToken("not a url"), "");
 });
 
 test("roleDescription returns useful role guidance", () => {
