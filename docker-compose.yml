@@ -75,6 +75,10 @@ services:
       - app_storage:/app/storage
     ports:
       - "${API_PORT:-8080}:8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "/app/healthcheck", "-url", "http://127.0.0.1:8080/readyz"]
       interval: 15s
@@ -119,6 +123,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - app_storage:/app/storage
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   web:
     build:
@@ -127,7 +135,11 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-3000}:80"
+      - "${WEB_PORT:-3000}:8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "node", "/healthcheck.js"]
       interval: 15s

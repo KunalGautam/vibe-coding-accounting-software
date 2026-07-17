@@ -12,7 +12,7 @@ Use separate runtime units for:
 - `mysql`: managed MySQL 8.x service with automated snapshots, point-in-time recovery, and private networking.
 - `monitoring`: managed Prometheus-compatible metrics, Alertmanager-compatible alerts, and Grafana-compatible dashboards.
 
-Keep API and worker on private subnets where possible. Only the web entrypoint and API load balancer should be public. MySQL should never be public.
+Keep API and worker on private subnets where possible. Only the web entrypoint and API load balancer should be public. MySQL should never be public. Run app containers as non-root users, drop unnecessary Linux capabilities, and keep writable mounts scoped to storage paths such as `/app/storage`.
 
 ## Required Secrets
 

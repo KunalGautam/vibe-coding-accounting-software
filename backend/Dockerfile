@@ -15,6 +15,9 @@ FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates tzdata \
+  && groupadd --system accounting \
+  && useradd --system --gid accounting --home-dir /app --shell /usr/sbin/nologin accounting \
+  && mkdir -p /app/storage \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -24,7 +27,10 @@ COPY --from=build /out/migrate /app/migrate
 COPY --from=build /out/restore /app/restore
 COPY --from=build /out/healthcheck /app/healthcheck
 
+RUN chown -R accounting:accounting /app
+
 ENV API_ADDR=:8080
 EXPOSE 8080
 
+USER accounting
 CMD ["/app/api"]
