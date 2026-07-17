@@ -9,6 +9,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o /out/api ./cmd/api
 RUN CGO_ENABLED=1 GOOS=linux go build -o /out/worker ./cmd/worker
 RUN CGO_ENABLED=1 GOOS=linux go build -o /out/migrate ./cmd/migrate
 RUN CGO_ENABLED=1 GOOS=linux go build -o /out/restore ./cmd/restore
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/healthcheck ./cmd/healthcheck
 
 FROM debian:bookworm-slim AS runtime
 
@@ -21,6 +22,7 @@ COPY --from=build /out/api /app/api
 COPY --from=build /out/worker /app/worker
 COPY --from=build /out/migrate /app/migrate
 COPY --from=build /out/restore /app/restore
+COPY --from=build /out/healthcheck /app/healthcheck
 
 ENV API_ADDR=:8080
 EXPOSE 8080

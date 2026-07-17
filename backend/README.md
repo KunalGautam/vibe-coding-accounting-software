@@ -127,7 +127,7 @@ The backend currently contains the first implementation slice:
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
 - API route/Postman coverage validators for documented route/method pairs.
-- Liveness endpoints at `/health`, `/healthz`, `/livez`, and versioned `/api/v1/...` aliases; readiness endpoints at `/readyz` and `/api/v1/readyz`; operational metrics at `/metrics`.
+- Liveness endpoints at `/health`, `/healthz`, `/livez`, and versioned `/api/v1/...` aliases; readiness endpoints at `/readyz` and `/api/v1/readyz`; Compose API/web healthchecks; operational metrics at `/metrics`.
 
 ## API Documentation
 

@@ -75,6 +75,12 @@ services:
       - app_storage:/app/storage
     ports:
       - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "/app/healthcheck", "-url", "http://127.0.0.1:8080/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   worker:
     build:
@@ -118,16 +124,25 @@ services:
     build:
       context: ./web
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "${WEB_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD", "node", "/healthcheck.js"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:v2.55.1
     profiles: ["monitoring"]
     depends_on:
-      - api
-      - alertmanager
+      api:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
