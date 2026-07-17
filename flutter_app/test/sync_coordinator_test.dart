@@ -1509,6 +1509,61 @@ void main() {
     expect(result.hasFailures, false);
     expect(queue.pendingCount, 0);
   });
+
+  test('syncs queued Upstox holdings price imports', () async {
+    final queue = OfflineSyncQueue([
+      SyncOperation(
+        id: 'upstox-holdings-import-local-1',
+        module: 'investments',
+        action: 'import_broker_holdings',
+        createdAt: DateTime.utc(2026, 7, 15),
+        payload: const {
+          'csv':
+              'Symbol,ISIN,Date,Current Price,Quantity\nSBIN,INE062A01020,2026-07-31,615.25,12',
+          'source': 'upstox_holdings_csv',
+        },
+      ),
+    ]);
+    final apiClient = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/upstox-holdings',
+        );
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'upstox_holdings_csv');
+        expect(body['csv'], contains('Current Price'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-upstox-1',
+                'symbol': 'SBIN',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 61525,
+                'currency': 'INR',
+                'source': 'upstox_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await SyncCoordinator(
+      queue: queue,
+      apiClient: apiClient,
+    ).syncPending();
+
+    expect(result.synced, 1);
+    expect(result.hasFailures, false);
+    expect(queue.pendingCount, 0);
+  });
 }
 
 Map<String, Object?> _bankImportJson({

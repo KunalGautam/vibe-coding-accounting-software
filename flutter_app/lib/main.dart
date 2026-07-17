@@ -6291,6 +6291,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'groww_holdings_csv',
                   child: Text('Groww holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'upstox_holdings_csv',
+                  child: Text('Upstox holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6304,6 +6308,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'groww_holdings_csv') {
                     controller.text =
                         'Company Name,ISIN,Date,LTP,Quantity\nReliance Industries,INE002A01018,2026-07-31,1410.55,3';
+                  } else if (value == 'upstox_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,Current Price,Quantity\nSBIN,INE062A01020,2026-07-31,615.25,12';
                   }
                 });
               },

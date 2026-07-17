@@ -453,6 +453,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importUpstoxHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/upstox-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -462,6 +473,9 @@ class AccountingApiClient {
     }
     if (request.source == 'groww_holdings_csv') {
       return importGrowwHoldingsPrices(request);
+    }
+    if (request.source == 'upstox_holdings_csv') {
+      return importUpstoxHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

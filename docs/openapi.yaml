@@ -2722,6 +2722,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/upstox-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Upstox holdings price CSV
+      description: Parses Upstox holdings exports with Symbol/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `upstox_holdings_csv`.
+      operationId: importUpstoxHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Upstox holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]

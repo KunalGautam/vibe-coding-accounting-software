@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -18,7 +18,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "alphavantage",
   "broker",
   "zerodha",
-  "groww"
+  "groww",
+  "upstox"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -91,6 +92,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     buttonLabel: "Import Groww holdings",
     defaultSource: "groww_holdings_csv",
     placeholder: "Company Name,ISIN,Date,LTP,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  upstox: {
+    label: "Upstox holdings CSV",
+    buttonLabel: "Import Upstox holdings",
+    defaultSource: "upstox_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,Current Price,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false
   }

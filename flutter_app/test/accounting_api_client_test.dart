@@ -1028,6 +1028,52 @@ void main() {
     expect(result.prices.single.priceMinor, 141055);
   });
 
+  test('imports Upstox holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/upstox-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'upstox_holdings_csv');
+        expect(body['csv'], contains('Current Price'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-upstox-1',
+                'symbol': 'SBIN',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 61525,
+                'currency': 'INR',
+                'source': 'upstox_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importUpstoxHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,Current Price,Quantity\nSBIN,INE062A01020,2026-07-31,615.25,12',
+        source: 'upstox_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'SBIN');
+    expect(result.prices.single.priceMinor, 61525);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

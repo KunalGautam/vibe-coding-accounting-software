@@ -350,6 +350,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Groww price: %+v", growwPrice)
 	}
 
+	upstoxResult, err := service.ImportUpstoxHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,Current Price,Quantity\n" +
+			"SBIN,INE062A01020,2026-07-31,615.25,12\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportUpstoxHoldingsCSV() error = %v", err)
+	}
+	if upstoxResult.Imported != 1 || upstoxResult.Skipped != 0 {
+		t.Fatalf("unexpected Upstox holdings import result: %+v", upstoxResult)
+	}
+	var upstoxPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "SBIN", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&upstoxPrice).Error; err != nil {
+		t.Fatalf("load Upstox price: %v", err)
+	}
+	if upstoxPrice.PriceMinor != 61525 || upstoxPrice.Source != "upstox_holdings_csv" {
+		t.Fatalf("unexpected Upstox price: %+v", upstoxPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
