@@ -952,6 +952,40 @@ func TestJobServiceImportScheduledMarketDataSupportsFYERSHoldingsCSV(t *testing.
 	}
 }
 
+func TestJobServiceImportScheduledMarketDataSupportsEdelweissHoldingsCSV(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	org := domain.Organization{Name: "Acme Edelweiss", BaseCurrency: "INR", CountryCode: "IN", FiscalYearStartMonth: 4}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create organization: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "edelweiss.csv")
+	if err := os.WriteFile(path, []byte("Symbol,ISIN,Date,LTP,Quantity\nEDELWEISS,INE532F01054,2026-07-31,910.25,4\n"), 0o600); err != nil {
+		t.Fatalf("write Edelweiss CSV: %v", err)
+	}
+
+	result, err := NewJobService(db).ImportScheduledMarketData(ctx, MarketDataImportJobInput{
+		OrganizationID: org.ID,
+		Path:           path,
+		Format:         "edelweiss_holdings_csv",
+	})
+	if err != nil {
+		t.Fatalf("ImportScheduledMarketData() error = %v", err)
+	}
+	if result.ImportedCount != 1 || result.SkippedCount != 0 {
+		t.Fatalf("unexpected job result: %+v", result)
+	}
+	var price domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ?", org.ID, "EDELWEISS").First(&price).Error; err != nil {
+		t.Fatalf("load Edelweiss price: %v", err)
+	}
+	if price.PriceMinor != 91025 || price.Source != "edelweiss_holdings_csv" {
+		t.Fatalf("unexpected Edelweiss price: %+v", price)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

@@ -1764,6 +1764,52 @@ void main() {
     expect(result.prices.single.priceMinor, 82045);
   });
 
+  test('imports Edelweiss holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/edelweiss-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'edelweiss_holdings_csv');
+        expect(body['csv'], contains('EDELWEISS'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-edelweiss-1',
+                'symbol': 'EDELWEISS',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 91025,
+                'currency': 'INR',
+                'source': 'edelweiss_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importEdelweissHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nEDELWEISS,INE532F01054,2026-07-31,910.25,4',
+        source: 'edelweiss_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'EDELWEISS');
+    expect(result.prices.single.priceMinor, 91025);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

@@ -629,6 +629,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importEdelweissHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/edelweiss-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -686,6 +697,9 @@ class AccountingApiClient {
     }
     if (request.source == 'fyers_holdings_csv') {
       return importFYERSHoldingsPrices(request);
+    }
+    if (request.source == 'edelweiss_holdings_csv') {
+      return importEdelweissHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

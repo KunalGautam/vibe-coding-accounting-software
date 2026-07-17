@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 174 route/method pairs.
+- API route/Postman coverage validators for 175 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -253,6 +253,7 @@ Supported market-data formats are:
 - `geojit_holdings_csv`: Geojit holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `geojit_holdings_csv`.
 - `iiflsecurities_holdings_csv`: IIFL Securities holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `iiflsecurities_holdings_csv`.
 - `fyers_holdings_csv`: FYERS holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `fyers_holdings_csv`.
+- `edelweiss_holdings_csv`: Edelweiss holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `edelweiss_holdings_csv`.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 

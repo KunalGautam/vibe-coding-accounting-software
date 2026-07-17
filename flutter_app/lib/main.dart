@@ -6355,6 +6355,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'fyers_holdings_csv',
                   child: Text('FYERS holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'edelweiss_holdings_csv',
+                  child: Text('Edelweiss holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6416,6 +6420,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'fyers_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nSBIN,INE062A01020,2026-07-31,820.45,8';
+                  } else if (value == 'edelweiss_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nEDELWEISS,INE532F01054,2026-07-31,910.25,4';
                   }
                 });
               },

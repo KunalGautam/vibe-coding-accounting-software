@@ -654,6 +654,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected FYERS price: %+v", fyersPrice)
 	}
 
+	edelweissResult, err := service.ImportEdelweissHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"EDELWEISS,INE532F01054,2026-07-31,910.25,4\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportEdelweissHoldingsCSV() error = %v", err)
+	}
+	if edelweissResult.Imported != 1 || edelweissResult.Skipped != 0 {
+		t.Fatalf("unexpected Edelweiss holdings import result: %+v", edelweissResult)
+	}
+	var edelweissPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "EDELWEISS", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&edelweissPrice).Error; err != nil {
+		t.Fatalf("load Edelweiss price: %v", err)
+	}
+	if edelweissPrice.PriceMinor != 91025 || edelweissPrice.Source != "edelweiss_holdings_csv" {
+		t.Fatalf("unexpected Edelweiss price: %+v", edelweissPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",
