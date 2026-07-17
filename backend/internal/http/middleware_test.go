@@ -208,6 +208,64 @@ func TestMetricsEndpointCanBeDisabled(t *testing.T) {
 	}
 }
 
+func TestHealthAndReadinessEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{
+		DB:                 routerTestDB(t),
+		CORSAllowedOrigins: "*",
+		Tokens:             auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour),
+	})
+
+	tests := []struct {
+		path       string
+		wantStatus int
+		wantBody   string
+	}{
+		{path: "/health", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/healthz", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/livez", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/readyz", wantStatus: http.StatusOK, wantBody: `"database":"ok"`},
+		{path: "/api/v1/health", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/api/v1/healthz", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/api/v1/livez", wantStatus: http.StatusOK, wantBody: `"status":"ok"`},
+		{path: "/api/v1/readyz", wantStatus: http.StatusOK, wantBody: `"database":"ok"`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, test.path, nil)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", response.Code, test.wantStatus, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), test.wantBody) {
+				t.Fatalf("body = %s, want %s", response.Body.String(), test.wantBody)
+			}
+		})
+	}
+}
+
+func TestReadinessEndpointFailsWithoutDatabase(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{
+		DB:                 nil,
+		CORSAllowedOrigins: "*",
+		Tokens:             auth.NewTokenManager("access-secret", "refresh-secret", time.Minute, time.Hour),
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusServiceUnavailable, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"database":"missing"`) {
+		t.Fatalf("body = %s, want missing database marker", response.Body.String())
+	}
+}
+
 func TestSwaggerHTMLRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := NewRouter(RouterConfig{

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -56,17 +57,19 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 	middleware = append(middleware, StructuredLoggerMiddleware(cfg.Logger), gin.Recovery())
 	router.Use(middleware...)
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	router.GET("/health", livenessHandler())
+	router.GET("/healthz", livenessHandler())
+	router.GET("/livez", livenessHandler())
+	router.GET("/readyz", readinessHandler(cfg.DB))
 	if cfg.MetricsEnabled {
 		router.GET("/metrics", metrics.Handler())
 	}
 
 	api := router.Group("/api/v1")
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	api.GET("/health", livenessHandler())
+	api.GET("/healthz", livenessHandler())
+	api.GET("/livez", livenessHandler())
+	api.GET("/readyz", readinessHandler(cfg.DB))
 
 	seedService := services.NewSeedService(cfg.DB)
 	authHandler := handlers.NewAuthHandler(services.NewAuthServiceWithOptions(cfg.DB, cfg.Tokens, services.AuthServiceOptions{
@@ -226,6 +229,33 @@ func NewRouter(cfg RouterConfig) *gin.Engine {
 	}
 
 	return router
+}
+
+func livenessHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	}
+}
+
+func readinessHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if db == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "database": "missing"})
+			return
+		}
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "database": "unavailable"})
+			return
+		}
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if err := sqlDB.PingContext(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "database": "unavailable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ready", "database": "ok"})
+	}
 }
 
 func registerSwaggerRoutes(router *gin.Engine) {

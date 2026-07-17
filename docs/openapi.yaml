@@ -3814,6 +3814,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /healthz:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local root liveness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production root liveness endpoint placeholder
+      summary: Root liveness check
+      operationId: rootHealthzCheck
+      responses:
+        '200':
+          description: Service liveness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /livez:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local root liveness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production root liveness endpoint placeholder
+      summary: Root liveness check
+      operationId: rootLivezCheck
+      responses:
+        '200':
+          description: Service liveness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /readyz:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local root readiness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production root readiness endpoint placeholder
+      summary: Root readiness check
+      description: Verifies that the API can reach its configured database.
+      operationId: rootReadyzCheck
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
   /api/v1/health:
     get:
       tags: [System]
@@ -3828,6 +3889,67 @@ paths:
       responses:
         '200':
           description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/healthz:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local API liveness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production API liveness endpoint placeholder
+      summary: Versioned API liveness check
+      operationId: apiHealthzCheck
+      responses:
+        '200':
+          description: Service liveness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/livez:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local API liveness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production API liveness endpoint placeholder
+      summary: Versioned API liveness check
+      operationId: apiLivezCheck
+      responses:
+        '200':
+          description: Service liveness
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/readyz:
+    get:
+      tags: [System]
+      security: []
+      servers:
+        - url: http://localhost:8080
+          description: Local API readiness endpoint
+        - url: https://api.accounting.abhashtech.com
+          description: Production API readiness endpoint placeholder
+      summary: Versioned API readiness check
+      description: Verifies that the API can reach its configured database.
+      operationId: apiReadyzCheck
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is not ready
           content:
             application/json:
               schema:
@@ -7905,5 +8027,8 @@ components:
       required: [status]
       properties:
         status:
+          type: string
+          example: ok
+        database:
           type: string
           example: ok

@@ -97,10 +97,10 @@ If scheduled market-data import is enabled, set one of `MARKET_DATA_IMPORT_PATH`
 /app/migrate -direction=up
 ```
 
-4. Deploy the API using a rolling strategy with health checks on `/healthz`.
+4. Deploy the API using a rolling strategy with liveness checks on `/healthz` and readiness checks on `/readyz`.
 5. Deploy the worker after the migration job succeeds.
 6. Deploy or invalidate the web frontend after the API is healthy.
-7. Verify `/healthz`, `/metrics`, login, organization selection, and one known read-only report.
+7. Verify `/healthz`, `/readyz`, `/metrics`, login, organization selection, and one known read-only report.
 
 Never run long-lived production API/worker containers with `AUTO_MIGRATE=true`.
 

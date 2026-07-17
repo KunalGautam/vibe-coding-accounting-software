@@ -39,11 +39,17 @@ Local development:
 http://localhost:8080/api/v1
 ```
 
-The root health checks are available at both:
+Health checks are available at root and versioned paths. `/health`, `/healthz`, and `/livez` are lightweight liveness checks; `/readyz` verifies database connectivity before routing production traffic.
 
 ```text
 GET /health
+GET /healthz
+GET /livez
+GET /readyz
 GET /api/v1/health
+GET /api/v1/healthz
+GET /api/v1/livez
+GET /api/v1/readyz
 ```
 
 ## Authentication

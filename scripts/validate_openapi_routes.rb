@@ -29,7 +29,13 @@ Dir[HANDLERS_GLOB].each do |file|
 end
 
 handler_routes << ['GET', '/health']
+handler_routes << ['GET', '/healthz']
+handler_routes << ['GET', '/livez']
+handler_routes << ['GET', '/readyz']
 handler_routes << ['GET', '/api/v1/health']
+handler_routes << ['GET', '/api/v1/healthz']
+handler_routes << ['GET', '/api/v1/livez']
+handler_routes << ['GET', '/api/v1/readyz']
 handler_routes = handler_routes.uniq.sort
 
 missing_from_openapi = handler_routes - openapi_routes

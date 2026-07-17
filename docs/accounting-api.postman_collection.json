@@ -2264,10 +2264,52 @@
           }
         },
         {
+          "name": "Root Healthz Check",
+          "request": {
+            "method": "GET",
+            "url": "{{root_url}}/healthz"
+          }
+        },
+        {
+          "name": "Root Livez Check",
+          "request": {
+            "method": "GET",
+            "url": "{{root_url}}/livez"
+          }
+        },
+        {
+          "name": "Root Readyz Check",
+          "request": {
+            "method": "GET",
+            "url": "{{root_url}}/readyz"
+          }
+        },
+        {
           "name": "API Health Check",
           "request": {
             "method": "GET",
             "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "API Healthz Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/healthz"
+          }
+        },
+        {
+          "name": "API Livez Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/livez"
+          }
+        },
+        {
+          "name": "API Readyz Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/readyz"
           }
         }
       ]
