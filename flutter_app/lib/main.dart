@@ -6307,6 +6307,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'icicidirect_holdings_csv',
                   child: Text('ICICI Direct holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'hdfcsky_holdings_csv',
+                  child: Text('HDFC Sky holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6332,6 +6336,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'icicidirect_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,Market Price,Quantity\nLT,INE018A01030,2026-07-31,3620.80,2';
+                  } else if (value == 'hdfcsky_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nMARUTI,INE585B01010,2026-07-31,12875.65,1';
                   }
                 });
               },

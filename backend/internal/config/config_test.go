@@ -193,6 +193,11 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for ICICI Direct holdings CSV", err)
 	}
+
+	cfg.MarketDataImportFormat = "hdfcsky_holdings_csv"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil for HDFC Sky holdings CSV", err)
+	}
 }
 
 func TestConfigValidateEmailDeliverySettings(t *testing.T) {

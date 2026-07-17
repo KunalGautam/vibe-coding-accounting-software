@@ -426,6 +426,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected ICICI Direct price: %+v", iciciDirectPrice)
 	}
 
+	hdfcSkyResult, err := service.ImportHDFCSkyHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"MARUTI,INE585B01010,2026-07-31,12875.65,1\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportHDFCSkyHoldingsCSV() error = %v", err)
+	}
+	if hdfcSkyResult.Imported != 1 || hdfcSkyResult.Skipped != 0 {
+		t.Fatalf("unexpected HDFC Sky holdings import result: %+v", hdfcSkyResult)
+	}
+	var hdfcSkyPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "MARUTI", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&hdfcSkyPrice).Error; err != nil {
+		t.Fatalf("load HDFC Sky price: %v", err)
+	}
+	if hdfcSkyPrice.PriceMinor != 1287565 || hdfcSkyPrice.Source != "hdfcsky_holdings_csv" {
+		t.Fatalf("unexpected HDFC Sky price: %+v", hdfcSkyPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

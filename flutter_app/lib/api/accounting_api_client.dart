@@ -497,6 +497,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importHDFCSkyHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/hdfcsky-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -518,6 +529,9 @@ class AccountingApiClient {
     }
     if (request.source == 'icicidirect_holdings_csv') {
       return importICICIDirectHoldingsPrices(request);
+    }
+    if (request.source == 'hdfcsky_holdings_csv') {
+      return importHDFCSkyHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

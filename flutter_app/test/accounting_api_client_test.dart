@@ -1212,6 +1212,52 @@ void main() {
     expect(result.prices.single.priceMinor, 362080);
   });
 
+  test('imports HDFC Sky holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/hdfcsky-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'hdfcsky_holdings_csv');
+        expect(body['csv'], contains('MARUTI'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-hdfcsky-1',
+                'symbol': 'MARUTI',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 1287565,
+                'currency': 'INR',
+                'source': 'hdfcsky_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importHDFCSkyHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nMARUTI,INE585B01010,2026-07-31,12875.65,1',
+        source: 'hdfcsky_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'MARUTI');
+    expect(result.prices.single.priceMinor, 1287565);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

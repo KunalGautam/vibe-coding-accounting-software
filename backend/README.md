@@ -118,7 +118,7 @@ The backend currently contains the first implementation slice:
 - Structured `slog` request/job logging with configurable text or JSON output.
 - Prometheus-compatible `/metrics` endpoint with HTTP request counters, latency sums, and process uptime.
 - OpenAPI served at `/openapi.yaml` and `/swagger/openapi.yaml`, with Swagger UI at `/swagger/index.html` when enabled.
-- API route/Postman coverage validators for 162 route/method pairs.
+- API route/Postman coverage validators for 163 route/method pairs.
 - Health endpoints at `/health` and `/api/v1/health`, plus operational metrics at `/metrics`.
 
 ## API Documentation
@@ -241,6 +241,7 @@ Supported market-data formats are:
 - `angelone_holdings_csv`: Angel One holdings exports with Scrip/Symbol/ISIN plus LTP/current price columns; defaults the source to `angelone_holdings_csv`.
 - `dhan_holdings_csv`: Dhan holdings exports with Trading Symbol/Symbol/ISIN plus LTP/current price columns; defaults the source to `dhan_holdings_csv`.
 - `icicidirect_holdings_csv`: ICICI Direct holdings exports with Symbol/ISIN plus Market Price/LTP/current price columns; defaults the source to `icicidirect_holdings_csv`.
+- `hdfcsky_holdings_csv`: HDFC Sky holdings exports with Symbol/ISIN plus LTP/current price columns; defaults the source to `hdfcsky_holdings_csv`.
 
 Leave `MARKET_DATA_ORGANIZATION_ID` blank to import the same feed into every organization, or set it to one organization UUID to scope the worker import.
 

@@ -1,4 +1,4 @@
-export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect";
+export type InvestmentPriceImportFormat = "csv" | "amfi" | "nse" | "bse" | "yahoo" | "alphavantage" | "broker" | "zerodha" | "groww" | "upstox" | "angelone" | "dhan" | "icicidirect" | "hdfcsky";
 
 export type InvestmentPriceImportMetadata = {
   label: string;
@@ -22,7 +22,8 @@ export const investmentPriceImportFormats: InvestmentPriceImportFormat[] = [
   "upstox",
   "angelone",
   "dhan",
-  "icicidirect"
+  "icicidirect",
+  "hdfcsky"
 ];
 
 const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadata> = {
@@ -127,6 +128,14 @@ const metadata: Record<InvestmentPriceImportFormat, InvestmentPriceImportMetadat
     buttonLabel: "Import ICICI Direct holdings",
     defaultSource: "icicidirect_holdings_csv",
     placeholder: "Symbol,ISIN,Date,Market Price,Quantity",
+    requiresSingleSymbol: false,
+    isAMFI: false
+  },
+  hdfcsky: {
+    label: "HDFC Sky holdings CSV",
+    buttonLabel: "Import HDFC Sky holdings",
+    defaultSource: "hdfcsky_holdings_csv",
+    placeholder: "Symbol,ISIN,Date,LTP,Quantity",
     requiresSingleSymbol: false,
     isAMFI: false
   }

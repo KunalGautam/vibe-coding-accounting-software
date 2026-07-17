@@ -3220,6 +3220,9 @@ function InvestmentsPage({
         case "icicidirect":
           result = await api.importICICIDirectHoldingsPrices(importInput);
           break;
+        case "hdfcsky":
+          result = await api.importHDFCSkyHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }
