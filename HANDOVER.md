@@ -119,7 +119,7 @@ Current API coverage: `180` OpenAPI route/method pairs, matched to Gin handlers 
 - Password reset and organization invitation email delivery are available with `EMAIL_DELIVERY_ENABLED=true`, SMTP settings, `PASSWORD_RESET_BASE_URL`, and `INVITATION_BASE_URL`; reset tokens are hidden from API responses unless `EXPOSE_PASSWORD_RESET_TOKEN=true`.
 - Self-service organization registration is available at `POST /api/v1/auth/register` only when `SELF_SERVICE_REGISTRATION_ENABLED=true`; keep it disabled for invitation-only deployments.
 - Structured logging is implemented with `LOG_FORMAT=text|json` and `LOG_LEVEL=debug|info|warn|error`; Compose defaults to JSON logs.
-- Liveness endpoints are exposed at `/health`, `/healthz`, `/livez`, and versioned aliases; DB readiness is exposed at `/readyz` and `/api/v1/readyz`; basic Prometheus metrics are exposed at `/metrics` when `METRICS_ENABLED=true`.
+- Liveness endpoints are exposed at `/health`, `/healthz`, `/livez`, and versioned aliases; DB readiness is exposed at `/readyz` and `/api/v1/readyz`; the API server uses configurable read/write/idle timeouts plus graceful SIGTERM shutdown; basic Prometheus metrics are exposed at `/metrics` when `METRICS_ENABLED=true`.
 - Prometheus scrape/rule config, Alertmanager email routing template, and Grafana datasource/dashboard provisioning are in `ops/` and wired through the optional Compose `monitoring` profile.
 - Managed-cloud deployment, migration, rollback, backup, monitoring, and incident-response guidance is in `docs/MANAGED_CLOUD_RUNBOOK.md`.
 

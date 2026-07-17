@@ -37,6 +37,10 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-production}
       API_ADDR: :8080
+      API_READ_TIMEOUT_SECONDS: ${API_READ_TIMEOUT_SECONDS:-15}
+      API_WRITE_TIMEOUT_SECONDS: ${API_WRITE_TIMEOUT_SECONDS:-30}
+      API_IDLE_TIMEOUT_SECONDS: ${API_IDLE_TIMEOUT_SECONDS:-120}
+      API_SHUTDOWN_TIMEOUT_SECONDS: ${API_SHUTDOWN_TIMEOUT_SECONDS:-15}
       DATABASE_DRIVER: mysql
       MYSQL_DSN: ${MYSQL_DSN:-accounting:accounting_dev_password@tcp(mysql:3306)/accounting?parseTime=true&charset=utf8mb4&loc=UTC}
       AUTO_MIGRATE: "false"

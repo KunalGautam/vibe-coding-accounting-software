@@ -20,6 +20,10 @@ const (
 type Config struct {
 	AppEnv                         string
 	APIAddr                        string
+	APIReadTimeoutSeconds          int
+	APIWriteTimeoutSeconds         int
+	APIIdleTimeoutSeconds          int
+	APIShutdownTimeoutSeconds      int
 	DatabaseDriver                 string
 	DatabaseDSN                    string
 	MySQLDSN                       string
@@ -75,6 +79,10 @@ func Load() Config {
 	return Config{
 		AppEnv:                         env("APP_ENV", "development"),
 		APIAddr:                        env("API_ADDR", ":8080"),
+		APIReadTimeoutSeconds:          envInt("API_READ_TIMEOUT_SECONDS", 15),
+		APIWriteTimeoutSeconds:         envInt("API_WRITE_TIMEOUT_SECONDS", 30),
+		APIIdleTimeoutSeconds:          envInt("API_IDLE_TIMEOUT_SECONDS", 120),
+		APIShutdownTimeoutSeconds:      envInt("API_SHUTDOWN_TIMEOUT_SECONDS", 15),
 		DatabaseDriver:                 env("DATABASE_DRIVER", "sqlite"),
 		DatabaseDSN:                    env("DATABASE_DSN", "file:accounting.db?cache=shared"),
 		MySQLDSN:                       env("MYSQL_DSN", ""),
@@ -157,6 +165,9 @@ func (c Config) validate(runtime bool) error {
 	}
 	if c.JWTAccessSecret != "" && c.JWTAccessSecret == c.JWTRefreshSecret {
 		problems = append(problems, errors.New("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different"))
+	}
+	if c.APIReadTimeoutSeconds <= 0 || c.APIWriteTimeoutSeconds <= 0 || c.APIIdleTimeoutSeconds <= 0 || c.APIShutdownTimeoutSeconds <= 0 {
+		problems = append(problems, errors.New("API timeout settings must be positive in production"))
 	}
 	if strings.TrimSpace(c.MFAEncryptionKey) == "" {
 		problems = append(problems, errors.New("MFA_ENCRYPTION_KEY must be set in production"))

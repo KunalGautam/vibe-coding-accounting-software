@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"accounting.abhashtech.com/internal/auth"
@@ -74,8 +79,49 @@ func main() {
 		),
 	})
 
-	if err := router.Run(cfg.APIAddr); err != nil {
-		logger.Error("run api failed", slog.Any("error", err))
-		os.Exit(1)
+	server := &http.Server{
+		Addr:         cfg.APIAddr,
+		Handler:      router,
+		ReadTimeout:  time.Duration(cfg.APIReadTimeoutSeconds) * time.Second,
+		WriteTimeout: time.Duration(cfg.APIWriteTimeoutSeconds) * time.Second,
+		IdleTimeout:  time.Duration(cfg.APIIdleTimeoutSeconds) * time.Second,
 	}
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		logger.Info("api_server_starting", slog.String("addr", cfg.APIAddr))
+		serverErrors <- server.ListenAndServe()
+	}()
+
+	shutdownSignals := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(shutdownSignals)
+
+	select {
+	case err := <-serverErrors:
+		if err != nil && err != http.ErrServerClosed {
+			logger.Error("run api failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+	case signal := <-shutdownSignals:
+		logger.Info("api_shutdown_requested", slog.String("signal", signal.String()))
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.APIShutdownTimeoutSeconds)*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			logger.Error("api_shutdown_failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+		logger.Info("api_shutdown_complete")
+	}
+	if err := dbConnClose(db); err != nil {
+		logger.Warn("database_close_failed", slog.Any("error", err))
+	}
+}
+
+func dbConnClose(db interface{ DB() (*sql.DB, error) }) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
 }
