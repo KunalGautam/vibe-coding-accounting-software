@@ -651,6 +651,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importSamcoHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/samco-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -714,6 +725,9 @@ class AccountingApiClient {
     }
     if (request.source == 'aliceblue_holdings_csv') {
       return importAliceBlueHoldingsPrices(request);
+    }
+    if (request.source == 'samco_holdings_csv') {
+      return importSamcoHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }

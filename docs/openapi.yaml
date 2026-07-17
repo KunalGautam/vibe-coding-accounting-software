@@ -3136,6 +3136,29 @@ paths:
                 $ref: '#/components/schemas/InvestmentPriceImportResult'
         default:
           $ref: '#/components/responses/Error'
+  /organizations/{organizationId}/investments/prices/import/samco-holdings:
+    post:
+      tags: [Investments]
+      summary: Import Samco holdings price CSV
+      description: Parses Samco holdings exports with Symbol/ISIN plus LTP/current price columns. If no date column is present, the import uses the current UTC date and defaults the source to `samco_holdings_csv`.
+      operationId: importSamcoHoldingsPrices
+      parameters:
+        - $ref: '#/components/parameters/OrganizationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportInvestmentPricesRequest'
+      responses:
+        '201':
+          description: Imported Samco holdings prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvestmentPriceImportResult'
+        default:
+          $ref: '#/components/responses/Error'
   /organizations/{organizationId}/investments/dividends:
     get:
       tags: [Investments]

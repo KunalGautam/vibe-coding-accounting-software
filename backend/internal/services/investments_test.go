@@ -692,6 +692,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Alice Blue price: %+v", aliceBluePrice)
 	}
 
+	samcoResult, err := service.ImportSamcoHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"SUNPHARMA,INE044A01036,2026-07-31,1675.40,6\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportSamcoHoldingsCSV() error = %v", err)
+	}
+	if samcoResult.Imported != 1 || samcoResult.Skipped != 0 {
+		t.Fatalf("unexpected Samco holdings import result: %+v", samcoResult)
+	}
+	var samcoPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "SUNPHARMA", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&samcoPrice).Error; err != nil {
+		t.Fatalf("load Samco price: %v", err)
+	}
+	if samcoPrice.PriceMinor != 167540 || samcoPrice.Source != "samco_holdings_csv" {
+		t.Fatalf("unexpected Samco price: %+v", samcoPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

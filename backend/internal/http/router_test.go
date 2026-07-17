@@ -508,6 +508,22 @@ func TestInvestmentImportRoutePermissionMatrix(t *testing.T) {
 			t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusCreated, response.Body.String())
 		}
 	})
+
+	t.Run("accountant can import Samco prices", func(t *testing.T) {
+		accessToken := mustAccessToken(t, tokens, map[string]domain.Role{org.ID: domain.RoleAccountant})
+		request := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/organizations/"+org.ID+"/investments/prices/import/samco-holdings",
+			strings.NewReader(`{"csv":"Symbol,ISIN,Date,LTP,Quantity\nSUNPHARMA,INE044A01036,2026-07-31,1675.40,6"}`),
+		)
+		request.Header.Set("Authorization", "Bearer "+accessToken)
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusCreated {
+			t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusCreated, response.Body.String())
+		}
+	})
 }
 
 func TestInvestmentImportRouteDeniesCrossTenantAccess(t *testing.T) {

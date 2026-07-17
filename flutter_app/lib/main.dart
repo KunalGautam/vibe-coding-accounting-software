@@ -6363,6 +6363,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'aliceblue_holdings_csv',
                   child: Text('Alice Blue holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'samco_holdings_csv',
+                  child: Text('Samco holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6430,6 +6434,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'aliceblue_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nTCS,INE467B01029,2026-07-31,4012.30,3';
+                  } else if (value == 'samco_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nSUNPHARMA,INE044A01036,2026-07-31,1675.40,6';
                   }
                 });
               },

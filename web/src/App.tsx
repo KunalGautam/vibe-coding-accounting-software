@@ -3262,6 +3262,9 @@ function InvestmentsPage({
         case "aliceblue":
           result = await api.importAliceBlueHoldingsPrices(importInput);
           break;
+        case "samco":
+          result = await api.importSamcoHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

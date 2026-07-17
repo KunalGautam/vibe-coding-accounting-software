@@ -1856,6 +1856,52 @@ void main() {
     expect(result.prices.single.priceMinor, 401230);
   });
 
+  test('imports Samco holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/samco-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'samco_holdings_csv');
+        expect(body['csv'], contains('SUNPHARMA'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-samco-1',
+                'symbol': 'SUNPHARMA',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 167540,
+                'currency': 'INR',
+                'source': 'samco_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importSamcoHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nSUNPHARMA,INE044A01036,2026-07-31,1675.40,6',
+        source: 'samco_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'SUNPHARMA');
+    expect(result.prices.single.priceMinor, 167540);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

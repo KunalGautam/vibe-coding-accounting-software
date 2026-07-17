@@ -263,6 +263,11 @@ func TestConfigValidateMarketDataImportSettings(t *testing.T) {
 	if err := cfg.ValidateRuntime(); err != nil {
 		t.Fatalf("ValidateRuntime() error = %v, want nil for Alice Blue holdings CSV", err)
 	}
+
+	cfg.MarketDataImportFormat = "samco_holdings_csv"
+	if err := cfg.ValidateRuntime(); err != nil {
+		t.Fatalf("ValidateRuntime() error = %v, want nil for Samco holdings CSV", err)
+	}
 }
 
 func TestConfigValidateEmailDeliverySettings(t *testing.T) {
