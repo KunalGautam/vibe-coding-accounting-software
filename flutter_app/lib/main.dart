@@ -6347,6 +6347,10 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   value: 'geojit_holdings_csv',
                   child: Text('Geojit holdings CSV'),
                 ),
+                DropdownMenuItem(
+                  value: 'iiflsecurities_holdings_csv',
+                  child: Text('IIFL Securities holdings CSV'),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -6402,6 +6406,9 @@ class _BrokerHoldingsImportCardState extends State<BrokerHoldingsImportCard> {
                   } else if (value == 'geojit_holdings_csv') {
                     controller.text =
                         'Symbol,ISIN,Date,LTP,Quantity\nHCLTECH,INE860A01027,2026-07-31,1444.80,7';
+                  } else if (value == 'iiflsecurities_holdings_csv') {
+                    controller.text =
+                        'Symbol,ISIN,Date,LTP,Quantity\nTITAN,INE280A01028,2026-07-31,3520.15,2';
                   }
                 });
               },

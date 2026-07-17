@@ -616,6 +616,25 @@ func TestInvestmentServiceSellLotCalculatesRealizedGain(t *testing.T) {
 		t.Fatalf("unexpected Geojit price: %+v", geojitPrice)
 	}
 
+	iiflSecuritiesResult, err := service.ImportIIFLSecuritiesHoldingsCSV(ctx, ImportInvestmentPricesInput{
+		OrganizationID: org.ID,
+		CSV: "Symbol,ISIN,Date,LTP,Quantity\n" +
+			"TITAN,INE280A01028,2026-07-31,3520.15,2\n",
+	})
+	if err != nil {
+		t.Fatalf("ImportIIFLSecuritiesHoldingsCSV() error = %v", err)
+	}
+	if iiflSecuritiesResult.Imported != 1 || iiflSecuritiesResult.Skipped != 0 {
+		t.Fatalf("unexpected IIFL Securities holdings import result: %+v", iiflSecuritiesResult)
+	}
+	var iiflSecuritiesPrice domain.InvestmentPrice
+	if err := db.Where("organization_id = ? AND symbol = ? AND price_date = ?", org.ID, "TITAN", time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)).First(&iiflSecuritiesPrice).Error; err != nil {
+		t.Fatalf("load IIFL Securities price: %v", err)
+	}
+	if iiflSecuritiesPrice.PriceMinor != 352015 || iiflSecuritiesPrice.Source != "iiflsecurities_holdings_csv" {
+		t.Fatalf("unexpected IIFL Securities price: %+v", iiflSecuritiesPrice)
+	}
+
 	bseResult, err := service.ImportBSEEquityCSV(ctx, ImportInvestmentPricesInput{
 		OrganizationID: org.ID,
 		Source:         "bse_bhavcopy",

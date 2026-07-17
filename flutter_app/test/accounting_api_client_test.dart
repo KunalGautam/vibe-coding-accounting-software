@@ -1672,6 +1672,52 @@ void main() {
     expect(result.prices.single.priceMinor, 144480);
   });
 
+  test('imports IIFL Securities holdings investment prices', () async {
+    final client = AccountingApiClient(
+      config: config,
+      httpClient: MockClient((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/org-1/investments/prices/import/iiflsecurities-holdings',
+        );
+        expect(request.method, 'POST');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['source'], 'iiflsecurities_holdings_csv');
+        expect(body['csv'], contains('TITAN'));
+        return http.Response(
+          jsonEncode({
+            'imported': 1,
+            'skipped': 0,
+            'errors': <String>[],
+            'prices': [
+              {
+                'id': 'price-iiflsecurities-1',
+                'symbol': 'TITAN',
+                'price_date': '2026-07-31T00:00:00Z',
+                'price_minor': 352015,
+                'currency': 'INR',
+                'source': 'iiflsecurities_holdings_csv',
+              },
+            ],
+          }),
+          201,
+        );
+      }),
+    );
+
+    final result = await client.importIIFLSecuritiesHoldingsPrices(
+      const ImportInvestmentPricesRequest(
+        csv:
+            'Symbol,ISIN,Date,LTP,Quantity\nTITAN,INE280A01028,2026-07-31,3520.15,2',
+        source: 'iiflsecurities_holdings_csv',
+      ),
+    );
+
+    expect(result.imported, 1);
+    expect(result.prices.single.symbol, 'TITAN');
+    expect(result.prices.single.priceMinor, 352015);
+  });
+
   test('imports structured bank statement lines', () async {
     final client = AccountingApiClient(
       config: config,

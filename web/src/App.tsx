@@ -3250,6 +3250,9 @@ function InvestmentsPage({
         case "geojit":
           result = await api.importGeojitHoldingsPrices(importInput);
           break;
+        case "iiflsecurities":
+          result = await api.importIIFLSecuritiesHoldingsPrices(importInput);
+          break;
         default:
           result = await api.importInvestmentPrices(importInput);
       }

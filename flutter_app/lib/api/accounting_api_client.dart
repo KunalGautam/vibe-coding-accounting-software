@@ -607,6 +607,17 @@ class AccountingApiClient {
     return InvestmentPriceImportResult.fromJson(_decodeObject(response));
   }
 
+  Future<InvestmentPriceImportResult> importIIFLSecuritiesHoldingsPrices(
+    ImportInvestmentPricesRequest request,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/investments/prices/import/iiflsecurities-holdings',
+      body: request.toJson(),
+    );
+    return InvestmentPriceImportResult.fromJson(_decodeObject(response));
+  }
+
   Future<InvestmentPriceImportResult> syncBrokerHoldingsPriceImport(
     SyncOperation operation,
   ) {
@@ -658,6 +669,9 @@ class AccountingApiClient {
     }
     if (request.source == 'geojit_holdings_csv') {
       return importGeojitHoldingsPrices(request);
+    }
+    if (request.source == 'iiflsecurities_holdings_csv') {
+      return importIIFLSecuritiesHoldingsPrices(request);
     }
     return importBrokerHoldingsPrices(request);
   }
