@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,6 +25,40 @@ func TestVerifyPayloadSHA256(t *testing.T) {
 	}
 	if err := verifyPayloadSHA256(payload, strings.Repeat("0", 64)); err == nil {
 		t.Fatalf("verifyPayloadSHA256() error = nil, want mismatch")
+	}
+}
+
+func TestLoadExpectedSHA256(t *testing.T) {
+	dir := t.TempDir()
+	checksumFile := filepath.Join(dir, "backup.json.sha256")
+	if err := os.WriteFile(checksumFile, []byte(strings.Repeat("a", 64)+"  backup.json\n"), 0o600); err != nil {
+		t.Fatalf("write checksum file: %v", err)
+	}
+
+	loaded, err := loadExpectedSHA256("", checksumFile)
+	if err != nil {
+		t.Fatalf("loadExpectedSHA256(file) error = %v", err)
+	}
+	if loaded != strings.Repeat("a", 64) {
+		t.Fatalf("loaded checksum = %q, want sidecar checksum", loaded)
+	}
+
+	loaded, err = loadExpectedSHA256(strings.Repeat("b", 64), checksumFile)
+	if err != nil {
+		t.Fatalf("loadExpectedSHA256(inline) error = %v", err)
+	}
+	if loaded != strings.Repeat("b", 64) {
+		t.Fatalf("loaded checksum = %q, want inline checksum to win", loaded)
+	}
+}
+
+func TestLoadExpectedSHA256RejectsEmptyFile(t *testing.T) {
+	checksumFile := filepath.Join(t.TempDir(), "empty.sha256")
+	if err := os.WriteFile(checksumFile, []byte("\n"), 0o600); err != nil {
+		t.Fatalf("write checksum file: %v", err)
+	}
+	if _, err := loadExpectedSHA256("", checksumFile); err == nil {
+		t.Fatalf("loadExpectedSHA256() error = nil, want empty-file error")
 	}
 }
 

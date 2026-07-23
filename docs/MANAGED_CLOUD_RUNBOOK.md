@@ -137,11 +137,12 @@ Current attachment and backup storage is local/mounted filesystem oriented. Atta
 Restore application JSON backups with:
 
 ```bash
+/app/restore -file /app/storage/backups/<backup-file>.json -sha256-file /app/storage/backups/<backup-file>.json.sha256 -dry-run
 /app/restore -file /app/storage/backups/<backup-file>.json -sha256 <expected-sha256> -dry-run
 /app/restore -file /app/storage/backups/<backup-file>.json
 ```
 
-Use `-sha256` with the recorded backup checksum when available. Use `-dry-run` first to parse and summarize the file without opening the database. The restore command refuses to overwrite an existing organization ID.
+Each application backup writes a `sha256sum`-style `.sha256` sidecar next to the JSON file, including mirrored copies. Prefer `-sha256-file`; use `-sha256` with the recorded backup checksum when a sidecar is not available. Use `-dry-run` first to parse and summarize the file without opening the database. The restore command refuses to overwrite an existing organization ID.
 
 ## Monitoring
 

@@ -29,6 +29,7 @@ go run ./cmd/migrate -direction=up
 Restore an organization export/backup into a database where that organization ID does not already exist:
 
 ```bash
+go run ./cmd/restore -file ./storage/backups/organization-<id>-backup-<timestamp>.json -sha256-file ./storage/backups/organization-<id>-backup-<timestamp>.json.sha256 -dry-run
 go run ./cmd/restore -file ./storage/backups/organization-<id>-backup-<timestamp>.json -sha256 <expected-sha256> -dry-run
 go run ./cmd/restore -file ./storage/backups/organization-<id>-backup-<timestamp>.json
 ```
@@ -116,7 +117,7 @@ The backend currently contains the first implementation slice:
 - Exchange-rate storage, base-currency ledger split support, and unrealized FX revaluation posting.
 - Fiscal year close posting to retained earnings.
 - Investment lots, specific-lot and average-cost sale tracking, GL sale posting, market prices, CSV/AMFI NAV/NSE/BSE/Yahoo/Alpha Vantage/broker-holdings imports, scheduled worker market-data file imports, valuation, tax-adjustment candidates, and realized gain/loss reporting.
-- Admin/Accountant organization JSON data export plus local backup snapshot endpoints for portable backups with optional checksum-verified mirror copies.
+- Admin/Accountant organization JSON data export plus local backup snapshot endpoints for portable backups with `.sha256` sidecars and optional checksum-verified mirror copies.
 - Cron-style background worker for due recurring invoice draft generation, scheduled local/mirrored backup snapshots, and optional scheduled investment market-data file imports.
 - Explicit migration CLI at `cmd/migrate`, restore CLI at `cmd/restore`, plus Docker/Compose deployment scaffolding for MySQL-backed API, worker, and React web with non-root app containers and dropped Linux capabilities.
 - Audit log service and audit log listing endpoint for key posting/reconciliation workflows.

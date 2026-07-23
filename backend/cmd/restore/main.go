@@ -20,6 +20,7 @@ import (
 func main() {
 	filePath := flag.String("file", "", "path to organization export or backup JSON")
 	expectedSHA256 := flag.String("sha256", "", "expected SHA-256 checksum for the restore file")
+	expectedSHA256File := flag.String("sha256-file", "", "path to a sha256sum-style checksum sidecar file")
 	dryRun := flag.Bool("dry-run", false, "parse and validate the restore file without writing to the database")
 	flag.Parse()
 	if *filePath == "" {
@@ -30,7 +31,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("read restore file: %v", err)
 	}
-	if err := verifyPayloadSHA256(payload, *expectedSHA256); err != nil {
+	expectedChecksum, err := loadExpectedSHA256(*expectedSHA256, *expectedSHA256File)
+	if err != nil {
+		log.Fatalf("load restore file checksum: %v", err)
+	}
+	if err := verifyPayloadSHA256(payload, expectedChecksum); err != nil {
 		log.Fatalf("verify restore file checksum: %v", err)
 	}
 
@@ -82,6 +87,26 @@ func main() {
 		slog.Int("payroll_runs", result.PayrollRuns),
 		slog.Int("investment_lots", result.InvestmentLots),
 	)
+}
+
+func loadExpectedSHA256(inline string, checksumFile string) (string, error) {
+	inline = strings.TrimSpace(inline)
+	if inline != "" {
+		return inline, nil
+	}
+	checksumFile = strings.TrimSpace(checksumFile)
+	if checksumFile == "" {
+		return "", nil
+	}
+	payload, err := os.ReadFile(checksumFile)
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Fields(string(payload))
+	if len(fields) == 0 {
+		return "", fmt.Errorf("checksum file %s is empty", checksumFile)
+	}
+	return fields[0], nil
 }
 
 func verifyPayloadSHA256(payload []byte, expected string) error {

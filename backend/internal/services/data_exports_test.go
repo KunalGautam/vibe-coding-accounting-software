@@ -198,6 +198,9 @@ func TestDataExportServiceCreateBackupSnapshotPrunesRetention(t *testing.T) {
 	if _, err := os.Stat(first.StoragePath); err != nil {
 		t.Fatalf("expected first backup file to exist: %v", err)
 	}
+	if _, err := os.Stat(first.StoragePath + ".sha256"); err != nil {
+		t.Fatalf("expected first backup checksum file to exist: %v", err)
+	}
 
 	second, err := service.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
 		OrganizationID: org.ID,
@@ -210,6 +213,9 @@ func TestDataExportServiceCreateBackupSnapshotPrunesRetention(t *testing.T) {
 	if _, err := os.Stat(second.StoragePath); err != nil {
 		t.Fatalf("expected second backup file to exist: %v", err)
 	}
+	if _, err := os.Stat(second.StoragePath + ".sha256"); err != nil {
+		t.Fatalf("expected second backup checksum file to exist: %v", err)
+	}
 
 	snapshots, err := service.ListBackupSnapshots(ctx, org.ID)
 	if err != nil {
@@ -220,6 +226,9 @@ func TestDataExportServiceCreateBackupSnapshotPrunesRetention(t *testing.T) {
 	}
 	if _, err := os.Stat(first.StoragePath); !os.IsNotExist(err) {
 		t.Fatalf("expected first backup file to be pruned, stat error = %v", err)
+	}
+	if _, err := os.Stat(first.StoragePath + ".sha256"); !os.IsNotExist(err) {
+		t.Fatalf("expected first backup checksum file to be pruned, stat error = %v", err)
 	}
 }
 
@@ -247,6 +256,9 @@ func TestDataExportServiceCreateBackupSnapshotMirrorsAndPrunesRetention(t *testi
 	if _, err := os.Stat(firstMirrorPath); err != nil {
 		t.Fatalf("expected first mirrored backup file to exist: %v", err)
 	}
+	if _, err := os.Stat(firstMirrorPath + ".sha256"); err != nil {
+		t.Fatalf("expected first mirrored backup checksum file to exist: %v", err)
+	}
 
 	second, err := service.CreateBackupSnapshot(ctx, CreateBackupSnapshotInput{
 		OrganizationID: org.ID,
@@ -261,8 +273,14 @@ func TestDataExportServiceCreateBackupSnapshotMirrorsAndPrunesRetention(t *testi
 	if _, err := os.Stat(secondMirrorPath); err != nil {
 		t.Fatalf("expected second mirrored backup file to exist: %v", err)
 	}
+	if _, err := os.Stat(secondMirrorPath + ".sha256"); err != nil {
+		t.Fatalf("expected second mirrored backup checksum file to exist: %v", err)
+	}
 	if _, err := os.Stat(firstMirrorPath); !os.IsNotExist(err) {
 		t.Fatalf("expected first mirrored backup file to be pruned, stat error = %v", err)
+	}
+	if _, err := os.Stat(firstMirrorPath + ".sha256"); !os.IsNotExist(err) {
+		t.Fatalf("expected first mirrored backup checksum file to be pruned, stat error = %v", err)
 	}
 }
 

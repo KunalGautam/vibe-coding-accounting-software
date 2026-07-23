@@ -110,9 +110,14 @@ func (s DataExportService) CreateBackupSnapshot(ctx context.Context, input Creat
 		return domain.BackupSnapshot{}, err
 	}
 	sum := sha256.Sum256(payload)
+	sumHex := hex.EncodeToString(sum[:])
+	if err := writeBackupChecksumFile(fullPath, fileName, sumHex); err != nil {
+		removeBackupFiles(fullPath)
+		return domain.BackupSnapshot{}, err
+	}
 	if input.MirrorPath != "" {
 		if err := mirrorBackupFile(input.MirrorPath, fileName, payload, sum[:]); err != nil {
-			_ = os.Remove(fullPath)
+			removeBackupFiles(fullPath)
 			return domain.BackupSnapshot{}, err
 		}
 	}
@@ -122,14 +127,14 @@ func (s DataExportService) CreateBackupSnapshot(ctx context.Context, input Creat
 		FileName:       fileName,
 		StoragePath:    fullPath,
 		SizeBytes:      int64(len(payload)),
-		SHA256:         hex.EncodeToString(sum[:]),
+		SHA256:         sumHex,
 		Status:         "completed",
 		CompletedAt:    &now,
 	}
 	if err := s.db.WithContext(ctx).Create(&snapshot).Error; err != nil {
-		_ = os.Remove(fullPath)
+		removeBackupFiles(fullPath)
 		if input.MirrorPath != "" {
-			_ = os.Remove(filepath.Join(input.MirrorPath, fileName))
+			removeBackupFiles(filepath.Join(input.MirrorPath, fileName))
 		}
 		return domain.BackupSnapshot{}, err
 	}
@@ -155,10 +160,27 @@ func mirrorBackupFile(mirrorPath string, fileName string, payload []byte, expect
 	}
 	mirroredSHA := sha256.Sum256(mirroredPayload)
 	if !equalBytes(mirroredSHA[:], expectedSHA) {
-		_ = os.Remove(mirrorFile)
+		removeBackupFiles(mirrorFile)
 		return fmt.Errorf("mirrored backup checksum mismatch for %s", mirrorFile)
 	}
+	if err := writeBackupChecksumFile(mirrorFile, fileName, hex.EncodeToString(expectedSHA)); err != nil {
+		removeBackupFiles(mirrorFile)
+		return err
+	}
 	return nil
+}
+
+func writeBackupChecksumFile(filePath string, fileName string, sha256Hex string) error {
+	return os.WriteFile(backupChecksumPath(filePath), []byte(fmt.Sprintf("%s  %s\n", sha256Hex, fileName)), 0o600)
+}
+
+func backupChecksumPath(filePath string) string {
+	return filePath + ".sha256"
+}
+
+func removeBackupFiles(filePath string) {
+	_ = os.Remove(filePath)
+	_ = os.Remove(backupChecksumPath(filePath))
 }
 
 func equalBytes(left []byte, right []byte) bool {
@@ -397,9 +419,9 @@ func (s DataExportService) pruneBackups(ctx context.Context, organizationID stri
 		return err
 	}
 	for _, snapshot := range snapshots[retentionCount:] {
-		_ = os.Remove(snapshot.StoragePath)
+		removeBackupFiles(snapshot.StoragePath)
 		if mirrorPath != "" {
-			_ = os.Remove(filepath.Join(mirrorPath, snapshot.FileName))
+			removeBackupFiles(filepath.Join(mirrorPath, snapshot.FileName))
 		}
 		if err := s.db.WithContext(ctx).Delete(&snapshot).Error; err != nil {
 			return err
